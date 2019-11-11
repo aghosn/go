@@ -756,6 +756,9 @@ const (
 	ORETJMP // return to other function
 	OGETG   // runtime.getg() (read g pointer)
 
+	// @aghosn: node for the sandbox implementation
+	OSANDBOX // corresponds to the sandbox keyword
+
 	OEND
 )
 
