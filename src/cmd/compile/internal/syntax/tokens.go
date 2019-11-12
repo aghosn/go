@@ -66,6 +66,9 @@ const (
 	_Type        // type
 	_Var         // var
 
+	// @aghosn adding token for sandbox
+	_Sandbox
+
 	// empty line comment to exclude it from .String
 	tokenCount //
 )
