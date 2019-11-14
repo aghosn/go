@@ -279,6 +279,12 @@ type (
 		expr
 	}
 
+	FuncSandbox struct {
+		Config  []Expr
+		Funclit *FuncLit
+		expr
+	}
+
 	// map[Key]Value
 	MapType struct {
 		Key, Value Expr

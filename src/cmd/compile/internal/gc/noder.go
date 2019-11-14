@@ -625,6 +625,13 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		return p.nod(expr.Key, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		return p.funcLit(expr)
+
+	// @aghosn for the moment we might just generate an OCALL.
+	case *syntax.FuncSandbox:
+		n := p.nod(expr, OSANDBOX, p.expr(expr.Funclit), nil)
+		n.List.Set(p.exprs(expr.Config))
+		return n
+
 	case *syntax.ParenExpr:
 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
 	case *syntax.SelectorExpr:

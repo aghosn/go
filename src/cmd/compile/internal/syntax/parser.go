@@ -397,6 +397,10 @@ func (p *parser) fileOrNil() *File {
 				f.DeclList = append(f.DeclList, d)
 			}
 
+		// @aghosn parsing top-level sandboxes.
+		case _Sandbox:
+			p.syntaxError("sandbox cannot be used as a top-level declaration")
+
 		default:
 			if p.tok == _Lbrace && len(f.DeclList) > 0 && isEmptyFuncDecl(f.DeclList[len(f.DeclList)-1]) {
 				// opening { of function declaration on next line
@@ -863,6 +867,29 @@ func (p *parser) operand(keep_parens bool) Expr {
 		}
 		return t
 
+	// @aghosn parsing a sandbox(mem, sys)(){} expression
+	case _Sandbox:
+		pos := p.pos()
+		p.next()
+		sand := p.funcSandbox()
+		// Parse the closure type
+		ft := p.funcType()
+		// Parse the mandatory body for the function
+		if p.tok != _Lbrace {
+			p.syntaxError("expecting {")
+		}
+		p.xnest++
+
+		f := new(FuncLit)
+		f.pos = pos
+		f.Type = ft
+		f.Body = p.funcBody()
+
+		p.xnest--
+		sand.Funclit = f
+		// We don't need to parse the call, it will translate into a callExpr
+		return sand
+
 	case _Lbrack, _Chan, _Map, _Struct, _Interface:
 		return p.type_() // othertype
 
@@ -1133,6 +1160,9 @@ func (p *parser) typeOrNil() Expr {
 		p.next()
 		return p.funcType()
 
+	case _Sandbox:
+		p.syntaxError("sandbox cannot be used to define a type yet")
+
 	case _Lbrack:
 		// '[' oexpr ']' ntype
 		// '[' _DotDotDot ']' ntype
@@ -1211,6 +1241,25 @@ func (p *parser) funcType() *FuncType {
 	typ.ResultList = p.funcResult()
 
 	return typ
+}
+
+func (p *parser) funcSandbox() *FuncSandbox {
+	if trace {
+		defer p.trace("sandboxType")()
+	}
+
+	fs := new(FuncSandbox)
+	fs.pos = p.pos()
+
+	// Parse ["mem", "sys"], TODO(aghosn) see if I can parse it as list.
+	p.want(_Lbrack)
+	memory := p.oliteral()
+	p.want(_Comma)
+	syscalls := p.oliteral()
+	p.want(_Rbrack)
+	fs.Config = []Expr{memory, syscalls}
+
+	return fs
 }
 
 func (p *parser) chanElem() Expr {
@@ -1476,6 +1525,8 @@ func (p *parser) paramDeclOrNil() *Field {
 			// sym name_or_type
 			f.Type = p.type_()
 
+		case _Sandbox:
+			p.syntaxError("sandbox cannot be used as a parameter type yet")
 		case _DotDotDot:
 			// sym dotdotdot
 			f.Type = p.dotsType()
@@ -1490,6 +1541,9 @@ func (p *parser) paramDeclOrNil() *Field {
 	case _Arrow, _Star, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
 		// name_or_type
 		f.Type = p.type_()
+
+	case _Sandbox:
+		p.syntaxError("sandbox cannot be used as parameter type yet")
 
 	case _DotDotDot:
 		// dotdotdot
@@ -2075,9 +2129,11 @@ func (p *parser) stmtOrNil() Stmt {
 			return p.simpleStmt(nil, 0) // unary operators
 		}
 
+	// @aghosn parsing sandbox as a simpleStmt
 	case _Literal, _Func, _Lparen, // operands
 		_Lbrack, _Struct, _Map, _Chan, _Interface, // composite types
-		_Arrow: // receive operator
+		_Arrow, // receive operator
+		_Sandbox:
 		return p.simpleStmt(nil, 0)
 
 	case _For:
