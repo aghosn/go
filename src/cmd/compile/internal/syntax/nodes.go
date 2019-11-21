@@ -279,9 +279,8 @@ type (
 		expr
 	}
 
-	FuncSandbox struct {
-		Config  []Expr
-		Funclit *FuncLit
+	SandboxConfig struct {
+		Stmts []Stmt
 		expr
 	}
 

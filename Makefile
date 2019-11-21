@@ -3,8 +3,8 @@ NAME=gosb
 all: $(NAME)
 
 $(NAME):
-	sh clean.sh
 	sh compile.sh
+	sh clean.sh
 	sh install.sh
 
 .PHONY: clean

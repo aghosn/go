@@ -871,24 +871,24 @@ func (p *parser) operand(keep_parens bool) Expr {
 	case _Sandbox:
 		pos := p.pos()
 		p.next()
-		sand := p.funcSandbox()
+		sand := p.sandboxConfig()
 		// Parse the closure type
 		ft := p.funcType()
 		// Parse the mandatory body for the function
 		if p.tok != _Lbrace {
 			p.syntaxError("expecting {")
 		}
-		p.xnest++
 
+		p.xnest++
 		f := new(FuncLit)
 		f.pos = pos
 		f.Type = ft
 		f.Body = p.funcBody()
-
 		p.xnest--
-		sand.Funclit = f
-		// We don't need to parse the call, it will translate into a callExpr
-		return sand
+
+		// @aghosn, add the sandbox lines here
+		f.Body.List = append(sand.Stmts, f.Body.List...)
+		return f
 
 	case _Lbrack, _Chan, _Map, _Struct, _Interface:
 		return p.type_() // othertype
@@ -1243,12 +1243,13 @@ func (p *parser) funcType() *FuncType {
 	return typ
 }
 
-func (p *parser) funcSandbox() *FuncSandbox {
+//TODO(aghosn) generate the calls directly here.
+func (p *parser) sandboxConfig() *SandboxConfig {
 	if trace {
 		defer p.trace("sandboxType")()
 	}
 
-	fs := new(FuncSandbox)
+	fs := new(SandboxConfig)
 	fs.pos = p.pos()
 
 	// Parse ["mem", "sys"], TODO(aghosn) see if I can parse it as list.
@@ -1257,9 +1258,30 @@ func (p *parser) funcSandbox() *FuncSandbox {
 	p.want(_Comma)
 	syscalls := p.oliteral()
 	p.want(_Rbrack)
-	fs.Config = []Expr{memory, syscalls}
+	config := []Expr{memory, syscalls}
 
+	//call to preinit, replace with constant from somewhere.
+	prolog := sandboxGenerateCall("runtime.sandbox_prolog", config)
+	prologStmt := new(ExprStmt)
+	prologStmt.X = prolog
+
+	epilog_call := sandboxGenerateCall("runtime.sandbox_epilog", config)
+	epilogStmt := new(CallStmt)
+	epilogStmt.Tok = _Defer
+	epilogStmt.Call = epilog_call
+	fs.Stmts = []Stmt{prologStmt, epilogStmt}
 	return fs
+}
+
+func sandboxGenerateCall(name string, args []Expr) *CallExpr {
+	pname := new(Name)
+	pname.Value = name
+
+	pcall := new(CallExpr)
+	pcall.Fun = pname
+	pcall.ArgList = args
+	pcall.HasDots = false
+	return pcall
 }
 
 func (p *parser) chanElem() Expr {

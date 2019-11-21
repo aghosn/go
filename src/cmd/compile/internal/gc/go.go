@@ -283,6 +283,10 @@ var (
 	staticbytes,
 	zerobase *Node
 
+	// @aghosn sandbox calls
+	sandbox_prolog,
+	sandbox_epilog,
+
 	assertE2I,
 	assertE2I2,
 	assertI2I,

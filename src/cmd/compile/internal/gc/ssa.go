@@ -62,6 +62,10 @@ func initssaconfig() {
 	ssaConfig.Race = flag_race
 	ssaCaches = make([]ssa.Cache, nBackendWorkers)
 
+	// @aghosn set up sandbox runtime functions we'll need to call.
+	sandbox_prolog = sysfunc("sandbox_prolog")
+	sandbox_epilog = sysfunc("sandbox_epilog")
+
 	// Set up some runtime functions we'll need to call.
 	assertE2I = sysfunc("assertE2I")
 	assertE2I2 = sysfunc("assertE2I2")

@@ -626,11 +626,12 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 	case *syntax.FuncLit:
 		return p.funcLit(expr)
 
-	// @aghosn for the moment we might just generate an OCALL.
-	case *syntax.FuncSandbox:
-		n := p.nod(expr, OSANDBOX, p.expr(expr.Funclit), nil)
-		n.List.Set(p.exprs(expr.Config))
-		return n
+	// @aghosn this is where we revert sandbox(closure) into closure(sandbox).
+	//	case *syntax.FuncSandbox:
+	//		sb := p.nod(expr, OSANDBOX, p.expr(expr.Config[0]), p.expr(expr.Config[1]))
+	//		n := p.funcLit(expr.Funclit)
+	//		n.Nbody.Set(append([]*Node{sb}, *n.Nbody.slice...))
+	//		return n
 
 	case *syntax.ParenExpr:
 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
