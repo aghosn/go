@@ -222,7 +222,6 @@ func typecheck(n *Node, top int) (res *Node) {
 		n = n.Left
 	}
 
-	// Resolve definition of name and value of iota lazily.
 	n = resolve(n)
 
 	// Skip typecheck if already done.
@@ -1246,16 +1245,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 
-		if n.Left != nil && n.Left.Op == OSANDBOX {
-			//TODO(aghosn) change this afterwards
-			ml := n.Left.Left
-			if n.Left.Right != nil {
-				panic("Okay there is something here that I did not expect")
-			}
-			mr := n.Right
-			n.Left = ml
-			n.Right = mr
-		}
 		n.Left = defaultlit(n.Left, nil)
 		l = n.Left
 		if l.Op == OTYPE {
@@ -1855,15 +1844,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 		if n.Type == nil {
 			return n
 		}
-
-	//TODO(aghosn): Parse the sandbox itself too.
-	case OSANDBOX:
-		ok |= ctxExpr
-		typecheckclosure(n.Left, top)
-		if n.Left.Type == nil {
-			return n.Left
-		}
-		n.Type = n.Left.Type
 
 	case OITAB:
 		ok |= ctxExpr

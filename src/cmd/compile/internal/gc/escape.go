@@ -570,23 +570,6 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 			e.expr(k.note(n, "captured by a closure"), v.Name.Defn)
 		}
 
-	case OSANDBOX:
-		fl := n.Left
-		if fl == nil || fl.Op != OCLOSURE {
-			Fatalf("unexpected sandbox without closure")
-		}
-		k = e.spill(k, fl)
-		for _, v := range fl.Func.Closure.Func.Cvars.Slice() {
-			if v.Op == OXXX {
-				continue
-			}
-			k := k
-			if !v.Name.Byval() {
-				k = k.addr(v, "reference")
-			}
-			e.expr(k.note(fl, "captured by a closure"), v.Name.Defn)
-		}
-
 	case ORUNES2STR, OBYTES2STR, OSTR2RUNES, OSTR2BYTES, ORUNESTR:
 		e.spill(k, n)
 		e.discard(n.Left)
@@ -707,13 +690,6 @@ func (e *Escape) assign(dst, src *Node, why string, where *Node) {
 		Warnl(where.Pos, "%v ignoring self-assignment in %S", funcSym(e.curfn), where)
 	}
 
-	if src != nil && src.Op == OSANDBOX {
-		if src.Type == nil {
-			panic("Okay so we got the sandbox")
-		} else {
-			fmt.Println("We got a type for the sandbox")
-		}
-	}
 	k := e.addr(dst)
 	if dst != nil && dst.Op == ODOTPTR && isReflectHeaderDataField(dst) {
 		e.unsafeValue(e.heapHole(), src)

@@ -1,9 +1,9 @@
 package runtime
 
 func sandbox_prolog(mem string, syscalls string) {
-	panic("I'm in the prolog")
+	println("SB: prolog")
 }
 
 func sandbox_epilog(mem string, syscall string) {
-	panic("I'm in the epilog")
+	println("SB: epilog")
 }

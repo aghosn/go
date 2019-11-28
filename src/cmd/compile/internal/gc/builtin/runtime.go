@@ -14,6 +14,10 @@ package runtime
 
 import "unsafe"
 
+// @aghosn sandbox calls
+func sandbox_prolog(mem string, sys string)
+func sandbox_epilog(mem string, sys string)
+
 func newobject(typ *byte) *any
 func panicdivide()
 func panicshift()

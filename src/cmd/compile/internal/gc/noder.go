@@ -600,6 +600,9 @@ func (p *noder) exprs(exprs []syntax.Expr) []*Node {
 func (p *noder) expr(expr syntax.Expr) *Node {
 	p.setlineno(expr)
 	switch expr := expr.(type) {
+	//@aghosn for the sandbox
+	case *syntax.SBInternal:
+		return syslook(expr.Value)
 	case nil, *syntax.BadExpr:
 		return nil
 	case *syntax.Name:
@@ -625,14 +628,6 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		return p.nod(expr.Key, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
 	case *syntax.FuncLit:
 		return p.funcLit(expr)
-
-	// @aghosn this is where we revert sandbox(closure) into closure(sandbox).
-	//	case *syntax.FuncSandbox:
-	//		sb := p.nod(expr, OSANDBOX, p.expr(expr.Config[0]), p.expr(expr.Config[1]))
-	//		n := p.funcLit(expr.Funclit)
-	//		n.Nbody.Set(append([]*Node{sb}, *n.Nbody.slice...))
-	//		return n
-
 	case *syntax.ParenExpr:
 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
 	case *syntax.SelectorExpr:

@@ -135,6 +135,12 @@ type (
 		expr
 	}
 
+	// @aghosn Value that represents a sandbox intrinsict call
+	SBInternal struct {
+		Value string
+		expr
+	}
+
 	// Value
 	BasicLit struct {
 		Value string
@@ -276,11 +282,6 @@ type (
 	FuncType struct {
 		ParamList  []*Field
 		ResultList []*Field
-		expr
-	}
-
-	SandboxConfig struct {
-		Stmts []Stmt
 		expr
 	}
 
