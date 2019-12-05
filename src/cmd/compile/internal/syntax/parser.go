@@ -888,6 +888,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 
 		// @aghosn, add the sandbox lines here
 		f.Body.List = append(sbconfig, f.Body.List...)
+		f.IsSandbox = true
 		return f
 
 	case _Lbrack, _Chan, _Map, _Struct, _Interface:

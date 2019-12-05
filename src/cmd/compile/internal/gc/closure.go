@@ -23,6 +23,9 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 	clo := p.nod(expr, OCLOSURE, nil, nil)
 	clo.Func.Ntype = ntype
 
+	// @aghosn keep track of sandboxes
+	xfunc.IsSandbox = expr.IsSandbox
+
 	xfunc.Func.Closure = clo
 	clo.Func.Closure = xfunc
 

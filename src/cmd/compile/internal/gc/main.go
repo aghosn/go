@@ -713,6 +713,9 @@ func Main(archInit func(*Arch)) {
 		nowritebarrierrecCheck = nil
 	}
 
+	// @aghosn let's see if we catch them now.
+	registerSandboxes(xtop)
+
 	// Finalize DWARF inline routine DIEs, then explicitly turn off
 	// DWARF inlining gen so as to avoid problems with generated
 	// method wrappers.

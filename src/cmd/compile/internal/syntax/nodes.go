@@ -166,8 +166,9 @@ type (
 
 	// func Type { Body }
 	FuncLit struct {
-		Type *FuncType
-		Body *BlockStmt
+		Type      *FuncType
+		Body      *BlockStmt
+		IsSandbox bool
 		expr
 	}
 
