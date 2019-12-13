@@ -72,6 +72,12 @@ func dumpobj1(outfile string, mode int) {
 		dumpLinkerObj(bout)
 		finishArchiveEntry(bout, start, "_go_.o")
 	}
+	// Dump the sandboxes
+	if len(sandboxes) > 0 {
+		start := startArchiveEntry(bout)
+		dumpSandObj(bout)
+		finishArchiveEntry(bout, start, "__.SANDBOX")
+	}
 }
 
 func printObjHeader(bout *bio.Writer) {

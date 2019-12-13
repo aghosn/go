@@ -24,7 +24,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
 	clo.Func.Ntype = ntype
 
 	// @aghosn keep track of sandboxes
-	xfunc.IsSandbox = expr.IsSandbox
+	xfunc.IsSandbox, xfunc.Mem, xfunc.Sys = expr.IsSandbox, expr.Mem, expr.Sys
 
 	xfunc.Func.Closure = clo
 	clo.Func.Closure = xfunc

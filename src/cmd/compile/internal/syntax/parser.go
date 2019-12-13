@@ -871,7 +871,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 	case _Sandbox:
 		pos := p.pos()
 		p.next()
-		sbconfig := p.sandboxConfig()
+		mem, sys, sbconfig := p.sandboxConfig()
 		// Parse the closure type
 		ft := p.funcType()
 		// Parse the mandatory body for the function
@@ -889,6 +889,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 		// @aghosn, add the sandbox lines here
 		f.Body.List = append(sbconfig, f.Body.List...)
 		f.IsSandbox = true
+		f.Mem, f.Sys = mem, sys
 		return f
 
 	case _Lbrack, _Chan, _Map, _Struct, _Interface:
@@ -1245,7 +1246,7 @@ func (p *parser) funcType() *FuncType {
 }
 
 //TODO(aghosn) generate the calls directly here.
-func (p *parser) sandboxConfig() []Stmt {
+func (p *parser) sandboxConfig() (string, string, []Stmt) {
 	if trace {
 		defer p.trace("sandboxType")()
 	}
@@ -1271,7 +1272,7 @@ func (p *parser) sandboxConfig() []Stmt {
 	epilogStmt.Tok = _Defer
 	epilogStmt.Call = epilog_call
 	epilogStmt.pos = pos
-	return []Stmt{prologStmt, epilogStmt}
+	return memory.Value, syscalls.Value, []Stmt{prologStmt, epilogStmt}
 }
 
 func sandboxGenerateCall(name string, args []Expr) *CallExpr {

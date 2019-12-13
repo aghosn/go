@@ -61,7 +61,11 @@ type Node struct {
 	Op  Op
 	aux uint8
 
-	IsSandbox bool // @aghosn keep track of sandboxes
+	// @aghosn keep track of sandboxes and their configuration
+	// So that we do not have to parse the body of the function again.
+	IsSandbox bool
+	Mem       string
+	Sys       string
 }
 
 func (n *Node) ResetAux() {

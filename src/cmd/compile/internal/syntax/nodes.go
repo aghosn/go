@@ -166,9 +166,12 @@ type (
 
 	// func Type { Body }
 	FuncLit struct {
-		Type      *FuncType
-		Body      *BlockStmt
+		Type *FuncType
+		Body *BlockStmt
+		// @aghosn values for the sandbox
 		IsSandbox bool
+		Mem       string
+		Sys       string
 		expr
 	}
 

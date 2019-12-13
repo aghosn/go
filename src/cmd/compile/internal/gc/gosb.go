@@ -2,6 +2,8 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/bio"
+	"fmt"
 )
 
 type Pkg = types.Pkg
@@ -10,26 +12,30 @@ type PkgSet = map[*Pkg]bool
 
 var sandboxes []*Node
 
-var spoiledPackages PkgSet
+var sandboxToPkgs map[*Node][]*Pkg
 
-func addPackages(packages []*Pkg) {
-	for _, p := range packages {
-		spoiledPackages[p] = true
+const SandboxHeader = "go sandboxes"
+
+func (n *Node) SandboxName() string {
+	if !n.IsSandbox || n.Op != ODCLFUNC || n.Func == nil || n.Func.Nname == nil {
+		panic("Unable to get sandbox name")
 	}
+	return fmt.Sprintf("%v", n.Func.Nname)
 }
 
 func registerSandboxes(top []*Node) {
-	if spoiledPackages == nil {
-		spoiledPackages = make(PkgSet)
+	if sandboxToPkgs == nil {
+		sandboxToPkgs = make(map[*Node][]*Pkg)
 	}
 	for _, v := range top {
 		if v.Op == ODCLFUNC && v.IsSandbox {
 			sandboxes = append(sandboxes, v)
+			pkgs := gatherPackages(v)
+			if _, ok := sandboxToPkgs[v]; ok {
+				panic("Sandbox appears twice as a DCLFUNC")
+			}
+			sandboxToPkgs[v] = pkgs
 		}
-	}
-	for _, v := range sandboxes {
-		pkgs := gatherPackages(v)
-		addPackages(pkgs)
 	}
 }
 
@@ -113,3 +119,62 @@ func getPackage(n *Node) *Pkg {
 	//or do not need to handle the node.
 	return nil
 }
+
+// dumpSandObj dumps sandbox information inside the archive.
+func dumpSandObj(bout *bio.Writer) {
+	printSandObjHeader(bout)
+	dumpSandboxes(bout)
+}
+
+// printSandObjHeader writes the go sandboxes header, that for the moment
+// contains only the number of entries.
+func printSandObjHeader(bout *bio.Writer) {
+	fmt.Fprintf(bout, "\n%v\n", SandboxHeader)
+	fmt.Fprintf(bout, "%v\n", len(sandboxes))
+	bout.Flush()
+}
+
+// dumpSandboxes dumps all the sandboxes.
+func dumpSandboxes(bout *bio.Writer) {
+	for _, s := range sandboxes {
+		dumpSandbox(s, bout)
+	}
+}
+
+// dumpSandbox writes a sandbox information to the object file.
+func dumpSandbox(s *Node, bout *bio.Writer) {
+	// Sanity checks
+	if s == nil || !s.IsSandbox || len(s.Mem) == 0 || len(s.Sys) == 0 {
+		panic("Malformed sandbox")
+	}
+	if _, ok := sandboxToPkgs[s]; !ok {
+		panic("Missing package information for sandbox")
+	}
+	// dump the sandbox symbol.
+	fmt.Fprintf(bout, "%v\n", s.SandboxName())
+	// dump the sandbox configuration
+	fmt.Fprintf(bout, "%v;%v\n", s.Mem, s.Sys)
+	// dump package dependencies
+	pkgs, _ := sandboxToPkgs[s]
+	fmt.Fprintf(bout, "%v\n", len(pkgs))
+	for _, p := range pkgs {
+		// TODO(aghosn) should we use the path instead?
+		fmt.Fprintf(bout, "%v\n", p.Name)
+	}
+}
+
+// TODO(aghosn) remove afterwards
+//func copyFile(bout *bio.Writer) {
+//	bout.Flush()
+//	orig, err := os.Open(bout.File().Name())
+//	if err != nil {
+//		panic(err)
+//	}
+//	cpy, err := os.Create("/tmp/my_dumpy_dump")
+//	if err != nil {
+//		panic(err)
+//	}
+//	io.Copy(cpy, orig)
+//	orig.Close()
+//	cpy.Close()
+//}
