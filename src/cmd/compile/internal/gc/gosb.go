@@ -14,7 +14,10 @@ var sandboxes []*Node
 
 var sandboxToPkgs map[*Node][]*Pkg
 
-const SandboxHeader = "go sandboxes"
+const (
+	SandboxHeader = "\xeegosandx"
+	SandboxFooter = "\xefgosandx"
+)
 
 func (n *Node) SandboxName() string {
 	if !n.IsSandbox || n.Op != ODCLFUNC || n.Func == nil || n.Func.Nname == nil {
@@ -124,13 +127,20 @@ func getPackage(n *Node) *Pkg {
 func dumpSandObj(bout *bio.Writer) {
 	printSandObjHeader(bout)
 	dumpSandboxes(bout)
+	printSandObjFooter(bout)
 }
 
 // printSandObjHeader writes the go sandboxes header, that for the moment
 // contains only the number of entries.
 func printSandObjHeader(bout *bio.Writer) {
-	fmt.Fprintf(bout, "\n%v\n", SandboxHeader)
+	fmt.Fprintf(bout, "%v\n", SandboxHeader)
 	fmt.Fprintf(bout, "%v\n", len(sandboxes))
+	bout.Flush()
+}
+
+// printSandObjFooter footer for a sandbox object entry
+func printSandObjFooter(bout *bio.Writer) {
+	fmt.Fprintf(bout, "%v\n", SandboxFooter)
 	bout.Flush()
 }
 

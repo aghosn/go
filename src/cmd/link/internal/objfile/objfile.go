@@ -27,8 +27,10 @@ import (
 )
 
 const (
-	startmagic = "\x00go114ld"
-	endmagic   = "\xffgo114ld"
+	startmagic    = "\x00go114ld"
+	endmagic      = "\xffgo114ld"
+	sandboxheader = "\xeegosandx\n"
+	sandboxfooter = "\xefgosandx\n"
 )
 
 var emptyPkg = []byte(`"".`)
@@ -184,6 +186,8 @@ func (r *objReader) loadObjFile() {
 	if string(buf[:]) != endmagic {
 		log.Fatalf("%s: invalid file end", r.pn)
 	}
+	// Check if there is more to read, if not, return
+	readSandboxObj(r.rd.File().Name())
 }
 
 func (r *objReader) readSlices() {
