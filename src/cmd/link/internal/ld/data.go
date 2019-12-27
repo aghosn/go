@@ -37,6 +37,7 @@ import (
 	"cmd/internal/gcprog"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"compress/zlib"
 	"encoding/binary"
@@ -2042,6 +2043,11 @@ func (ctxt *Link) textaddress() {
 	sect.Vaddr = va
 	ntramps := 0
 	for _, s := range ctxt.Textp {
+		if len(objfile.Sandboxes) > 0 {
+			if _, ok := objfile.SegregatedPkgs[s.File]; ok {
+				fmt.Println("Found a pacakge ", s.File, s.Name)
+			}
+		}
 		sect, n, va = assignAddress(ctxt, sect, n, s, va, false)
 
 		trampoline(ctxt, s) // resolve jumps, may add trampolines if jump too far

@@ -7,15 +7,15 @@ import (
 )
 
 type SBObjEntry struct {
+	Func     string
 	Mem      string
 	Sys      string
-	Func     string
 	Packages []string
 }
 
 // Sandboxes we parsed by looking at object files
-var sandboxes []SBObjEntry
-var segregatedPkgs map[string]bool
+var Sandboxes []SBObjEntry
+var SegregatedPkgs map[string]bool
 
 func assert(cond bool, msg string) {
 	if !cond {
@@ -24,9 +24,9 @@ func assert(cond bool, msg string) {
 }
 
 func registerPackages(pkgs []string) {
-	assert(segregatedPkgs != nil, "Uninitialized segregatedPkgs!")
+	assert(SegregatedPkgs != nil, "Uninitialized SegregatedPkgs!")
 	for _, v := range pkgs {
-		segregatedPkgs[v] = true
+		SegregatedPkgs[v] = true
 	}
 }
 
@@ -56,17 +56,18 @@ func readSandboxObj(path string) {
 }
 
 func registerSandboxes(sbs []string) {
-	if segregatedPkgs == nil {
-		segregatedPkgs = make(map[string]bool)
+	if SegregatedPkgs == nil {
+		SegregatedPkgs = make(map[string]bool)
 	}
 	for _, v := range sbs {
-		content := strings.Split(v, "\n")
-		assert(len(content) > 0, "Empty sandbox entry")
-		size, err := strconv.Atoi(content[0])
+		contents := strings.Split(v, "\n")
+		assert(len(contents) > 0, "Empty sandbox entry")
+		size, err := strconv.Atoi(contents[0])
 		assert(err == nil, "error parsing initial size")
 		assert(size > 0, "Malformed sandbox entry")
-		content = content[1:]
+		contents = contents[1:]
 		for i := 0; i < size; i++ {
+			content := contents
 			name, content := content[0], content[1:]
 			assert(len(name) > 0, "Empty sandbox name")
 			config, content := strings.Split(content[0], ";"), content[1:]
@@ -75,8 +76,9 @@ func registerSandboxes(sbs []string) {
 			assert(err == nil, "Error parsing number of packages")
 			content = content[1:]
 			pkgs, content := content[:nbPkgs], content[nbPkgs:]
-			sandboxes = append(sandboxes, SBObjEntry{config[0], config[1], name, pkgs})
+			Sandboxes = append(Sandboxes, SBObjEntry{name, config[0], config[1], pkgs})
 			registerPackages(pkgs)
+			contents = content
 		}
 	}
 }

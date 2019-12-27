@@ -34,8 +34,10 @@ import (
 	"bufio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"runtime"
@@ -207,6 +209,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 	ctxt.loadlib()
 
+	//TODO(aghosn) Do we have the sandboxes?
+	if len(objfile.Sandboxes) > 0 {
+		fmt.Println(objfile.Sandboxes)
+	}
 	ctxt.dostrdata()
 	deadcode(ctxt)
 	dwarfGenerateDebugInfo(ctxt)
