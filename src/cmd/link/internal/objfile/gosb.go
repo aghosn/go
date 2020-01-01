@@ -13,6 +13,11 @@ type SBObjEntry struct {
 	Packages []string
 }
 
+const (
+	sandboxheader = "\xeegosandx\n"
+	sandboxfooter = "\xefgosandx\n"
+)
+
 // Sandboxes we parsed by looking at object files
 var Sandboxes []SBObjEntry
 var SegregatedPkgs map[string]bool

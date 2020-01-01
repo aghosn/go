@@ -27,10 +27,8 @@ import (
 )
 
 const (
-	startmagic    = "\x00go114ld"
-	endmagic      = "\xffgo114ld"
-	sandboxheader = "\xeegosandx\n"
-	sandboxfooter = "\xefgosandx\n"
+	startmagic = "\x00go114ld"
+	endmagic   = "\xffgo114ld"
 )
 
 var emptyPkg = []byte(`"".`)
