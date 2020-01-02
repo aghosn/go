@@ -2041,9 +2041,9 @@ func (ctxt *Link) textaddress() {
 	n := 1
 	sect.Vaddr = va
 	ntramps := 0
-	prev_sect := sect
+	var prev_sect *BlEntry = nil
 	for _, s := range ctxt.Textp {
-		sect, va = SectForPkg(ctxt, s, prev_sect, va)
+		prev_sect, va = SectForPkg(s, prev_sect, va)
 		sect, n, va = assignAddress(ctxt, sect, n, s, va, false)
 
 		trampoline(ctxt, s) // resolve jumps, may add trampolines if jump too far
@@ -2060,7 +2060,7 @@ func (ctxt *Link) textaddress() {
 	}
 
 	sect.Length = va - sect.Vaddr
-	sect = Segtext.Sections[0]
+	//sect = Segtext.Sections[0]
 	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
 
 	// merge tramps into Textp, keeping Textp in address order

@@ -1,23 +1,25 @@
 package ld
 
 import (
-	"cmd/internal/objabi"
 	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"fmt"
 )
 
-type BloatSegEntry struct {
-	Text   sym.Section
-	Rodata sym.Section
-	Data   sym.Section
+type BlEntry struct {
+	Text   uint64
+	TSize  uint64
+	Rodata uint64
+	RoSize uint64
+	Data   uint64
+	DSize  uint64
 }
 
-var PkgsBloat map[string]*sym.Section
+var PkgsBloat map[string]*BlEntry
 
 func initializePkgsBloat() {
 	if PkgsBloat == nil {
-		PkgsBloat = make(map[string]*sym.Section)
+		PkgsBloat = make(map[string]*BlEntry)
 	}
 	for k := range objfile.SegregatedPkgs {
 		PkgsBloat[k] = nil
@@ -50,31 +52,27 @@ func reorderTextSyms(ctxt *Link) {
 	ctxt.Textp = regtext
 }
 
-func SectForPkg(ctxt *Link, s *sym.Symbol, prev *sym.Section, va uint64) (*sym.Section, uint64) {
+func SectForPkg(s *sym.Symbol, prev *BlEntry, va uint64) (*BlEntry, uint64) {
 	if sect, ok := PkgsBloat[s.File]; ok {
 		if sect == nil {
-			sect = addsection(ctxt.Arch, &Segtext, ".text", 05)
-			sect.Align = int32(Funcalign)
-			text := ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%v", len(Segtext.Sections)-1), 0)
-			text.Sect = sect
-			if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
-				text.Align = sect.Align
-				text.Size = 0x8
-			}
-			prev.Length = va - sect.Vaddr
 			va = bloatAddress(va)
-			sect.Vaddr = va
+			sect = &BlEntry{}
+			sect.Text = va
 			PkgsBloat[s.File] = sect
-			fmt.Printf("Section for %v starts at %x\n", s.File, va)
+			if prev != nil {
+				prev.TSize = va - sect.Text
+			}
+			fmt.Printf("%v: %x\n", s.File, va)
 		}
-		//TODO(aghosn) it might work, but the logic should be slightly different here.
-		//The above switch between sects should be done if prev != sect
-		return sect, va
+		return prev, va
 	}
-	return Segtext.Sections[0], va
+	return nil, va
 }
 
 func bloatAddress(va uint64) uint64 {
+	if va%0x1000 == 0 {
+		return va
+	}
 	n := ((va / 0x1000) + 1) * 0x1000
 	return n
 }
