@@ -3,19 +3,45 @@ package ld
 import (
 	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
-	"fmt"
+	//	"fmt"
+	"sort"
+	"strings"
 )
 
 type BlEntry struct {
+	Mask   uint64
 	Text   uint64
 	TSize  uint64
 	Rodata uint64
-	RoSize uint64
+	RSize  uint64
 	Data   uint64
 	DSize  uint64
+	Bss    uint64
+	BSize  uint64
 }
 
+const (
+	TextS   = 0x1
+	RodataS = 0x2
+	DataS   = 0x4
+	BssS    = 0x6
+)
+
 var PkgsBloat map[string]*BlEntry
+
+func (b *BlEntry) Select(sel int) (*uint64, *uint64) {
+	switch sel {
+	case TextS:
+		return &b.Text, &b.TSize
+	case RodataS:
+		return &b.Rodata, &b.RSize
+	case DataS:
+		return &b.Data, &b.DSize
+	case BssS:
+		return &b.Bss, &b.BSize
+	}
+	return nil, nil
+}
 
 func initializePkgsBloat() {
 	if PkgsBloat == nil {
@@ -26,45 +52,48 @@ func initializePkgsBloat() {
 	}
 }
 
-func reorderTextSyms(ctxt *Link) {
-	// Fast exit if there are no sandboxes
-	if len(objfile.Sandboxes) > 0 {
-		return
+func reorderSymbols(syms []*sym.Symbol) []*sym.Symbol {
+	// Fast exit if there are no sandboxes.
+	if len(objfile.Sandboxes) == 0 {
+		return syms
 	}
-	regtext := make([]*sym.Symbol, 0)
-	maps := make(map[string][]*sym.Symbol)
-	// remove all the packages that have to be bloated
-	for _, s := range ctxt.Textp {
+	regSyms := make([]*sym.Symbol, 0)
+	sandSyms := make([]*sym.Symbol, 0)
+	for _, s := range syms {
 		if _, ok := PkgsBloat[s.File]; ok {
-			if l, ok1 := maps[s.File]; ok1 {
-				maps[s.File] = append(l, s)
-			} else {
-				maps[s.File] = []*sym.Symbol{s}
-			}
-			continue
+			sandSyms = append(sandSyms, s)
+		} else {
+			regSyms = append(regSyms, s)
 		}
-		regtext = append(regtext, s)
 	}
-	// Put back the elements inside the context.
-	for _, v := range maps {
-		regtext = append(regtext, v...)
-	}
-	ctxt.Textp = regtext
+	sort.Slice(regSyms, func(i, j int) bool {
+		return strings.Compare(regSyms[i].File, regSyms[j].File) == -1
+	})
+	sort.Slice(sandSyms, func(i, j int) bool {
+		return strings.Compare(sandSyms[i].File, sandSyms[j].File) == -1
+	})
+	return append(regSyms, sandSyms...)
 }
 
-func SectForPkg(s *sym.Symbol, prev *BlEntry, va uint64) (*BlEntry, uint64) {
-	if sect, ok := PkgsBloat[s.File]; ok {
-		if sect == nil {
-			va = bloatAddress(va)
-			sect = &BlEntry{}
-			sect.Text = va
-			PkgsBloat[s.File] = sect
-			if prev != nil {
-				prev.TSize = va - sect.Text
-			}
-			fmt.Printf("%v: %x\n", s.File, va)
+func SectForPkg(selector int, s *sym.Symbol, p *BlEntry, va uint64) (*BlEntry, uint64) {
+	// This package has to be bloated.
+	if entry, ok := PkgsBloat[s.File]; ok {
+		if entry == nil {
+			entry = &BlEntry{}
+			PkgsBloat[s.File] = entry
 		}
-		return prev, va
+		// The entry is missing
+		if entry.Mask&uint64(selector) == 0 {
+			entry.Mask |= uint64(selector)
+			va = bloatAddress(va)
+			target, _ := entry.Select(selector)
+			*target = va
+			if p != nil {
+				pStart, pSize := p.Select(selector)
+				*pSize = va - *pStart
+			}
+		}
+		return entry, va
 	}
 	return nil, va
 }

@@ -209,7 +209,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	//@aghosn initialize the bloated packages entries.
 	initializePkgsBloat()
-	reorderTextSyms(ctxt)
 
 	ctxt.dostrdata()
 	deadcode(ctxt)

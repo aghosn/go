@@ -1416,9 +1416,15 @@ func (ctxt *Link) dodata() {
 	ctxt.Syms.Lookup("runtime.edata", 0).Sect = sect
 	var gc GCProg
 	gc.Init(ctxt, "runtime.gcdata")
+	// @aghosn we reorder the symbols to allow packages to be grouped.
+	data[sym.SDATA] = reorderSymbols(data[sym.SDATA])
+	var bloat *BlEntry = nil
+	dsize := uint64(0)
 	for _, s := range data[sym.SDATA] {
 		s.Sect = sect
 		s.Type = sym.SDATA
+		bloat, dsize = SectForPkg(DataS, s, bloat, uint64(datsize))
+		datsize = int64(dsize)
 		datsize = aligndatsize(datsize, s)
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		gc.AddSym(s)
@@ -1446,8 +1452,14 @@ func (ctxt *Link) dodata() {
 	ctxt.Syms.Lookup("runtime.ebss", 0).Sect = sect
 	gc = GCProg{}
 	gc.Init(ctxt, "runtime.gcbss")
+	// @aghosn we reorder symbols
+	data[sym.SBSS] = reorderSymbols(data[sym.SBSS])
+	bloat = nil
+	dsize = 0
 	for _, s := range data[sym.SBSS] {
 		s.Sect = sect
+		bloat, dsize = SectForPkg(BssS, s, bloat, uint64(datsize))
+		datsize = int64(dsize)
 		datsize = aligndatsize(datsize, s)
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		gc.AddSym(s)
@@ -2009,6 +2021,9 @@ func (ctxt *Link) buildinfo() {
 
 // assign addresses to text
 func (ctxt *Link) textaddress() {
+	// @aghosn ensure that sandboxes are at the end.
+	ctxt.Textp = reorderSymbols(ctxt.Textp)
+
 	addsection(ctxt.Arch, &Segtext, ".text", 05)
 
 	// Assign PCs in text segment.
@@ -2041,9 +2056,9 @@ func (ctxt *Link) textaddress() {
 	n := 1
 	sect.Vaddr = va
 	ntramps := 0
-	var prev_sect *BlEntry = nil
+	var bloat *BlEntry = nil
 	for _, s := range ctxt.Textp {
-		prev_sect, va = SectForPkg(s, prev_sect, va)
+		bloat, va = SectForPkg(TextS, s, bloat, va)
 		sect, n, va = assignAddress(ctxt, sect, n, s, va, false)
 
 		trampoline(ctxt, s) // resolve jumps, may add trampolines if jump too far
@@ -2060,7 +2075,6 @@ func (ctxt *Link) textaddress() {
 	}
 
 	sect.Length = va - sect.Vaddr
-	//sect = Segtext.Sections[0]
 	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
 
 	// merge tramps into Textp, keeping Textp in address order
