@@ -76,6 +76,9 @@ func (b *Builder) Do(root *Action) {
 		a.priority = i
 	}
 
+	// @aghosn make sure the linker has all the information needed for transitive
+	// dependencies.
+	registerDependencies(root)
 	// Write action graph, without timing information, in case we fail and exit early.
 	writeActionGraph := func() {
 		if file := cfg.DebugActiongraph; file != "" {
@@ -1234,7 +1237,11 @@ func (b *Builder) writeLinkImportcfg(a *Action, file string) error {
 			fmt.Fprintf(&icfg, "packageshlib %s=%s\n", p1.ImportPath, p1.Shlib)
 		}
 	}
-	return b.writeFile(file, icfg.Bytes())
+	toWrite := icfg.Bytes()
+	if len(allDeps) > 0 {
+		toWrite = append(toWrite, allDeps...)
+	}
+	return b.writeFile(file, toWrite)
 }
 
 // PkgconfigCmd returns a pkg-config binary name

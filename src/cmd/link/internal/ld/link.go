@@ -83,6 +83,10 @@ type Link struct {
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 
+	// @aghosn information about package dependencies
+	PackageDecl map[string]int
+	PackageDeps map[int][]int
+
 	tramps []*sym.Symbol // trampolines
 
 	// unresolvedSymSet is a set of erroneous unresolved references.

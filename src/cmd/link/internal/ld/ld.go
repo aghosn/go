@@ -45,6 +45,8 @@ import (
 func (ctxt *Link) readImportCfg(file string) {
 	ctxt.PackageFile = make(map[string]string)
 	ctxt.PackageShlib = make(map[string]string)
+	ctxt.PackageDecl = make(map[string]int)
+	ctxt.PackageDeps = make(map[int][]int)
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-importcfg: %v", err)
@@ -83,6 +85,33 @@ func (ctxt *Link) readImportCfg(file string) {
 				log.Fatalf(`%s:%d: invalid packageshlib: syntax is "packageshlib path=filename"`, file, lineNum)
 			}
 			ctxt.PackageShlib[before] = after
+		case "packagedecl":
+			if before == "" || after == "" {
+				log.Fatalf(`%s:%d: invalid packagedecl: syntax is "packagedecl name=id"`, file, lineNum)
+			}
+			id, err := strconv.Atoi(after)
+			if err != nil {
+				panic(err.Error())
+			}
+			ctxt.PackageDecl[before] = id
+		case "packagedep":
+			if before == "" || after == "" {
+				log.Fatalf(`%s:%d: invalid packagedep: syntax is "packagedep name=id"`, file, lineNum)
+			}
+			id, err := strconv.Atoi(before)
+			if err != nil {
+				panic(err.Error())
+			}
+			deps := make([]int, 0)
+			sdeps := strings.Split(after, ",")
+			for _, s := range sdeps {
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					panic(err.Error())
+				}
+				deps = append(deps, v)
+			}
+			ctxt.PackageDeps[id] = deps
 		}
 	}
 }

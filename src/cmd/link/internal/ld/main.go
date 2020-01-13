@@ -208,7 +208,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.loadlib()
 
 	//@aghosn initialize the bloated packages entries.
-	initializePkgsBloat()
+	ctxt.initPkgsBloat()
 
 	ctxt.dostrdata()
 	deadcode(ctxt)
@@ -243,6 +243,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.buildinfo()
 	ctxt.dodata()
 	order := ctxt.address()
+
+	// @aghosn let's check if we did things right
+	verifySymbols()
+
 	dwarfcompress(ctxt)
 	filesize := ctxt.layout(order)
 

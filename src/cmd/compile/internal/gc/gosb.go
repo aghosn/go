@@ -69,7 +69,11 @@ func gatherPackages1(n *Node, aggreg map[*Node]*Pkg) {
 		return
 	}
 	if p := getPackage(n); p != nil {
-		aggreg[n] = p
+		// @aghosn we ignore empty path which just means local package.
+		if p.Path != "" {
+			aggreg[n] = p
+		}
+
 	}
 	gatherPackages1(n.Left, aggreg)
 	gatherPackages1(n.Right, aggreg)
@@ -168,23 +172,6 @@ func dumpSandbox(s *Node, bout *bio.Writer) {
 	pkgs, _ := sandboxToPkgs[s]
 	fmt.Fprintf(bout, "%v\n", len(pkgs))
 	for _, p := range pkgs {
-		// TODO(aghosn) should we use the path instead?
-		fmt.Fprintf(bout, "%v\n", p.Name)
+		fmt.Fprintf(bout, "%v\n", p.Path)
 	}
 }
-
-// TODO(aghosn) remove afterwards
-//func copyFile(bout *bio.Writer) {
-//	bout.Flush()
-//	orig, err := os.Open(bout.File().Name())
-//	if err != nil {
-//		panic(err)
-//	}
-//	cpy, err := os.Create("/tmp/my_dumpy_dump")
-//	if err != nil {
-//		panic(err)
-//	}
-//	io.Copy(cpy, orig)
-//	orig.Close()
-//	cpy.Close()
-//}
