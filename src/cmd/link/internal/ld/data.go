@@ -899,6 +899,14 @@ func Dwarfblk(ctxt *Link, addr int64, size int64) {
 	blk(ctxt.Out, dwarfp, addr, size, zeros[:])
 }
 
+func Sandfblk(ctxt *Link, addr int64, size int64) {
+	if *flagA {
+		ctxt.Logf("sandfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
+	}
+
+	blk(ctxt.Out, bloatsyms, addr, size, zeros[:])
+}
+
 var zeros [512]byte
 
 var (

@@ -114,6 +114,9 @@ const (
 
 	// ABI aliases (these never appear in the output)
 	SABIALIAS
+
+	// @aghosn we use this to fake our segment
+	SBLOAT
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are

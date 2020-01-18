@@ -244,11 +244,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.dodata()
 	order := ctxt.address()
 
-	// @aghosn let's check if we did things right
-	verifySymbols()
-
 	dwarfcompress(ctxt)
 	filesize := ctxt.layout(order)
+	if len(PkgsBloat) > 0 {
+		filesize = ctxt.initBloat(order)
+	}
 
 	// Write out the output file.
 	// It is split into two parts (Asmb and Asmb2). The first

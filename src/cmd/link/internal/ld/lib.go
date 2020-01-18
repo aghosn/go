@@ -223,9 +223,6 @@ var (
 	Segrelrodata sym.Segment
 	Segdata      sym.Segment
 	Segdwarf     sym.Segment
-
-	// TODO(aghosn) trying to include a new section?
-	SegTest sym.Segment
 )
 
 const pkgdef = "__.PKGDEF"
