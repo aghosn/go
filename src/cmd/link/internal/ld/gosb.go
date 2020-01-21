@@ -15,7 +15,7 @@ type BloatEntry struct {
 }
 
 type BloatPkgInfo struct {
-	Relocs [sym.SABIALIAS]BloatEntry
+	Relocs []BloatEntry
 }
 
 type BloatJSON struct {
@@ -51,6 +51,7 @@ func (ctxt *Link) transitiveDeps(pkg string, lookup map[int]string) {
 		return
 	}
 	PkgsBloat[pkg] = &BloatPkgInfo{}
+	PkgsBloat[pkg].Relocs = make([]BloatEntry, sym.SABIALIAS)
 	id, ok := ctxt.PackageDecl[pkg]
 	if !ok && pkg == "type" {
 		return
@@ -189,16 +190,27 @@ func dumpBloat() []byte {
 	}
 	verifySymbols()
 	finalizeBloat()
-	res := make([]byte, 0)
+	res := make([]BloatJSON, 0)
 	for pack, bloat := range PkgsBloat {
 		e := BloatJSON{pack, *bloat}
-		b, err := json.Marshal(e)
-		if err != nil {
-			panic(err.Error())
-		}
-		res = append(res, b...)
+		res = append(res, e)
 	}
-	return res
+	b, err := json.Marshal(res)
+	if err != nil {
+		panic(err.Error())
+	}
+	return b
+}
+
+func dumpSandboxes() []byte {
+	if len(PkgsBloat) == 0 {
+		return nil
+	}
+	b, err := json.Marshal(objfile.Sandboxes)
+	if err != nil {
+		panic(err.Error())
+	}
+	return b
 }
 
 func (ctxt *Link) initBloat(order []*sym.Segment) uint64 {
@@ -256,7 +268,7 @@ func genbloat(sect string) []byte {
 	case ".bloated":
 		return dumpBloat()
 	case ".sandboxes":
-		return []byte(sect)
+		return dumpSandboxes()
 	default:
 		panic("unknown value")
 	}
