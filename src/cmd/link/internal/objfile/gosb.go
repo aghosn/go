@@ -19,8 +19,11 @@ const (
 )
 
 // Sandboxes we parsed by looking at object files
-var Sandboxes []SBObjEntry
-var SegregatedPkgs map[string]bool
+var (
+	Sandboxes      []SBObjEntry
+	SBMap          map[string]*SBObjEntry
+	SegregatedPkgs map[string]bool
+)
 
 func assert(cond bool, msg string) {
 	if !cond {
@@ -63,6 +66,7 @@ func readSandboxObj(path string) {
 func registerSandboxes(sbs []string) {
 	if SegregatedPkgs == nil {
 		SegregatedPkgs = make(map[string]bool)
+		SBMap = make(map[string]*SBObjEntry)
 	}
 	for _, v := range sbs {
 		contents := strings.Split(v, "\n")
@@ -82,6 +86,7 @@ func registerSandboxes(sbs []string) {
 			content = content[1:]
 			pkgs, content := content[:nbPkgs], content[nbPkgs:]
 			Sandboxes = append(Sandboxes, SBObjEntry{name, config[0], config[1], pkgs})
+			SBMap[name] = &Sandboxes[len(Sandboxes)-1]
 			registerPackages(pkgs)
 			contents = content
 		}

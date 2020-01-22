@@ -86,6 +86,16 @@ func ignoreSection(sel int) bool {
 	return sel == int(sym.SITABLINK)
 }
 
+func bloatSBSym(idx int, syms []*sym.Symbol) {
+	if _, ok := objfile.SBMap[syms[idx].Name]; ok {
+		syms[idx].Align = 0x1000
+		// throw the next symbol to the next page.
+		if idx < len(syms)-1 {
+			syms[idx+1].Align = 0x1000
+		}
+	}
+}
+
 //It does not keep track of the modification we make.
 func reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	// Fast exit if there are no sandboxes.
@@ -125,6 +135,11 @@ func reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	for _, syms := range fmap {
 		syms[0].Align = 0x1000
 		regSyms = append(regSyms, syms...)
+	}
+	// Find the sandboxes and bloat them
+	// TODO(aghosn) could be optimized to only do it for .text?
+	for i := range regSyms {
+		bloatSBSym(i, regSyms)
 	}
 	return regSyms
 }

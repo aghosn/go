@@ -165,7 +165,7 @@ func dumpSandbox(s *Node, bout *bio.Writer) {
 		panic("Missing package information for sandbox")
 	}
 	// dump the sandbox symbol.
-	fmt.Fprintf(bout, "%v\n", s.SandboxName())
+	fmt.Fprintf(bout, "%v\n", myimportpath+"."+s.SandboxName())
 	// dump the sandbox configuration
 	fmt.Fprintf(bout, "%v;%v\n", s.Mem, s.Sys)
 	// dump package dependencies
