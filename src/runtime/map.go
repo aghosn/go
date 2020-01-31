@@ -259,7 +259,7 @@ func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
 			h.extra.nextOverflow = nil
 		}
 	} else {
-		ovf = (*bmap)(newobject(t.bucket))
+		ovf = (*bmap)(newobject(t.bucket, 0))
 	}
 	h.incrnoverflow()
 	if t.bucket.ptrdata == 0 {
@@ -591,7 +591,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	h.flags ^= hashWriting
 
 	if h.buckets == nil {
-		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+		h.buckets = newobject(t.bucket, 0) // newarray(t.bucket, 1)
 	}
 
 again:
@@ -659,12 +659,12 @@ bucketloop:
 
 	// store new key/elem at insert position
 	if t.indirectkey() {
-		kmem := newobject(t.key)
+		kmem := newobject(t.key, 0)
 		*(*unsafe.Pointer)(insertk) = kmem
 		insertk = kmem
 	}
 	if t.indirectelem() {
-		vmem := newobject(t.elem)
+		vmem := newobject(t.elem, 0)
 		*(*unsafe.Pointer)(elem) = vmem
 	}
 	typedmemmove(t.key, insertk, key)

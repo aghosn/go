@@ -95,6 +95,8 @@ type Action struct {
 	priority int         // relative execution priority
 	Failed   bool        // whether the action failed
 	json     *actionJSON // action graph information
+
+	spkgId int // @aghosn I added this to identify packages being built.
 }
 
 // BuildActionID returns the action ID section of a's build ID.

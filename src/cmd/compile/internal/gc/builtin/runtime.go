@@ -18,7 +18,7 @@ import "unsafe"
 func sandbox_prolog(mem string, sys string)
 func sandbox_epilog(mem string, sys string)
 
-func newobject(typ *byte) *any
+func newobject(typ *byte, id int) *any
 func panicdivide()
 func panicshift()
 func panicmakeslicelen()

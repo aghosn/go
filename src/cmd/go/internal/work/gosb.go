@@ -23,13 +23,19 @@ func registerDependencies(root *Action) {
 	var workq []*Action
 	var inWorkq = make(map[*Action]int)
 	var out bytes.Buffer
-	ids := 0
+	ids := 1
 	add := func(a *Action) {
 		if _, ok := inWorkq[a]; ok {
 			return
 		}
-		inWorkq[a] = ids
-		ids++
+		if !rejectAction(a) && a.Package.ImportPath == "runtime" {
+			inWorkq[a] = 0
+			a.spkgId = 0
+		} else {
+			inWorkq[a] = ids
+			a.spkgId = ids
+			ids++
+		}
 		workq = append(workq, a)
 	}
 	add(root)
@@ -40,7 +46,8 @@ func registerDependencies(root *Action) {
 		}
 	}
 
-	for id, a := range workq {
+	for _, a := range workq {
+		id := a.spkgId
 		if rejectAction(a) {
 			continue
 		}

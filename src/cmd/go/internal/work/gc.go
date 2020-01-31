@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -54,6 +55,10 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 		pkgpath = "main"
 	}
 	gcargs := []string{"-p", pkgpath}
+
+	// @aghosn adding the action id
+	gcargs = append(gcargs, "-pkgId", strconv.Itoa(a.spkgId))
+
 	if p.Module != nil && p.Module.GoVersion != "" && allowedVersion(p.Module.GoVersion) {
 		gcargs = append(gcargs, "-lang=go"+p.Module.GoVersion)
 	}

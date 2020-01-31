@@ -2486,7 +2486,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.newValue1A(ssa.OpAddr, n.Type, zerobaseSym, s.sb)
 		}
 		typ := s.expr(n.Left)
-		vv := s.rtcall(newobject, true, []*types.Type{n.Type}, typ)
+		//TODO(aghosn) add argument here?
+		pkgId := newobjectPkgArg(s)
+		vv := s.rtcall(newobject, true, []*types.Type{n.Type}, typ, pkgId)
 		return vv[0]
 
 	default:

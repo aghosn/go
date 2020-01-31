@@ -106,7 +106,7 @@ func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 	h.flags ^= hashWriting
 
 	if h.buckets == nil {
-		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+		h.buckets = newobject(t.bucket, 0) // newarray(t.bucket, 1)
 	}
 
 again:
@@ -196,7 +196,7 @@ func mapassign_fast32ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
 	h.flags ^= hashWriting
 
 	if h.buckets == nil {
-		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+		h.buckets = newobject(t.bucket, 0) // newarray(t.bucket, 1)
 	}
 
 again:

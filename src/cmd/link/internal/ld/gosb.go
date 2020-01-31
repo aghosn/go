@@ -20,6 +20,7 @@ type BloatPkgInfo struct {
 
 type BloatJSON struct {
 	Package  string
+	Id       int
 	Bloating BloatPkgInfo
 }
 
@@ -27,11 +28,13 @@ var (
 	PkgsBloat map[string]*BloatPkgInfo
 	Segbloat  sym.Segment
 	bloatsyms []*sym.Symbol
+	pkgDecls  map[string]int
 )
 
 func (ctxt *Link) initPkgsBloat() {
 	if PkgsBloat == nil {
 		PkgsBloat = make(map[string]*BloatPkgInfo)
+		pkgDecls = ctxt.PackageDecl
 	}
 
 	// Build reverse map for names and ids.
@@ -137,14 +140,12 @@ func reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		regSyms = append(regSyms, syms...)
 	}
 	// Find the sandboxes and bloat them
-	// TODO(aghosn) could be optimized to only do it for .text?
 	for i := range regSyms {
 		bloatSBSym(i, regSyms)
 	}
 	return regSyms
 }
 
-//TODO(aghosn) we need to register the final boundaries for the packages.
 // We also have to dump that information somewhere inside its own segment.
 func finalizeBloat() {
 	for _, entry := range PkgsBloat {
@@ -207,7 +208,14 @@ func dumpBloat() []byte {
 	finalizeBloat()
 	res := make([]BloatJSON, 0)
 	for pack, bloat := range PkgsBloat {
-		e := BloatJSON{pack, *bloat}
+		id, ok := pkgDecls[pack]
+		if !ok {
+			if !noText(bloat) {
+				panic("A bloat with text has no id.")
+			}
+			id = -1
+		}
+		e := BloatJSON{pack, id, *bloat}
 		res = append(res, e)
 	}
 	b, err := json.Marshal(res)
@@ -215,6 +223,10 @@ func dumpBloat() []byte {
 		panic(err.Error())
 	}
 	return b
+}
+
+func noText(b *BloatPkgInfo) bool {
+	return b.Relocs[sym.STEXT].Addr == 0 && b.Relocs[sym.STEXT].Size == 0
 }
 
 func dumpSandboxes() []byte {

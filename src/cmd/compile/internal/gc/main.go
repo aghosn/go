@@ -200,6 +200,9 @@ func Main(archInit func(*Arch)) {
 	// This can be helpful for diagnosing certain causes of GC latency. See #27732.
 	smallFrames := false
 
+	// @aghosn we get the pkgId
+	flag.IntVar(&pkgId, "pkgId", -1, "package id for the allocator")
+
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
 	objabi.Flagcount("%", "debug non-static initializers", &Debug['%'])

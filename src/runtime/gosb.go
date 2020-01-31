@@ -23,6 +23,7 @@ type BloatPkgInfo struct {
 
 type BloatJSON struct {
 	Package  string
+	Id       int
 	Bloating BloatPkgInfo
 }
 
