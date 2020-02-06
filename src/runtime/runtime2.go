@@ -518,6 +518,9 @@ type m struct {
 	dlogPerM
 
 	mOS
+
+	// TODO(aghosn) used for sandbox allocation to learn about the context.
+	allocSB int
 }
 
 type p struct {

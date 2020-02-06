@@ -1148,7 +1148,10 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 // compiler (both frontend and SSA backend) knows the signature
 // of this function
 func newobject(typ *_type, id int) unsafe.Pointer {
-	return mallocgc(typ.size, typ, true)
+	sbidacquire(id)
+	p := mallocgc(typ.size, typ, true)
+	sbidrelease(id)
+	return p
 }
 
 //go:linkname reflect_unsafe_New reflect.unsafe_New
