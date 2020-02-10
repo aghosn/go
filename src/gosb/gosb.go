@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 )
 
 func init() {
@@ -19,6 +20,14 @@ func check(err error) {
 }
 
 func Gosandbox() {
+}
+
+func getPkgName(name string) string {
+	splitted := strings.Split(name, ".")
+	if len(splitted) < 1 {
+		panic("Unable to get pkg name")
+	}
+	return splitted[0]
 }
 
 func loadSandboxes() {
@@ -50,5 +59,5 @@ func loadSandboxes() {
 	if err != nil {
 		panic(err.Error())
 	}
-	runtime.SetSBInfo(sandboxes, bloatPkgs)
+	runtime.InitBloatInfo(sandboxes, bloatPkgs, getPkgName)
 }

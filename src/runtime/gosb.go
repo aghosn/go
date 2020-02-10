@@ -1,7 +1,5 @@
 package runtime
 
-import ()
-
 // These types are the ones found in cmd/link/internal/ld/gosb.go
 // And inside the objfile of the linker.
 
@@ -28,10 +26,17 @@ type BloatJSON struct {
 }
 
 var (
-	sandboxes   []SBObjEntry   = nil
-	pkgsBloat   []BloatJSON    = nil
-	allocId     map[int]string = nil
-	isAllocInit bool           = false
+	sandboxes []SBObjEntry = nil
+	pkgsBloat []BloatJSON  = nil
+
+	// Useful maps for quick access
+	idToPkg map[int]string = nil
+	pkgToId map[string]int = nil
+
+	// Helper function that parses function names
+	nameToPkg func(string) string = nil
+
+	bloatInitDone bool = false
 )
 
 func sandbox_prolog(mem string, syscalls string) {
@@ -42,46 +47,21 @@ func sandbox_epilog(mem string, syscalls string) {
 	println("SB: epilog", mem, syscalls)
 }
 
-func SetSBInfo(sbs []SBObjEntry, pkgs []BloatJSON) {
+func InitBloatInfo(sbs []SBObjEntry, pkgs []BloatJSON, extFunc func(string) string) {
 	if sandboxes != nil || pkgsBloat != nil {
 		return
 	}
 	sandboxes = sbs
 	pkgsBloat = pkgs
-	allocId = make(map[int]string)
+	nameToPkg = extFunc
+	idToPkg = make(map[int]string)
+	pkgToId = make(map[string]int)
 	for _, b := range pkgsBloat {
-		if _, ok := allocId[b.Id]; ok && b.Id != -1 {
+		if _, ok := idToPkg[b.Id]; ok && b.Id != -1 {
 			panic("Redefined id for allocation!")
 		}
-		allocId[b.Id] = b.Package
+		idToPkg[b.Id] = b.Package
+		pkgToId[b.Package] = b.Id
 	}
-	isAllocInit = true
-}
-
-func filter(id int) bool {
-	if !isAllocInit {
-		return false
-	}
-	if n, ok := allocId[id]; ok && n == "ParsingSandbox/src/mpkg" {
-		return true
-	}
-	return false
-}
-
-func sbidacquire(id int) {
-	mp := acquirem()
-	if filter(id) {
-		mp.allocSB = id
-	} else {
-		mp.allocSB = -1
-	}
-}
-
-func sbidrelease(id int) {
-	mp := getg().m
-	if filter(id) && mp.allocSB != id {
-		panic("allocSB different at release time")
-	}
-	mp.allocSB = -1
-	releasem(mp)
+	bloatInitDone = true
 }

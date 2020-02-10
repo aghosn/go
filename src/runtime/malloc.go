@@ -874,7 +874,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
-func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 	if gcphase == _GCmarktermination {
 		throw("mallocgc called with gcphase == _GCmarktermination")
 	}
@@ -1148,32 +1148,30 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 // compiler (both frontend and SSA backend) knows the signature
 // of this function
 func newobject(typ *_type, id int) unsafe.Pointer {
-	sbidacquire(id)
-	p := mallocgc(typ.size, typ, true)
-	sbidrelease(id)
+	p := mallocgc(typ.size, typ, true, filterPkgId(id))
 	return p
 }
 
 //go:linkname reflect_unsafe_New reflect.unsafe_New
 func reflect_unsafe_New(typ *_type) unsafe.Pointer {
-	return mallocgc(typ.size, typ, true)
+	return mallocgc(typ.size, typ, true, gosbInterpose(CALLER_LVL))
 }
 
 //go:linkname reflectlite_unsafe_New internal/reflectlite.unsafe_New
 func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
-	return mallocgc(typ.size, typ, true)
+	return mallocgc(typ.size, typ, true, gosbInterpose(CALLER_LVL))
 }
 
 // newarray allocates an array of n elements of type typ.
 func newarray(typ *_type, n int) unsafe.Pointer {
 	if n == 1 {
-		return mallocgc(typ.size, typ, true)
+		return mallocgc(typ.size, typ, true, gosbInterpose(CALLER_LVL))
 	}
 	mem, overflow := math.MulUintptr(typ.size, uintptr(n))
 	if overflow || mem > maxAlloc || n < 0 {
 		panic(plainError("runtime: allocation size out of range"))
 	}
-	return mallocgc(mem, typ, true)
+	return mallocgc(mem, typ, true, gosbInterpose(CALLER_LVL))
 }
 
 //go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray

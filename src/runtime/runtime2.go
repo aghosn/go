@@ -515,12 +515,11 @@ type m struct {
 	vdsoSP uintptr // SP for traceback while in VDSO call (0 if not in call)
 	vdsoPC uintptr // PC for traceback while in VDSO call
 
+	tracingAlloc int // @aghosn is the m tracing alloc or not
+
 	dlogPerM
 
 	mOS
-
-	// TODO(aghosn) used for sandbox allocation to learn about the context.
-	allocSB int
 }
 
 type p struct {
