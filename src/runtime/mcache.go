@@ -186,3 +186,7 @@ func (c *mcache) prepareForSweep() {
 	stackcache_clear(c)
 	atomic.Store(&c.flushGen, mheap_.sweepgen) // Synchronizes with gcStart
 }
+
+func (c *mcache) allocWithId(id int, spc spanClass) *mspan {
+	return c.alloc[spc]
+}

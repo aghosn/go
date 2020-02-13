@@ -215,6 +215,9 @@ func dumpBloat() []byte {
 			}
 			id = -1
 		}
+		if noAddresses(bloat) {
+			continue
+		}
 		e := BloatJSON{pack, id, *bloat}
 		res = append(res, e)
 	}
@@ -227,6 +230,22 @@ func dumpBloat() []byte {
 
 func noText(b *BloatPkgInfo) bool {
 	return b.Relocs[sym.STEXT].Addr == 0 && b.Relocs[sym.STEXT].Size == 0
+}
+
+func noAddresses(b *BloatPkgInfo) bool {
+	for _, e := range b.Relocs {
+		if e.Addr == 0 {
+			if e.Size != 0 || len(e.syms) != 0 {
+				panic("Malformed BloatEntry.")
+			}
+		} else {
+			if e.Size == 0 {
+				panic("Malformed BloatEntry, address non nil 0 and size 0")
+			}
+			return false
+		}
+	}
+	return true
 }
 
 func dumpSandboxes() []byte {

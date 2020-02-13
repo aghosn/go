@@ -35,7 +35,7 @@ func getpackageid(level int) int {
 
 func filterPkgId(id int) int {
 	if !bloatInitDone {
-		if id == 0 {
+		if !mainStarted || id == 0 {
 			return 0
 		}
 		return -1

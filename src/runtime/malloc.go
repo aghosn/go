@@ -841,8 +841,8 @@ func nextFreeFast(s *mspan) gclinkptr {
 //
 // Must run in a non-preemptible context since otherwise the owner of
 // c could change.
-func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
-	s = c.alloc[spc]
+func (c *mcache) nextFree(id int, spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+	s = c.allocWithId(id, spc)
 	shouldhelpgc = false
 	freeIndex := s.nextFreeIndex()
 	if freeIndex == s.nelems {
@@ -853,7 +853,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 		}
 		c.refill(spc)
 		shouldhelpgc = true
-		s = c.alloc[spc]
+		s = c.allocWithId(id, spc)
 
 		freeIndex = s.nextFreeIndex()
 	}
@@ -992,10 +992,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 				return x
 			}
 			// Allocate a new maxTinySize block.
-			span := c.alloc[tinySpanClass]
+			span := c.allocWithId(id, tinySpanClass)
 			v := nextFreeFast(span)
 			if v == 0 {
-				v, _, shouldhelpgc = c.nextFree(tinySpanClass)
+				v, _, shouldhelpgc = c.nextFree(id, tinySpanClass)
 			}
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
@@ -1016,10 +1016,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 			}
 			size = uintptr(class_to_size[sizeclass])
 			spc := makeSpanClass(sizeclass, noscan)
-			span := c.alloc[spc]
+			span := c.allocWithId(id, spc)
 			v := nextFreeFast(span)
 			if v == 0 {
-				v, span, shouldhelpgc = c.nextFree(spc)
+				v, span, shouldhelpgc = c.nextFree(id, spc)
 			}
 			x = unsafe.Pointer(v)
 			if needzero && span.needzero != 0 {
@@ -1115,7 +1115,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 			gcStart(t)
 		}
 	}
-
 	return x
 }
 
