@@ -65,3 +65,14 @@ func InitBloatInfo(sbs []SBObjEntry, pkgs []BloatJSON, extFunc func(string) stri
 	}
 	bloatInitDone = true
 }
+
+//TODO(aghosn) remove afterwards.
+//For master student.
+
+func PkgBloated() []BloatJSON {
+	return pkgsBloat
+}
+
+func PkgToId() map[string]int {
+	return pkgToId
+}
