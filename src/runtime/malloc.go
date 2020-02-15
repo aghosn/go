@@ -851,7 +851,7 @@ func (c *mcache) nextFree(id int, spc spanClass) (v gclinkptr, s *mspan, shouldh
 			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
 			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
 		}
-		c.refill(spc)
+		c.refill(id, spc)
 		shouldhelpgc = true
 		s = c.allocWithId(id, spc)
 

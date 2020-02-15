@@ -187,6 +187,7 @@ func main() {
 		cgocall(_cgo_notify_runtime_init_done, nil)
 	}
 
+	mainInitDone = true
 	doInit(&main_inittask)
 
 	close(main_init_done)

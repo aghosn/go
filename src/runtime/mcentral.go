@@ -37,7 +37,7 @@ func (c *mcentral) init(spc spanClass) {
 }
 
 // Allocate a span to use in an mcache.
-func (c *mcentral) cacheSpan() *mspan {
+func (c *mcentral) cacheSpan(id int) *mspan {
 	// Deduct credit for this span allocation and sweep if necessary.
 	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
 	deductSweepCredit(spanBytes, 0)
@@ -262,5 +262,6 @@ func (c *mcentral) grow() *mspan {
 	n := (npages << _PageShift) >> s.divShift * uintptr(s.divMul) >> s.divShift2
 	s.limit = s.base() + size*n
 	heapBitsForAddr(s.base()).initSpan(s)
+	s.id = -1
 	return s
 }

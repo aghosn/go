@@ -37,7 +37,8 @@ type mcache struct {
 
 	// The rest is not accessed on every malloc.
 
-	alloc [numSpanClasses]*mspan // spans to allocate from, indexed by spanClass
+	//alloc [numSpanClasses]*mspan // spans to allocate from, indexed by spanClass
+	alloc [numSpanClasses]mSpanIdList
 
 	stackcache [_NumStackOrders]stackfreelist
 
@@ -91,7 +92,8 @@ func allocmcache() *mcache {
 		unlock(&mheap_.lock)
 	})
 	for i := range c.alloc {
-		c.alloc[i] = &emptymspan
+		//c.alloc[i] = &emptymspan
+		c.alloc[i].init()
 	}
 	c.next_sample = nextSample()
 	return c
@@ -119,10 +121,10 @@ func freemcache(c *mcache) {
 //
 // Must run in a non-preemptible context since otherwise the owner of
 // c could change.
-func (c *mcache) refill(spc spanClass) {
+func (c *mcache) refill(id int, spc spanClass) {
 	// Return the current cached span to the central lists.
-	s := c.alloc[spc]
-
+	//s := c.alloc[spc]
+	s := c.alloc[spc].popOrEmpty()
 	if uintptr(s.allocCount) != s.nelems {
 		throw("refill of span with free space remaining")
 	}
@@ -135,7 +137,7 @@ func (c *mcache) refill(spc spanClass) {
 	}
 
 	// Get a new cached span from the central lists.
-	s = mheap_.central[spc].mcentral.cacheSpan()
+	s = mheap_.central[spc].mcentral.cacheSpan(id)
 	if s == nil {
 		throw("out of memory")
 	}
@@ -148,15 +150,16 @@ func (c *mcache) refill(spc spanClass) {
 	// sweeping in the next sweep phase.
 	s.sweepgen = mheap_.sweepgen + 3
 
-	c.alloc[spc] = s
+	c.alloc[spc].insert(s)
 }
 
 func (c *mcache) releaseAll() {
 	for i := range c.alloc {
-		s := c.alloc[i]
+		//TODO(aghosn) this won't be enough once we have multiple ones.
+		s := c.alloc[i].popOrEmpty()
 		if s != &emptymspan {
 			mheap_.central[i].mcentral.uncacheSpan(s)
-			c.alloc[i] = &emptymspan
+			//c.alloc[i] = &emptymspan
 		}
 	}
 	// Clear tinyalloc pool.
@@ -188,5 +191,12 @@ func (c *mcache) prepareForSweep() {
 }
 
 func (c *mcache) allocWithId(id int, spc spanClass) *mspan {
-	return c.alloc[spc]
+	//	if id == -1 || !mainInitDone {
+	//		return c.alloc[spc]
+	//	}
+	//	return c.alloc[spc]
+	if c.alloc[spc].isEmpty() {
+		return &emptymspan
+	}
+	return c.alloc[spc].first
 }

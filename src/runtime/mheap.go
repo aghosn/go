@@ -333,6 +333,13 @@ type mSpanList struct {
 
 //go:notinheap
 type mspan struct {
+	// begin(aghosn)
+	id    int
+	inext *mspan
+	iprev *mspan
+	ilist *mSpanIdList
+	// end(aghosn)
+
 	next *mspan     // next span in list, or nil if none
 	prev *mspan     // previous span in list, or nil if none
 	list *mSpanList // For debugging. TODO: Remove.

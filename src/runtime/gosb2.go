@@ -29,13 +29,12 @@ func getpackageid(level int) int {
 	if !f.valid() {
 		panic("Invalid function in stack unwind")
 	}
-	//println("The function name ", funcnameFromNameoff(f, f.nameoff))
 	return pkgToId[nameToPkg(funcnameFromNameoff(f, f.nameoff))]
 }
 
 func filterPkgId(id int) int {
 	if !bloatInitDone {
-		if !mainStarted || id == 0 {
+		if !mainInitDone || id == 0 {
 			return 0
 		}
 		return -1

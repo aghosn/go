@@ -37,6 +37,7 @@ var (
 	nameToPkg func(string) string = nil
 
 	bloatInitDone bool = false
+	mainInitDone  bool = false
 )
 
 func sandbox_prolog(mem string, syscalls string) {
