@@ -124,7 +124,7 @@ func freemcache(c *mcache) {
 func (c *mcache) refill(id int, spc spanClass) {
 	// Return the current cached span to the central lists.
 	//s := c.alloc[spc]
-	s := c.alloc[spc].popOrEmpty()
+	s := c.alloc[spc].getIdOrEmpty(id)
 	if uintptr(s.allocCount) != s.nelems {
 		throw("refill of span with free space remaining")
 	}
@@ -133,6 +133,7 @@ func (c *mcache) refill(id int, spc spanClass) {
 		if s.sweepgen != mheap_.sweepgen+3 {
 			throw("bad sweepgen in refill")
 		}
+		c.alloc[spc].remove(s)
 		atomic.Store(&s.sweepgen, mheap_.sweepgen)
 	}
 
@@ -155,11 +156,10 @@ func (c *mcache) refill(id int, spc spanClass) {
 
 func (c *mcache) releaseAll() {
 	for i := range c.alloc {
-		//TODO(aghosn) this won't be enough once we have multiple ones.
 		s := c.alloc[i].popOrEmpty()
-		if s != &emptymspan {
+		for s != &emptymspan {
 			mheap_.central[i].mcentral.uncacheSpan(s)
-			//c.alloc[i] = &emptymspan
+			s = c.alloc[i].popOrEmpty()
 		}
 	}
 	// Clear tinyalloc pool.
@@ -191,12 +191,5 @@ func (c *mcache) prepareForSweep() {
 }
 
 func (c *mcache) allocWithId(id int, spc spanClass) *mspan {
-	//	if id == -1 || !mainInitDone {
-	//		return c.alloc[spc]
-	//	}
-	//	return c.alloc[spc]
-	if c.alloc[spc].isEmpty() {
-		return &emptymspan
-	}
-	return c.alloc[spc].first
+	return c.alloc[spc].getIdOrEmpty(id)
 }

@@ -51,9 +51,14 @@ func (c *mcentral) cacheSpan(id int) *mspan {
 retry:
 	var s *mspan
 	for s = c.nonempty.first; s != nil; s = s.next {
+		// TODO(aghosn) Skip if the thing does not belong to our id group
+		if s.id != id && s.allocCount != 0 {
+			continue
+		}
 		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 			c.nonempty.remove(s)
 			c.empty.insertBack(s)
+			s.id = id
 			unlock(&c.lock)
 			s.sweep(true)
 			goto havespan
@@ -65,11 +70,15 @@ retry:
 		// we have a nonempty span that does not require sweeping, allocate from it
 		c.nonempty.remove(s)
 		c.empty.insertBack(s)
+		s.id = id
 		unlock(&c.lock)
 		goto havespan
 	}
 
 	for s = c.empty.first; s != nil; s = s.next {
+		if s.id != id {
+			continue
+		}
 		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 			// we have an empty span that requires sweeping,
 			// sweep it and see if we can free some space in it
@@ -103,7 +112,7 @@ retry:
 	unlock(&c.lock)
 
 	// Replenish central list if empty.
-	s = c.grow()
+	s = c.grow(id)
 	if s == nil {
 		return nil
 	}
@@ -142,7 +151,9 @@ havespan:
 	// Adjust the allocCache so that s.freeindex corresponds to the low bit in
 	// s.allocCache.
 	s.allocCache >>= s.freeindex % 64
-
+	if s.id != id && s == &emptymspan {
+		throw("Obtained a span with the wrong id")
+	}
 	return s
 }
 
@@ -248,7 +259,7 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 }
 
 // grow allocates a new empty span from the heap and initializes it for c's size class.
-func (c *mcentral) grow() *mspan {
+func (c *mcentral) grow(id int) *mspan {
 	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
 	size := uintptr(class_to_size[c.spanclass.sizeclass()])
 
@@ -262,6 +273,6 @@ func (c *mcentral) grow() *mspan {
 	n := (npages << _PageShift) >> s.divShift * uintptr(s.divMul) >> s.divShift2
 	s.limit = s.base() + size*n
 	heapBitsForAddr(s.base()).initSpan(s)
-	s.id = -1
+	s.id = id
 	return s
 }

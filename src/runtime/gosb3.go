@@ -27,6 +27,16 @@ func (list *mSpanIdList) popOrEmpty() *mspan {
 	return s
 }
 
+func (list *mSpanIdList) getIdOrEmpty(id int) *mspan {
+	for s := list.first; s != nil; s = s.inext {
+		if s.id == id || s.allocCount == 0 {
+			s.id = id
+			return s
+		}
+	}
+	return &emptymspan
+}
+
 func (list *mSpanIdList) remove(span *mspan) {
 	if span == nil {
 		panic("Nil remove")
