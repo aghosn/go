@@ -163,6 +163,10 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 		throw("uncaching span but s.allocCount == 0")
 	}
 
+	if s.tiny != 0 {
+		throw("This is not zero :( ")
+	}
+
 	sg := mheap_.sweepgen
 	stale := s.sweepgen == sg+1
 	if stale {

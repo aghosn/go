@@ -826,8 +826,14 @@ func nextFreeFast(s *mspan) gclinkptr {
 			s.allocCache >>= uint(theBit + 1)
 			s.freeindex = freeidx
 			s.allocCount++
+			if s.allocCount < uint16(s.countAlloc()) {
+				throw("Ici there is a problem.")
+			}
 			return gclinkptr(result*s.elemsize + s.base())
 		}
+	}
+	if s.allocCount < uint16(s.countAlloc()) {
+		throw("Ici there is a problem(1).")
 	}
 	return 0
 }
@@ -867,6 +873,9 @@ func (c *mcache) nextFree(id int, spc spanClass) (v gclinkptr, s *mspan, shouldh
 	if uintptr(s.allocCount) > s.nelems {
 		println("s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
 		throw("s.allocCount > s.nelems")
+	}
+	if s.allocCount < uint16(s.countAlloc()) {
+		throw("Problem ici")
 	}
 	return
 }
@@ -973,38 +982,46 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 			// standalone escaping variables. On a json benchmark
 			// the allocator reduces number of allocations by ~12% and
 			// reduces heap size by ~20%.
-			off := c.tinyoffset
-			// Align tiny pointer for required (conservative) alignment.
-			if size&7 == 0 {
-				off = round(off, 8)
-			} else if size&3 == 0 {
-				off = round(off, 4)
-			} else if size&1 == 0 {
-				off = round(off, 2)
-			}
-			if off+size <= maxTinySize && c.tiny != 0 {
-				// The object fits into existing tiny block.
-				x = unsafe.Pointer(c.tiny + off)
-				c.tinyoffset = off + size
-				c.local_tinyallocs++
+			//	off := c.tinyoffset
+			//	// Align tiny pointer for required (conservative) alignment.
+			//	if size&7 == 0 {
+			//		off = round(off, 8)
+			//	} else if size&3 == 0 {
+			//		off = round(off, 4)
+			//	} else if size&1 == 0 {
+			//		off = round(off, 2)
+			//	}
+			//	if off+size <= maxTinySize && c.tiny != 0 {
+			//		// The object fits into existing tiny block.
+			//		x = unsafe.Pointer(c.tiny + off)
+			//		c.tinyoffset = off + size
+			//		c.local_tinyallocs++
+			//		mp.mallocing = 0
+			//		releasem(mp)
+			//		return x
+			//	}
+			//	// Allocate a new maxTinySize block.
+			//	span := c.allocWithId(id, tinySpanClass)
+			//	v := nextFreeFast(span)
+			//	if v == 0 {
+			//		v, _, shouldhelpgc = c.nextFree(id, tinySpanClass)
+			//	}
+			//	x = unsafe.Pointer(v)
+			//	(*[2]uint64)(x)[0] = 0
+			//	(*[2]uint64)(x)[1] = 0
+			//	// See if we need to replace the existing tiny block with the new one
+			//	// based on amount of remaining free space.
+			//	if size < c.tinyoffset || c.tiny == 0 {
+			//		c.tiny = uintptr(x)
+			//		c.tinyoffset = size
+			//	}
+			//size = maxTinySize
+			pursue := false
+			x, pursue, shouldhelpgc = c.tinyAlloc(id, size)
+			if !pursue {
 				mp.mallocing = 0
 				releasem(mp)
 				return x
-			}
-			// Allocate a new maxTinySize block.
-			span := c.allocWithId(id, tinySpanClass)
-			v := nextFreeFast(span)
-			if v == 0 {
-				v, _, shouldhelpgc = c.nextFree(id, tinySpanClass)
-			}
-			x = unsafe.Pointer(v)
-			(*[2]uint64)(x)[0] = 0
-			(*[2]uint64)(x)[1] = 0
-			// See if we need to replace the existing tiny block with the new one
-			// based on amount of remaining free space.
-			if size < c.tinyoffset || c.tiny == 0 {
-				c.tiny = uintptr(x)
-				c.tinyoffset = size
 			}
 			size = maxTinySize
 		} else {
@@ -1016,6 +1033,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 			}
 			size = uintptr(class_to_size[sizeclass])
 			spc := makeSpanClass(sizeclass, noscan)
+			if spc == tinySpanClass && !noscan {
+				throw("Fuck me")
+			}
 			span := c.allocWithId(id, spc)
 			v := nextFreeFast(span)
 			if v == 0 {

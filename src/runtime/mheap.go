@@ -333,13 +333,6 @@ type mSpanList struct {
 
 //go:notinheap
 type mspan struct {
-	// begin(aghosn)
-	id    int
-	inext *mspan
-	iprev *mspan
-	ilist *mSpanIdList
-	// end(aghosn)
-
 	next *mspan     // next span in list, or nil if none
 	prev *mspan     // previous span in list, or nil if none
 	list *mSpanList // For debugging. TODO: Remove.
@@ -424,6 +417,11 @@ type mspan struct {
 	limit       uintptr    // end of data in span
 	speciallock mutex      // guards specials list
 	specials    *special   // linked list of special records sorted by offset.
+
+	// @aghosn for package seggregation.
+	// Works for both regular and tiny allocs.
+	id int
+	sbSpanEntry
 }
 
 func (s *mspan) base() uintptr {

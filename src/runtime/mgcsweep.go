@@ -325,6 +325,8 @@ func (s *mspan) sweep(preserve bool) bool {
 	nfreed := s.allocCount - nalloc
 	if nalloc > s.allocCount {
 		print("runtime: nelems=", s.nelems, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
+		println("the class of that thing ", s.spanclass == tinySpanClass)
+		println("Is that thing in a list ", s.lists[SB_PKG])
 		throw("sweep increased allocation count")
 	}
 

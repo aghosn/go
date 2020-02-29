@@ -1358,12 +1358,25 @@ func gcmarknewobject(obj, size, scanSize uintptr) {
 func gcMarkTinyAllocs() {
 	for _, p := range allp {
 		c := p.mcache
-		if c == nil || c.tiny == 0 {
+		if c == nil || /*c.tiny == 0*/ c.alloc[tinySpanClass].isEmpty(SB_PKG) {
 			continue
 		}
-		_, span, objIndex := findObject(c.tiny, 0, 0)
-		gcw := &p.gcw
-		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
+		//_, span, objIndex := findObject(c.tiny, 0, 0)
+		//gcw := &p.gcw
+		//greyobject(c.tiny, 0, 0, span, gcw, objIndex)
+		for t := c.alloc[tinySpanClass].first; t != nil; t = t.nexts[SB_PKG] {
+			// @aghosn this is normal apparently,
+			// some things map to tinySpanClass without being tiny allocations.
+			if t == &emptymspan {
+				panic("Euhhh that's bad")
+			}
+			if t.tiny == 0 {
+				continue
+			}
+			_, span, objIndex := findObject(t.tiny, 0, 0)
+			gcw := &p.gcw
+			greyobject(t.tiny, 0, 0, span, gcw, objIndex)
+		}
 	}
 }
 

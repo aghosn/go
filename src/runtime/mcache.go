@@ -22,23 +22,13 @@ type mcache struct {
 	next_sample uintptr // trigger heap sample after allocating this many bytes
 	local_scan  uintptr // bytes of scannable heap allocated
 
-	// Allocator cache for tiny objects w/o pointers.
-	// See "Tiny allocator" comment in malloc.go.
-
-	// tiny points to the beginning of the current tiny block, or
-	// nil if there is no current tiny block.
-	//
-	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
-	// we handle it by clearing it in releaseAll during mark
-	// termination.
-	tiny             uintptr
-	tinyoffset       uintptr
-	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
-
 	// The rest is not accessed on every malloc.
 
-	//alloc [numSpanClasses]*mspan // spans to allocate from, indexed by spanClass
-	alloc [numSpanClasses]mSpanIdList
+	alloc [numSpanClasses]sbSpanList
+	// TODO(aghosn) remove afterwards
+	//tiny       uintptr
+	//tinyoffset uintptr
+	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
 
 	stackcache [_NumStackOrders]stackfreelist
 
@@ -123,8 +113,7 @@ func freemcache(c *mcache) {
 // c could change.
 func (c *mcache) refill(id int, spc spanClass) {
 	// Return the current cached span to the central lists.
-	//s := c.alloc[spc]
-	s := c.alloc[spc].getIdOrEmpty(id)
+	s := c.allocWithId(id, spc)
 	if uintptr(s.allocCount) != s.nelems {
 		throw("refill of span with free space remaining")
 	}
@@ -133,7 +122,7 @@ func (c *mcache) refill(id int, spc spanClass) {
 		if s.sweepgen != mheap_.sweepgen+3 {
 			throw("bad sweepgen in refill")
 		}
-		c.alloc[spc].remove(s)
+		c.alloc[spc].remove(SB_PKG, s)
 		atomic.Store(&s.sweepgen, mheap_.sweepgen)
 	}
 
@@ -151,20 +140,23 @@ func (c *mcache) refill(id int, spc spanClass) {
 	// sweeping in the next sweep phase.
 	s.sweepgen = mheap_.sweepgen + 3
 
-	c.alloc[spc].insert(s)
+	c.alloc[spc].insert(SB_PKG, s)
 }
 
 func (c *mcache) releaseAll() {
 	for i := range c.alloc {
-		s := c.alloc[i].popOrEmpty()
+		//TODO check that the tiny span is in there as well.
+		s := c.alloc[i].popOrEmpty(SB_PKG)
 		for s != &emptymspan {
+			s.tiny = 0
+			s.tinyoffset = 0
 			mheap_.central[i].mcentral.uncacheSpan(s)
-			s = c.alloc[i].popOrEmpty()
+			s = c.alloc[i].popOrEmpty(SB_PKG)
 		}
 	}
 	// Clear tinyalloc pool.
-	c.tiny = 0
-	c.tinyoffset = 0
+	//c.tiny = 0
+	//c.tinyoffset = 0
 }
 
 // prepareForSweep flushes c if the system has entered a new sweep phase
@@ -191,5 +183,5 @@ func (c *mcache) prepareForSweep() {
 }
 
 func (c *mcache) allocWithId(id int, spc spanClass) *mspan {
-	return c.alloc[spc].getIdOrEmpty(id)
+	return c.alloc[spc].getIdOrEmpty(SB_PKG, id)
 }
