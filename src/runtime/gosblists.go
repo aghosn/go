@@ -108,6 +108,8 @@ func (list *sbSpanList) remove(e int, span *mspan) {
 			" span=", span, " prev=", span.prevs[e], " span.ilist=", span.lists[e], " list=", list, "\n")
 		throw("sbSpanList.remove")
 	}
+	span.tiny = 0
+	span.tinyoffset = 0
 	if list.first == span {
 		list.first = span.nexts[e]
 	} else {
@@ -309,7 +311,7 @@ func (c *mcache) tinyAlloc(id int, size uintptr) (unsafe.Pointer, bool, bool) {
 	hasSpace := off+size <= maxTinySize
 	//TODO(aghosn) the problem seem to come from that path
 	// Allocation should succeed
-	if false && allocated && hasSpace {
+	if allocated && hasSpace {
 		// Checking that things are going well.
 		if span.allocCount < uint16(span.countAlloc()) {
 			println("allocs ", span.allocCount, span.countAlloc())
