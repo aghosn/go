@@ -36,9 +36,7 @@ type mcache struct {
 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
 
 	// The rest is not accessed on every malloc.
-
-	//alloc [numSpanClasses]*mspan // spans to allocate from, indexed by spanClass
-	alloc [numSpanClasses]mSpanIdList
+	alloc [numSpanClasses]sbSpanList
 
 	stackcache [_NumStackOrders]stackfreelist
 
@@ -188,8 +186,4 @@ func (c *mcache) prepareForSweep() {
 	c.releaseAll()
 	stackcache_clear(c)
 	atomic.Store(&c.flushGen, mheap_.sweepgen) // Synchronizes with gcStart
-}
-
-func (c *mcache) allocWithId(id int, spc spanClass) *mspan {
-	return c.alloc[spc].getIdOrEmpty(id)
 }
