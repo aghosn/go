@@ -31,8 +31,8 @@ type mcache struct {
 	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
 	// we handle it by clearing it in releaseAll during mark
 	// termination.
-	tiny             uintptr
-	tinyoffset       uintptr
+	//tiny             uintptr
+	//tinyoffset       uintptr
 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
 
 	// The rest is not accessed on every malloc.
@@ -131,6 +131,8 @@ func (c *mcache) refill(id int, spc spanClass) {
 		if s.sweepgen != mheap_.sweepgen+3 {
 			throw("bad sweepgen in refill")
 		}
+		s.tiny = 0
+		s.tinyoffset = 0
 		c.alloc[spc].remove(s)
 		atomic.Store(&s.sweepgen, mheap_.sweepgen)
 	}
@@ -156,13 +158,15 @@ func (c *mcache) releaseAll() {
 	for i := range c.alloc {
 		s := c.alloc[i].popOrEmpty()
 		for s != &emptymspan {
+			s.tiny = 0
+			s.tinyoffset = 0
 			mheap_.central[i].mcentral.uncacheSpan(s)
 			s = c.alloc[i].popOrEmpty()
 		}
 	}
 	// Clear tinyalloc pool.
-	c.tiny = 0
-	c.tinyoffset = 0
+	/*c.tiny = 0
+	c.tinyoffset = 0*/
 }
 
 // prepareForSweep flushes c if the system has entered a new sweep phase

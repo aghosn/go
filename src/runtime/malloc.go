@@ -973,38 +973,73 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 			// standalone escaping variables. On a json benchmark
 			// the allocator reduces number of allocations by ~12% and
 			// reduces heap size by ~20%.
-			off := c.tinyoffset
-			// Align tiny pointer for required (conservative) alignment.
-			if size&7 == 0 {
-				off = round(off, 8)
-			} else if size&3 == 0 {
-				off = round(off, 4)
-			} else if size&1 == 0 {
-				off = round(off, 2)
+			//	off := c.tinyoffset
+			//	// Align tiny pointer for required (conservative) alignment.
+			//	if size&7 == 0 {
+			//		off = round(off, 8)
+			//	} else if size&3 == 0 {
+			//		off = round(off, 4)
+			//	} else if size&1 == 0 {
+			//		off = round(off, 2)
+			//	}
+			//	if off+size <= maxTinySize && c.tiny != 0 {
+			//		// The object fits into existing tiny block.
+			//		x = unsafe.Pointer(c.tiny + off)
+			//		c.tinyoffset = off + size
+			//		c.local_tinyallocs++
+			//		mp.mallocing = 0
+			//		releasem(mp)
+			//		return x
+			//	}
+			//	// Allocate a new maxTinySize block.
+			//	span := c.allocWithId(id, tinySpanClass)
+			//	v := nextFreeFast(span)
+			//	if v == 0 {
+			//		v, _, shouldhelpgc = c.nextFree(id, tinySpanClass)
+			//	}
+			//	x = unsafe.Pointer(v)
+			//	(*[2]uint64)(x)[0] = 0
+			//	(*[2]uint64)(x)[1] = 0
+			//	// See if we need to replace the existing tiny block with the new one
+			//	// based on amount of remaining free space.
+			//	if size < c.tinyoffset || c.tiny == 0 {
+			//		c.tiny = uintptr(x)
+			//		c.tinyoffset = size
+			//	}
+			//	size = maxTinySize
+
+			// Let's see if we have a span for that id.
+			span := c.alloc[tinySpanClass].getIdOrEmpty(id)
+			// Fast path
+			if span != &emptymspan && span.tiny != 0 {
+				off := span.tinyoffset
+				if size&7 == 0 {
+					off = round(off, 8)
+				} else if size&3 == 0 {
+					off = round(off, 4)
+				} else if size&1 == 0 {
+					off = round(off, 2)
+				}
+				if off+size <= maxTinySize && span.tiny != 0 {
+					x = unsafe.Pointer(span.tiny + off)
+					span.tinyoffset = off + size
+					c.local_tinyallocs++
+					mp.mallocing = 0
+					releasem(mp)
+					return x
+				}
 			}
-			if off+size <= maxTinySize && c.tiny != 0 {
-				// The object fits into existing tiny block.
-				x = unsafe.Pointer(c.tiny + off)
-				c.tinyoffset = off + size
-				c.local_tinyallocs++
-				mp.mallocing = 0
-				releasem(mp)
-				return x
-			}
-			// Allocate a new maxTinySize block.
-			span := c.allocWithId(id, tinySpanClass)
+			// Slowpath
 			v := nextFreeFast(span)
 			if v == 0 {
-				v, _, shouldhelpgc = c.nextFree(id, tinySpanClass)
+				v, span, shouldhelpgc = c.nextFree(id, tinySpanClass)
 			}
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
 			(*[2]uint64)(x)[1] = 0
-			// See if we need to replace the existing tiny block with the new one
-			// based on amount of remaining free space.
-			if size < c.tinyoffset || c.tiny == 0 {
-				c.tiny = uintptr(x)
-				c.tinyoffset = size
+			if size < span.tinyoffset || span.tiny == 0 {
+				span.tiny = uintptr(x)
+				span.tinyoffset = size
 			}
 			size = maxTinySize
 		} else {

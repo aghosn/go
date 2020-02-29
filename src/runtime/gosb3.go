@@ -35,6 +35,8 @@ func (list *sbSpanList) init() {
 func (list *sbSpanList) pop() *mspan {
 	s := list.first
 	if s != nil {
+		s.tiny = 0
+		s.tinyoffset = 0
 		list.remove(s)
 	}
 	return s
@@ -48,12 +50,20 @@ func (list *sbSpanList) popOrEmpty() *mspan {
 	return s
 }
 
-func (list *sbSpanList) getIdOrEmpty(id int) *mspan {
+func (list *sbSpanList) getId(id int) *mspan {
 	for s := list.first; s != nil; s = s.inext {
 		if s.id == id || s.allocCount == 0 {
 			s.id = id
 			return s
 		}
+	}
+	return nil
+}
+
+func (list *sbSpanList) getIdOrEmpty(id int) *mspan {
+	s := list.getId(id)
+	if s != nil {
+		return s
 	}
 	return &emptymspan
 }
@@ -66,6 +76,9 @@ func (list *sbSpanList) remove(span *mspan) {
 		print("runtime: failed sbSpanList.remove span.npages=", span.npages,
 			" span=", span, " prev=", span.iprev, " span.ilist=", span.ilist, " list=", list, "\n")
 		throw("sbSpanList.remove")
+	}
+	if span.tiny != 0 || span.tinyoffset != 0 {
+		throw("Freeing span without resetting tiny and offset")
 	}
 	if list.first == span {
 		list.first = span.inext

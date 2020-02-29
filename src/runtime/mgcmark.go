@@ -1358,12 +1358,21 @@ func gcmarknewobject(obj, size, scanSize uintptr) {
 func gcMarkTinyAllocs() {
 	for _, p := range allp {
 		c := p.mcache
-		if c == nil || c.tiny == 0 {
+		if c == nil /*|| c.tiny == 0*/ {
 			continue
 		}
-		_, span, objIndex := findObject(c.tiny, 0, 0)
-		gcw := &p.gcw
-		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
+
+		for s := c.alloc[tinySpanClass].first; s != nil; s = s.inext {
+			if s.tiny == 0 {
+				continue
+			}
+			_, span, objIndex := findObject(s.tiny, 0, 0)
+			gcw := &p.gcw
+			greyobject(s.tiny, 0, 0, span, gcw, objIndex)
+		}
+		//	_, span, objIndex := findObject(c.tiny, 0, 0)
+		//	gcw := &p.gcw
+		//	greyobject(c.tiny, 0, 0, span, gcw, objIndex)
 	}
 }
 
