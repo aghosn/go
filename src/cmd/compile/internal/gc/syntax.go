@@ -64,6 +64,7 @@ type Node struct {
 	// @aghosn keep track of sandboxes and their configuration
 	// So that we do not have to parse the body of the function again.
 	IsSandbox bool
+	Id        string
 	Mem       string
 	Sys       string
 }

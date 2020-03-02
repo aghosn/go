@@ -40,12 +40,12 @@ var (
 	mainInitDone  bool = false
 )
 
-func sandbox_prolog(mem string, syscalls string) {
-	println("SB: prolog", mem, syscalls)
+func sandbox_prolog(id, mem, syscalls string) {
+	println("SB: prolog", id, mem, syscalls)
 }
 
-func sandbox_epilog(mem string, syscalls string) {
-	println("SB: epilog", mem, syscalls)
+func sandbox_epilog(id, mem, syscalls string) {
+	println("SB: epilog", id, mem, syscalls)
 }
 
 func InitBloatInfo(sbs []SBObjEntry, pkgs []BloatJSON, extFunc func(string) string) {

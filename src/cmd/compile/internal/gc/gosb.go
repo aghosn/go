@@ -2,6 +2,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"fmt"
@@ -181,5 +182,5 @@ func dumpSandbox(s *Node, bout *bio.Writer) {
 
 func newobjectPkgArg(s *state) *ssa.Value {
 	itpe := types.Types[types.TINT]
-	return s.constInt64(itpe, int64(pkgId))
+	return s.constInt64(itpe, int64(syntax.PkgId))
 }

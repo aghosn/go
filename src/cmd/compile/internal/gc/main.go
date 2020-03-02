@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
@@ -201,7 +202,7 @@ func Main(archInit func(*Arch)) {
 	smallFrames := false
 
 	// @aghosn we get the pkgId
-	flag.IntVar(&pkgId, "pkgId", -1, "package id for the allocator")
+	flag.IntVar(&syntax.PkgId, "pkgId", -1, "package id for the allocator")
 
 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
 	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")

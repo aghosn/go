@@ -871,7 +871,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 	case _Sandbox:
 		pos := p.pos()
 		p.next()
-		mem, sys, sbconfig := p.sandboxConfig()
+		sbid, mem, sys, sbconfig := p.sandboxConfig()
 		// Parse the closure type
 		ft := p.funcType()
 		// Parse the mandatory body for the function
@@ -889,7 +889,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 		// @aghosn, add the sandbox lines here
 		f.Body.List = append(sbconfig, f.Body.List...)
 		f.IsSandbox = true
-		f.Mem, f.Sys = mem, sys
+		f.Id, f.Mem, f.Sys = sbid, mem, sys
 		return f
 
 	case _Lbrack, _Chan, _Map, _Struct, _Interface:
@@ -1243,47 +1243,6 @@ func (p *parser) funcType() *FuncType {
 	typ.ResultList = p.funcResult()
 
 	return typ
-}
-
-//TODO(aghosn) generate the calls directly here.
-func (p *parser) sandboxConfig() (string, string, []Stmt) {
-	if trace {
-		defer p.trace("sandboxType")()
-	}
-
-	pos := p.pos()
-
-	// Parse ["mem", "sys"], TODO(aghosn)
-	p.want(_Lbrack)
-	memory := p.oliteral()
-	p.want(_Comma)
-	syscalls := p.oliteral()
-	p.want(_Rbrack)
-	config := []Expr{memory, syscalls}
-
-	//call to preinit, replace with constant from somewhere.
-	prolog := sandboxGenerateCall("sandbox_prolog", config)
-	prologStmt := new(ExprStmt)
-	prologStmt.X = prolog
-	prologStmt.pos = pos
-
-	epilog_call := sandboxGenerateCall("sandbox_epilog", config)
-	epilogStmt := new(CallStmt)
-	epilogStmt.Tok = _Defer
-	epilogStmt.Call = epilog_call
-	epilogStmt.pos = pos
-	return memory.Value, syscalls.Value, []Stmt{prologStmt, epilogStmt}
-}
-
-func sandboxGenerateCall(name string, args []Expr) *CallExpr {
-	pname := new(SBInternal)
-	pname.Value = name
-
-	pcall := new(CallExpr)
-	pcall.Fun = pname
-	pcall.ArgList = args
-	pcall.HasDots = false
-	return pcall
 }
 
 func (p *parser) chanElem() Expr {

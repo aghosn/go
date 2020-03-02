@@ -170,6 +170,7 @@ type (
 		Body *BlockStmt
 		// @aghosn values for the sandbox
 		IsSandbox bool
+		Id        string
 		Mem       string
 		Sys       string
 		expr
