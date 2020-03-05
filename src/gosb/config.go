@@ -48,11 +48,16 @@ const (
 func parseMemoryView(mem string) ([]Entry, error) {
 	entries := strings.Split(mem, DELIMITER_PKGS)
 	res := make([]Entry, len(entries))
+	uniq := make(map[string]bool)
 	for i, v := range entries {
 		e, err := parseEntry(v)
 		if err != nil {
 			return res, err
 		}
+		if _, ok := uniq[e.Name]; ok {
+			return nil, fmt.Errorf("Duplicated entry for %v\n", e.Name)
+		}
+		uniq[e.Name] = true
 		res[i] = e
 	}
 	return res, nil

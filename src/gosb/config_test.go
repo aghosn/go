@@ -69,6 +69,9 @@ func TestMultipleMemoryViews(t *testing.T) {
 			[]uint8{R_VAL, R_VAL | W_VAL, R_VAL | X_VAL, R_VAL | X_VAL | W_VAL},
 		},
 	}
+	incorrect := []string{
+		"foo:RWX,bar:RX,foo:RWX",
+	}
 
 	for _, c := range correct {
 		res, err := parseMemoryView(c.s)
@@ -85,6 +88,13 @@ func TestMultipleMemoryViews(t *testing.T) {
 			if res[i].Perm != c.perms[i] {
 				t.Errorf("Wrong perm, got %v expected %v\n", res[i].Perm, c.perms[i])
 			}
+		}
+	}
+
+	for _, c := range incorrect {
+		_, err := parseMemoryView(c)
+		if err == nil {
+			t.Errorf("Entry should have triggered error %v\n", c)
 		}
 	}
 }
