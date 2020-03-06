@@ -6,5 +6,5 @@
 # via the git-review gofmt checks.
 #
 # See golang.org/issue/9281
-
 * -text
+gosb_bootstrap.tar.gz filter=lfs diff=lfs merge=lfs -text

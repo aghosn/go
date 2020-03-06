@@ -2,6 +2,7 @@ package gosb
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -45,7 +46,14 @@ const (
 	P_VAL = uint8(1 << 3)
 )
 
-func parseMemoryView(mem string) ([]Entry, error) {
+func ParseMemoryView(memc string) ([]Entry, error) {
+	mem, err := strconv.Unquote(memc)
+	if err != nil {
+		mem = memc
+	}
+	if len(mem) == 0 {
+		return []Entry{}, nil
+	}
 	entries := strings.Split(mem, DELIMITER_PKGS)
 	res := make([]Entry, len(entries))
 	uniq := make(map[string]bool)
@@ -66,7 +74,7 @@ func parseMemoryView(mem string) ([]Entry, error) {
 func parseEntry(entry string) (Entry, error) {
 	split := strings.Split(entry, DELIMITER_ENTRY)
 	if len(split) != 2 {
-		return Entry{}, fmt.Errorf("Parsing error: expected 2 values, got %v\n", len(split))
+		return Entry{}, fmt.Errorf("Parsing error: expected 2 values, got %v: [%v]\n", len(split), entry)
 	}
 	name := split[0]
 	if len(name) == 0 {

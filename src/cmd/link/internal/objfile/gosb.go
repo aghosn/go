@@ -1,6 +1,7 @@
 package objfile
 
 import (
+	"gosb"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -86,6 +87,16 @@ func registerSandboxes(sbs []string) {
 			content = content[1:]
 			pkgs, content := content[:nbPkgs], content[nbPkgs:]
 			Sandboxes = append(Sandboxes, SBObjEntry{name, config[0], config[1], pkgs})
+
+			// Parse memory view to add pkgs to the dependencies that need to be bloated.
+			extras, err := gosb.ParseMemoryView(config[1])
+			if err != nil {
+				panic(err.Error())
+			}
+			for _, e := range extras {
+				pkgs = append(pkgs, e.Name)
+			}
+
 			SBMap[name] = &Sandboxes[len(Sandboxes)-1]
 			registerPackages(pkgs)
 			contents = content

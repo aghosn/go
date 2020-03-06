@@ -9,6 +9,7 @@ func TestSingleGeneralMemoryView(t *testing.T) {
 		s    string
 		want uint8
 	}{
+		{"", 0},
 		{"foo:U", U_VAL},
 		{"foo:P", P_VAL},
 		{"foo:R", R_VAL},
@@ -21,7 +22,6 @@ func TestSingleGeneralMemoryView(t *testing.T) {
 		{"foo:XWR", R_VAL | W_VAL | X_VAL},
 	}
 	incorrectViews := []string{
-		"",
 		":",
 		"foo",
 		"foo:",
@@ -37,9 +37,12 @@ func TestSingleGeneralMemoryView(t *testing.T) {
 	}
 
 	for _, c := range correctViews {
-		res, err := parseMemoryView(c.s)
+		res, err := ParseMemoryView(c.s)
 		if err != nil {
 			t.Errorf(err.Error())
+		}
+		if res != nil && len(res) == 0 && err == nil {
+			continue
 		}
 		if len(res) != 1 {
 			t.Errorf("Invalid len %v\n", len(res))
@@ -50,7 +53,7 @@ func TestSingleGeneralMemoryView(t *testing.T) {
 	}
 
 	for _, c := range incorrectViews {
-		_, err := parseMemoryView(c)
+		_, err := ParseMemoryView(c)
 		if err == nil {
 			t.Errorf("Failed to catch bad entry %v\n", c)
 		}
@@ -71,10 +74,11 @@ func TestMultipleMemoryViews(t *testing.T) {
 	}
 	incorrect := []string{
 		"foo:RWX,bar:RX,foo:RWX",
+		"foo: RWX,,bitch:RX",
 	}
 
 	for _, c := range correct {
-		res, err := parseMemoryView(c.s)
+		res, err := ParseMemoryView(c.s)
 		if err != nil {
 			t.Errorf(err.Error())
 		}
@@ -92,7 +96,7 @@ func TestMultipleMemoryViews(t *testing.T) {
 	}
 
 	for _, c := range incorrect {
-		_, err := parseMemoryView(c)
+		_, err := ParseMemoryView(c)
 		if err == nil {
 			t.Errorf("Entry should have triggered error %v\n", c)
 		}
