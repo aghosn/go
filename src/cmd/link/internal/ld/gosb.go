@@ -4,6 +4,7 @@ import (
 	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"encoding/json"
+	"github.com/aghosn/litterbox"
 	"sort"
 	"strings"
 )
@@ -29,6 +30,7 @@ var (
 	Segbloat  sym.Segment
 	bloatsyms []*sym.Symbol
 	pkgDecls  map[string]int
+	test      litterbox.Package
 )
 
 func (ctxt *Link) initPkgsBloat() {
