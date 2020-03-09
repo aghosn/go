@@ -44,6 +44,7 @@ const (
 	W_VAL = uint8(1 << 1)
 	X_VAL = uint8(1 << 2)
 	P_VAL = uint8(1 << 3)
+	D_VAL = R_VAL | W_VAL | X_VAL // default set
 )
 
 func ParseMemoryView(memc string) ([]Entry, error) {

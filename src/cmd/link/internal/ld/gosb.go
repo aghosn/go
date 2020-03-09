@@ -34,6 +34,7 @@ var (
 )
 
 func (ctxt *Link) initPkgsBloat() {
+	ctxt.gosb_InitBloat()
 	if PkgsBloat == nil {
 		PkgsBloat = make(map[string]*BloatPkgInfo)
 		pkgDecls = ctxt.PackageDecl
@@ -48,6 +49,16 @@ func (ctxt *Link) initPkgsBloat() {
 	for k := range objfile.SegregatedPkgs {
 		ctxt.transitiveDeps(k, reverse)
 	}
+
+	// Small retrocompatibility check
+	//	if len(PkgsBloat) != len(bloats) {
+	//		fmt.Printf("Oups %v - %v\n", len(PkgsBloat), len(bloats))
+	//	}
+	//	for k, _ := range PkgsBloat {
+	//		if _, ok := bloats[k]; !ok {
+	//			fmt.Printf("Missing %v\n", k)
+	//		}
+	//	}
 }
 
 func (ctxt *Link) transitiveDeps(pkg string, lookup map[int]string) {

@@ -160,7 +160,7 @@ func dumpSandboxes(bout *bio.Writer) {
 // dumpSandbox writes a sandbox information to the object file.
 func dumpSandbox(s *Node, bout *bio.Writer) {
 	// Sanity checks
-	if s == nil || !s.IsSandbox || len(s.Mem) == 0 || len(s.Sys) == 0 {
+	if s == nil || !s.IsSandbox || len(s.Id) == 0 || len(s.Mem) == 0 || len(s.Sys) == 0 {
 		panic("Malformed sandbox")
 	}
 	if _, ok := sandboxToPkgs[s]; !ok {
@@ -169,7 +169,7 @@ func dumpSandbox(s *Node, bout *bio.Writer) {
 	// dump the sandbox symbol.
 	fmt.Fprintf(bout, "%v\n", myimportpath+"."+s.SandboxName())
 	// dump the sandbox configuration
-	fmt.Fprintf(bout, "%v;%v\n", s.Mem, s.Sys)
+	fmt.Fprintf(bout, "%v;%v;%v\n", s.Id, s.Mem, s.Sys)
 	// dump package dependencies
 	pkgs, _ := sandboxToPkgs[s]
 	fmt.Fprintf(bout, "%v\n", len(pkgs))

@@ -9,9 +9,11 @@ import (
 
 type SBObjEntry struct {
 	Func     string
+	Id       string
 	Mem      string
 	Sys      string
 	Packages []string
+	Extras   []gosb.Entry
 }
 
 const (
@@ -81,22 +83,21 @@ func registerSandboxes(sbs []string) {
 			name, content := content[0], content[1:]
 			assert(len(name) > 0, "Empty sandbox name")
 			config, content := strings.Split(content[0], ";"), content[1:]
-			assert(len(config) == 2, "Malformed configuration")
+			assert(len(config) == 3, "Malformed configuration")
 			nbPkgs, err := strconv.Atoi(content[0])
 			assert(err == nil, "Error parsing number of packages")
 			content = content[1:]
-			pkgs, content := content[:nbPkgs], content[nbPkgs:]
-			Sandboxes = append(Sandboxes, SBObjEntry{name, config[0], config[1], pkgs})
-
-			// Parse memory view to add pkgs to the dependencies that need to be bloated.
-			extras, err := gosb.ParseMemoryView(config[1])
+			// Parse memory view
+			extras, err := gosb.ParseMemoryView(config[2])
 			if err != nil {
 				panic(err.Error())
 			}
+			pkgs, content := content[:nbPkgs], content[nbPkgs:]
+			Sandboxes = append(Sandboxes, SBObjEntry{name, config[0], config[1], config[2], pkgs, extras})
+			// Finally add these packages to the ones that need to be bloated
 			for _, e := range extras {
 				pkgs = append(pkgs, e.Name)
 			}
-
 			SBMap[name] = &Sandboxes[len(Sandboxes)-1]
 			registerPackages(pkgs)
 			contents = content
