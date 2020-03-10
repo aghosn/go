@@ -1,12 +1,11 @@
 package ld
 
 import (
-	"cmd/link/internal/objfile"
+	//	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
-	"encoding/json"
-	"github.com/aghosn/litterbox"
-	"sort"
-	"strings"
+	//	"encoding/json"
+	//	"sort"
+	//	"strings"
 )
 
 type BloatEntry struct {
@@ -26,15 +25,15 @@ type BloatJSON struct {
 }
 
 var (
-	PkgsBloat map[string]*BloatPkgInfo
+	//	PkgsBloat map[string]*BloatPkgInfo
 	Segbloat  sym.Segment
 	bloatsyms []*sym.Symbol
-	pkgDecls  map[string]int
-	test      litterbox.Package
+
+//	pkgDecls  map[string]int
 )
 
-func (ctxt *Link) initPkgsBloat() {
-	ctxt.gosb_InitBloat()
+/*func (ctxt *Link) initPkgsBloat() {
+	//ctxt.gosb_InitBloat()
 	if PkgsBloat == nil {
 		PkgsBloat = make(map[string]*BloatPkgInfo)
 		pkgDecls = ctxt.PackageDecl
@@ -84,15 +83,15 @@ func (ctxt *Link) transitiveDeps(pkg string, lookup map[int]string) {
 		ctxt.transitiveDeps(name, lookup)
 	}
 }
-
+*/
 func bloatText(text *[]*sym.Symbol) {
-	*text = reorderSymbols(int(sym.STEXT), *text)
+	*text = gosb_reorderSymbols(int(sym.STEXT), *text)
 }
 
 func bloatData(data [sym.SXREF][]*sym.Symbol) {
 	for i := range data {
 		// Required because data is an array... thank you go, you suck.
-		up := reorderSymbols(i, data[i])
+		up := gosb_reorderSymbols(i, data[i])
 		copy(data[i], up)
 	}
 }
@@ -102,6 +101,7 @@ func ignoreSection(sel int) bool {
 	return sel == int(sym.SITABLINK)
 }
 
+/*
 func bloatSBSym(idx int, syms []*sym.Symbol) {
 	if _, ok := objfile.SBMap[syms[idx].Name]; ok {
 		syms[idx].Align = 0x1000
@@ -111,7 +111,8 @@ func bloatSBSym(idx int, syms []*sym.Symbol) {
 		}
 	}
 }
-
+*/
+/*
 //It does not keep track of the modification we make.
 func reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	// Fast exit if there are no sandboxes.
@@ -158,7 +159,8 @@ func reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	}
 	return regSyms
 }
-
+*/
+/*
 // We also have to dump that information somewhere inside its own segment.
 func finalizeBloat() {
 	for _, entry := range PkgsBloat {
@@ -271,7 +273,7 @@ func dumpSandboxes() []byte {
 	}
 	return b
 }
-
+*/
 func (ctxt *Link) initBloat(order []*sym.Segment) uint64 {
 	// Get information about the last entry
 	lastSeg := order[len(order)-1]
@@ -287,7 +289,7 @@ func (ctxt *Link) initBloat(order []*sym.Segment) uint64 {
 		Addstring(shstrtab, sn)
 		addsection(ctxt.Arch, &Segbloat, sn, 04)
 		s := ctxt.Syms.Lookup(sn, 0)
-		s.P = genbloat(sn)
+		s.P = gosb_generateContent(sn) //genbloat(sn)
 		s.Size = int64(len(s.P))
 		s.Type = sym.SBLOAT
 		s.Sect = Segbloat.Sections[i]
@@ -320,6 +322,7 @@ func (ctxt *Link) initBloat(order []*sym.Segment) uint64 {
 	return Segbloat.Fileoff + Segbloat.Filelen
 }
 
+/*
 func genbloat(sect string) []byte {
 	switch sect {
 	case ".fake":
@@ -333,3 +336,4 @@ func genbloat(sect string) []byte {
 	}
 	return nil
 }
+*/

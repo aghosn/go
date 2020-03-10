@@ -1,5 +1,6 @@
 package gosb
 
+/*
 import (
 	"debug/elf"
 	"encoding/json"
@@ -8,7 +9,8 @@ import (
 	"runtime"
 	"strings"
 )
-
+*/
+/*
 func init() {
 	loadSandboxes()
 }
@@ -60,4 +62,4 @@ func loadSandboxes() {
 		panic(err.Error())
 	}
 	runtime.InitBloatInfo(sandboxes, bloatPkgs, getPkgName)
-}
+}*/

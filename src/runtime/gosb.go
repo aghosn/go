@@ -3,6 +3,30 @@ package runtime
 // These types are the ones found in cmd/link/internal/ld/gosb.go
 // And inside the objfile of the linker.
 
+var (
+	bloatInitDone bool = false
+	mainInitDone  bool = false
+
+	// Useful maps for quick access
+	idToPkg map[int]string = nil
+	pkgToId map[string]int = nil
+
+	// Helper function that parses function names
+	nameToPkg func(string) string = nil
+)
+
+func LitterboxHooks(m map[string]int, f func(string) string) {
+	idToPkg = make(map[int]string)
+	pkgToId = make(map[string]int)
+	for k, v := range m {
+		idToPkg[v] = k
+		pkgToId[k] = v
+	}
+	nameToPkg = f
+	bloatInitDone = true
+}
+
+/*
 type SBObjEntry struct {
 	Func     string
 	Mem      string
@@ -76,4 +100,4 @@ func PkgBloated() []BloatJSON {
 
 func PkgToId() map[string]int {
 	return pkgToId
-}
+}*/
