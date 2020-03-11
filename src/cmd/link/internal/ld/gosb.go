@@ -1,11 +1,7 @@
 package ld
 
 import (
-	//	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
-	//	"encoding/json"
-	//	"sort"
-	//	"strings"
 )
 
 type BloatEntry struct {
@@ -25,65 +21,10 @@ type BloatJSON struct {
 }
 
 var (
-	//	PkgsBloat map[string]*BloatPkgInfo
 	Segbloat  sym.Segment
 	bloatsyms []*sym.Symbol
-
-//	pkgDecls  map[string]int
 )
 
-/*func (ctxt *Link) initPkgsBloat() {
-	//ctxt.gosb_InitBloat()
-	if PkgsBloat == nil {
-		PkgsBloat = make(map[string]*BloatPkgInfo)
-		pkgDecls = ctxt.PackageDecl
-	}
-
-	// Build reverse map for names and ids.
-	reverse := make(map[int]string)
-	for k, v := range ctxt.PackageDecl {
-		reverse[v] = k
-	}
-	// get transitive dependencies
-	for k := range objfile.SegregatedPkgs {
-		ctxt.transitiveDeps(k, reverse)
-	}
-
-	// Small retrocompatibility check
-	//	if len(PkgsBloat) != len(bloats) {
-	//		fmt.Printf("Oups %v - %v\n", len(PkgsBloat), len(bloats))
-	//	}
-	//	for k, _ := range PkgsBloat {
-	//		if _, ok := bloats[k]; !ok {
-	//			fmt.Printf("Missing %v\n", k)
-	//		}
-	//	}
-}
-
-func (ctxt *Link) transitiveDeps(pkg string, lookup map[int]string) {
-	// we already visited the node.
-	if _, ok := PkgsBloat[pkg]; ok {
-		return
-	}
-	PkgsBloat[pkg] = &BloatPkgInfo{}
-	PkgsBloat[pkg].Relocs = make([]BloatEntry, sym.SABIALIAS)
-	id, ok := ctxt.PackageDecl[pkg]
-	if !ok && pkg == "type" {
-		return
-	}
-	deps, ok := ctxt.PackageDeps[id]
-	if !ok {
-		return
-	}
-	for _, v := range deps {
-		name, ok := lookup[v]
-		if !ok {
-			panic("Missing name for the dep package")
-		}
-		ctxt.transitiveDeps(name, lookup)
-	}
-}
-*/
 func bloatText(text *[]*sym.Symbol) {
 	*text = gosb_reorderSymbols(int(sym.STEXT), *text)
 }
@@ -101,179 +42,6 @@ func ignoreSection(sel int) bool {
 	return sel == int(sym.SITABLINK)
 }
 
-/*
-func bloatSBSym(idx int, syms []*sym.Symbol) {
-	if _, ok := objfile.SBMap[syms[idx].Name]; ok {
-		syms[idx].Align = 0x1000
-		// throw the next symbol to the next page.
-		if idx < len(syms)-1 {
-			syms[idx+1].Align = 0x1000
-		}
-	}
-}
-*/
-/*
-//It does not keep track of the modification we make.
-func reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
-	// Fast exit if there are no sandboxes.
-	if len(objfile.Sandboxes) == 0 || ignoreSection(sel) {
-		return syms
-	}
-	regSyms := make([]*sym.Symbol, 0)
-	for _, s := range syms {
-		if e, ok := PkgsBloat[s.File]; ok {
-			if e.Relocs[sel].syms == nil {
-				e.Relocs[sel].syms = make([]*sym.Symbol, 0)
-			}
-			e.Relocs[sel].syms = append(e.Relocs[sel].syms, s)
-		} else {
-			regSyms = append(regSyms, s)
-		}
-		if s.Value != 0 {
-			panic("Symbol already has a value")
-		}
-	}
-	// Now we can sort symbols.
-	fmap := make([][]*sym.Symbol, 0)
-	for _, v := range PkgsBloat {
-		if v.Relocs[sel].syms != nil {
-			sort.Slice(v.Relocs[sel].syms, func(i, j int) bool {
-				return strings.Compare(v.Relocs[sel].syms[i].Name, v.Relocs[sel].syms[j].Name) == -1
-			})
-			fmap = append(fmap, v.Relocs[sel].syms)
-		}
-	}
-	sort.Slice(fmap, func(i, j int) bool {
-		return strings.Compare(fmap[i][0].File, fmap[j][0].File) == -1
-	})
-	sort.Slice(regSyms, func(i, j int) bool {
-		return strings.Compare(regSyms[i].File, regSyms[j].File) == -1
-	})
-	for _, syms := range fmap {
-		syms[0].Align = 0x1000
-		regSyms = append(regSyms, syms...)
-	}
-	// Find the sandboxes and bloat them
-	for i := range regSyms {
-		bloatSBSym(i, regSyms)
-	}
-	return regSyms
-}
-*/
-/*
-// We also have to dump that information somewhere inside its own segment.
-func finalizeBloat() {
-	for _, entry := range PkgsBloat {
-		for i := range entry.Relocs {
-			if len(entry.Relocs[i].syms) > 0 {
-				first := entry.Relocs[i].syms[0]
-				last := entry.Relocs[i].syms[len(entry.Relocs[i].syms)-1]
-				entry.Relocs[i].Addr = uint64(first.Value)
-				entry.Relocs[i].Size = uint64(last.Value-first.Value) + uint64(last.Size)
-			}
-		}
-	}
-}
-
-// Check they have the same value for sect and that value is increasing, and
-// sect Vaddr + first == x * 0x1000
-func verifySymbols() {
-	stat := 0
-	for _, entry := range PkgsBloat {
-		sect_stat := 0
-		for _, sect := range entry.Relocs {
-			pkg := ""
-			for i, symb := range sect.syms {
-				section := symb.Sect
-				if i == 0 {
-					pkg = symb.File
-					if symb.Value%0x1000 != 0 {
-						panic("Unaligned")
-					}
-				} else if symb.File != pkg {
-					panic("Different packages")
-				} else {
-					prev := sect.syms[i-1]
-					prevAddr := int64(prev.Sect.Vaddr) + prev.Value
-					currAddr := int64(section.Vaddr) + symb.Value
-					if prevAddr > currAddr {
-						panic("Address not increasing")
-					}
-				}
-			}
-			sect_stat++
-		}
-		stat++
-	}
-}
-
-func bloatAddress(va uint64) uint64 {
-	if va%0x1000 == 0 {
-		return va
-	}
-	n := ((va / 0x1000) + 1) * 0x1000
-	return n
-}
-
-func dumpBloat() []byte {
-	if len(PkgsBloat) == 0 {
-		return nil
-	}
-	verifySymbols()
-	finalizeBloat()
-	res := make([]BloatJSON, 0)
-	for pack, bloat := range PkgsBloat {
-		id, ok := pkgDecls[pack]
-		if !ok {
-			if !noText(bloat) {
-				panic("A bloat with text has no id.")
-			}
-			id = -1
-		}
-		if noAddresses(bloat) {
-			continue
-		}
-		e := BloatJSON{pack, id, *bloat}
-		res = append(res, e)
-	}
-	b, err := json.Marshal(res)
-	if err != nil {
-		panic(err.Error())
-	}
-	return b
-}
-
-func noText(b *BloatPkgInfo) bool {
-	return b.Relocs[sym.STEXT].Addr == 0 && b.Relocs[sym.STEXT].Size == 0
-}
-
-func noAddresses(b *BloatPkgInfo) bool {
-	for _, e := range b.Relocs {
-		if e.Addr == 0 {
-			if e.Size != 0 || len(e.syms) != 0 {
-				panic("Malformed BloatEntry.")
-			}
-		} else {
-			if e.Size == 0 {
-				panic("Malformed BloatEntry, address non nil 0 and size 0")
-			}
-			return false
-		}
-	}
-	return true
-}
-
-func dumpSandboxes() []byte {
-	if len(PkgsBloat) == 0 {
-		return nil
-	}
-	b, err := json.Marshal(objfile.Sandboxes)
-	if err != nil {
-		panic(err.Error())
-	}
-	return b
-}
-*/
 func (ctxt *Link) initBloat(order []*sym.Segment) uint64 {
 	// Get information about the last entry
 	lastSeg := order[len(order)-1]
@@ -321,19 +89,3 @@ func (ctxt *Link) initBloat(order []*sym.Segment) uint64 {
 
 	return Segbloat.Fileoff + Segbloat.Filelen
 }
-
-/*
-func genbloat(sect string) []byte {
-	switch sect {
-	case ".fake":
-		return []byte("fake")
-	case ".bloated":
-		return dumpBloat()
-	case ".sandboxes":
-		return dumpSandboxes()
-	default:
-		panic("unknown value")
-	}
-	return nil
-}
-*/
