@@ -39,6 +39,7 @@ const (
 )
 
 const (
+	// These constants are made to match the ones in cmd/link/internal/ld/elf.go
 	U_VAL = uint8(0)
 	X_VAL = uint8(1)
 	W_VAL = uint8(1 << 1)

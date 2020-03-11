@@ -1,7 +1,7 @@
 package gosb
 
 import (
-	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -14,10 +14,11 @@ var (
 )
 
 // Initialize loads the sandbox and package information from the binary.
-func Initialize() {
+func Initialize(b Backend) {
 	once.Do(func() {
 		loadPackages()
 		loadSandboxes()
+		initBackend(b)
 		initRuntime()
 	})
 }
@@ -27,15 +28,22 @@ func initRuntime() {
 	for k, d := range pkgMap {
 		pkgToId[k] = d.Id
 	}
-	//	runtime.LitterboxHooks(pkgToId, getPkgName)
+	runtime.LitterboxHooks(pkgToId, getPkgName)
 }
 
+// getPkgName is called by the runtime.
+// As a result it should not be call printf.
+//TODO(aghosn) implement it by hand and add a nosplit condition.
+// TODO(aghosn) fix this.
 func getPkgName(name string) string {
-	splitted := strings.Split(name, ".")
-	if len(splitted) < 1 {
-		panic("Unable to get pkg name")
-	} else if len(splitted) > 2 {
-		fmt.Println("OUps ", splitted)
+	idx := strings.LastIndex(name, "/")
+	if idx == -1 {
+		idx = 0
 	}
-	return splitted[0]
+	sub := name[idx:]
+	idx2 := strings.Index(sub, ".")
+	if idx2 == -1 || idx2 == 0 {
+		panic("Unable to get pkg name")
+	}
+	return name[0 : idx+idx2]
 }

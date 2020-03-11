@@ -7,6 +7,8 @@ import (
 	"os"
 )
 
+type SandId = string
+
 type Domain struct {
 	config *SandboxDomain
 	SView  map[*Package]uint8
@@ -14,7 +16,7 @@ type Domain struct {
 }
 
 type SandboxDomain struct {
-	Id   string
+	Id   SandId
 	Func string
 	Sys  SyscallMask
 	View map[string]uint8
@@ -75,14 +77,15 @@ func loadSandboxes() {
 	check(err)
 	sbSec := p.Section(".sandboxes")
 	defer func() { check(p.Close()) }()
-	if sbSec != nil {
+	if sbSec == nil {
+		// no sandboxes
 		return
 	}
 	sbBytes, err := sbSec.Data()
 	check(err)
 	// Get the sandbox domains
 	sbDomains := make([]*SandboxDomain, 0)
-	err = json.Unmarshal(sbBytes, sbDomains)
+	err = json.Unmarshal(sbBytes, &sbDomains)
 	check(err)
 	// Now generate internal data with direct access to domains.
 	domains = make(map[string]*Domain)
