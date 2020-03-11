@@ -3,7 +3,9 @@ package ld
 import (
 	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
-	lb "github.com/aghosn/litterbox"
+	"encoding/json"
+	"gosb"
+	lb "gosb"
 	"log"
 	"sort"
 	"strings"
@@ -11,7 +13,7 @@ import (
 
 var (
 	nonbloat *lb.Package
-	bloats   map[string]*lb.Package
+	Bloats   map[string]*lb.Package
 	toSym    map[*lb.Section][]*sym.Symbol
 	lookup   map[int]string
 	domains  []*lb.SandboxDomain
@@ -20,8 +22,8 @@ var (
 // gosb_InitBloat initializes global state and computes all dependencies for each
 // package that requires to be bloated.
 func (ctxt *Link) gosb_InitBloat() {
-	if bloats == nil {
-		bloats = make(map[string]*lb.Package)
+	if Bloats == nil {
+		Bloats = make(map[string]*lb.Package)
 	}
 	if toSym == nil {
 		toSym = make(map[*lb.Section][]*sym.Symbol)
@@ -33,7 +35,7 @@ func (ctxt *Link) gosb_InitBloat() {
 	}
 	// Define the function for transitive dependencies
 	check := func(s string) bool {
-		_, ok := bloats[s]
+		_, ok := Bloats[s]
 		return ok
 	}
 	create := func(ctxt *Link, id int, deps []int) {
@@ -42,7 +44,7 @@ func (ctxt *Link) gosb_InitBloat() {
 			log.Fatalf("No name for id %v\n", id)
 		}
 		pkgInfo := &lb.Package{Name: pkg, Id: id, Sects: make([]lb.Section, sym.SABIALIAS)}
-		bloats[pkg] = pkgInfo
+		Bloats[pkg] = pkgInfo
 	}
 
 	// Get the transitive dependencies for each package
@@ -50,7 +52,7 @@ func (ctxt *Link) gosb_InitBloat() {
 		ctxt.gosb_walkTransDeps(k, create, check)
 	}
 	// Add an entry for non-bloated packages.
-	nonbloat = &lb.Package{"non-bloat", -1, make([]lb.Section, sym.SABIALIAS)}
+	nonbloat = &lb.Package{"non-bloat", -1, make([]lb.Section, sym.SABIALIAS), nil}
 	// For all the sandboxes, we get the transitive dependencies & generate
 	// the sandboxes informations.
 	ctxt.gosb_generateDomains()
@@ -63,7 +65,7 @@ func (ctxt *Link) gosb_generateDomains() {
 		sb.Func = v.Func
 		var err error
 		sb.Sys, err = lb.ParseSyscalls(v.Sys)
-		sb.View = make(map[*lb.Package]uint8)
+		sb.View = nil //make(map[string]uint8)
 		if err != nil {
 			log.Fatalf("Error parsing %v: %v\n", v.Sys, err.Error())
 		}
@@ -75,9 +77,9 @@ func (ctxt *Link) gosb_generateDomains() {
 			if _, ok := visited[s]; ok {
 				return true
 			}
-			pack, ok := bloats[s]
+			pack, ok := Bloats[s]
 			if !ok && (s == "go.runtime" || s == "go.itab") {
-				pack, ok = bloats["runtime"]
+				pack, ok = Bloats["runtime"]
 			}
 			if !ok {
 				log.Fatalf("Error %v should have a package by now.\n", s)
@@ -109,7 +111,7 @@ func (ctxt *Link) gosb_generateDomains() {
 					memView[k] = p.Perm
 				}
 				if _, ok := visited[k]; !ok {
-					pack, ok1 := bloats[k]
+					pack, ok1 := Bloats[k]
 					if !ok1 {
 						log.Fatalf("Oups, forgot to bloat %v\n", k)
 					}
@@ -119,17 +121,26 @@ func (ctxt *Link) gosb_generateDomains() {
 		}
 		// Finally, we set the packages and the memory view
 		for _, pack := range visited {
-			sb.Pkgs = append(sb.Pkgs, pack)
+			sb.Pkgs = append(sb.Pkgs, pack.Name)
 		}
-		for k, prot := range memView {
+		sb.View = memView
+		/*for k, prot := range memView {
 			pack, ok := bloats[k]
 			if !ok {
 				log.Fatalf("We forgot to bloat %v\n", k)
 			}
 			sb.View[pack] = prot
-		}
+		}*/
 		domains = append(domains, sb)
 	}
+	// Create a fake sandbox for the nonbloated domain
+	nonbloatDomain := &lb.SandboxDomain{}
+	nonbloatDomain.Id = "-1"
+	nonbloatDomain.Func = "-1"
+	nonbloatDomain.Sys = 0
+	nonbloatDomain.View = nil
+	nonbloatDomain.Pkgs = []string{nonbloat.Name}
+	domains = append(domains, nonbloatDomain)
 }
 
 // gosb_walkTransDeps allows to follow transitive dependencies applying the given f method.\
@@ -183,7 +194,7 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		if _, ok := objfile.SBMap[s.Name]; ok {
 			sandSyms = append(sandSyms, s)
 			s.Align = 0x1000
-		} else if _, ok := bloats[s.File]; ok {
+		} else if _, ok := Bloats[s.File]; ok {
 			e, ok1 := bloated[s.File]
 			if !ok1 {
 				e = make([]*sym.Symbol, 0)
@@ -203,7 +214,7 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 			return strings.Compare(v[i].Name, v[j].Name) == -1
 		})
 		// We register the package here cause we'll need the symbol later.
-		if b, ok := bloats[k]; ok {
+		if b, ok := Bloats[k]; ok {
 			toSym[&b.Sects[sel]] = v
 		} else {
 			log.Fatalf("Unable to find the package for %v\n", k)
@@ -231,4 +242,89 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	// Maybe modify objfile.
 	regSyms = append(regSyms, sandSyms...)
 	return regSyms
+}
+
+func gosb_generateContent(sect string) []byte {
+	switch sect {
+	case ".fake":
+		return []byte("fake")
+	case ".bloated":
+		return gosb_dumpPackages()
+	case ".sandboxes":
+		return gosb_dumpSandboxes()
+	default:
+		panic("Unknown value for gosb_generateContent")
+	}
+	return nil
+}
+
+// gosb_dumpPackages returns the marshalled json bytes that correspond
+// to packages. we go through each register section to set the addresses.
+func gosb_dumpPackages() []byte {
+	// Register the final addresses for the sections.
+	// This actually also handles the non-bloat part.
+	for k, v := range toSym {
+		if len(v) == 0 {
+			continue
+		}
+		first := v[0]
+		last := v[len(v)-1]
+		if first.Value > last.Value {
+			log.Fatalf("Symbols not ordered (%v) %v-%v\n", v, first.Value, last.Value)
+		}
+		_, ok := Bloats[first.File]
+		// The symbol is part of a bloat
+		if ok && (first.Align != 0x1000 || first.Value%0x1000 != 0) {
+			log.Fatalf("Wrong alignment for bloated section %v: %v", first.File, first)
+		}
+		// We just verify that symbols are increasing and all belong to the same
+		// package.
+		gosb_verifySymbols(v, ok)
+		k.Addr = uint64(first.Value)
+		k.Size = uint64(last.Value-first.Value) + uint64(last.Size)
+		k.Prot = gosb.W_VAL | gosb.R_VAL
+		if first.Sect != nil {
+			k.Prot = first.Sect.Rwx
+		}
+	}
+	// Create the dump for the bloated packages
+	res := make([]*lb.Package, 0)
+	for _, b := range Bloats {
+		res = append(res, b)
+	}
+	// Add the non-bloated part
+	res = append(res, nonbloat)
+	b, err := json.Marshal(res)
+	if err != nil {
+		log.Fatalf("Unable to marshal %v\n", err.Error())
+	}
+	return b
+}
+
+func gosb_verifySymbols(syms []*sym.Symbol, aligned bool) {
+	if len(syms) == 0 {
+		return
+	}
+	for i := range syms {
+		if i == 0 && aligned && syms[i].Value%0x1000 != 0 {
+			log.Fatalf("Wrong alignment for %v: %v\n", syms[i].File, syms[i].Value)
+		} else if i == 0 {
+			continue
+		}
+		prev := syms[i-1]
+		if prev.Value+prev.Size > syms[i].Value {
+			log.Fatalf("Not ordered properly %v -- %v [%v]\n", prev.Value+prev.Size, syms[i].Value, prev.File)
+		}
+		if aligned && prev.File != syms[i].File {
+			log.Fatalf("Different packages %v -- %v\n", prev.File, syms[i].File)
+		}
+	}
+}
+
+func gosb_dumpSandboxes() []byte {
+	res, err := json.Marshal(domains)
+	if err != nil {
+		log.Fatalf("Error mashalling sandboxes %v\n", err.Error())
+	}
+	return res
 }

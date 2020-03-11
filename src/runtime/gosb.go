@@ -3,31 +3,9 @@ package runtime
 // These types are the ones found in cmd/link/internal/ld/gosb.go
 // And inside the objfile of the linker.
 
-type SBObjEntry struct {
-	Func     string
-	Mem      string
-	Sys      string
-	Packages []string
-}
-
-type BloatEntry struct {
-	Addr uint64
-	Size uint64
-}
-
-type BloatPkgInfo struct {
-	Relocs []BloatEntry
-}
-
-type BloatJSON struct {
-	Package  string
-	Id       int
-	Bloating BloatPkgInfo
-}
-
 var (
-	sandboxes []SBObjEntry = nil
-	pkgsBloat []BloatJSON  = nil
+	bloatInitDone bool = false
+	mainInitDone  bool = false
 
 	// Useful maps for quick access
 	idToPkg map[int]string = nil
@@ -35,9 +13,6 @@ var (
 
 	// Helper function that parses function names
 	nameToPkg func(string) string = nil
-
-	bloatInitDone bool = false
-	mainInitDone  bool = false
 )
 
 func sandbox_prolog(id, mem, syscalls string) {
@@ -48,32 +23,13 @@ func sandbox_epilog(id, mem, syscalls string) {
 	println("SB: epilog", id, mem, syscalls)
 }
 
-func InitBloatInfo(sbs []SBObjEntry, pkgs []BloatJSON, extFunc func(string) string) {
-	if sandboxes != nil || pkgsBloat != nil {
-		return
-	}
-	sandboxes = sbs
-	pkgsBloat = pkgs
-	nameToPkg = extFunc
+func LitterboxHooks(m map[string]int, f func(string) string) {
 	idToPkg = make(map[int]string)
 	pkgToId = make(map[string]int)
-	for _, b := range pkgsBloat {
-		if _, ok := idToPkg[b.Id]; ok && b.Id != -1 {
-			panic("Redefined id for allocation!")
-		}
-		idToPkg[b.Id] = b.Package
-		pkgToId[b.Package] = b.Id
+	for k, v := range m {
+		idToPkg[v] = k
+		pkgToId[k] = v
 	}
+	nameToPkg = f
 	bloatInitDone = true
-}
-
-//TODO(aghosn) remove afterwards.
-//For master student.
-
-func PkgBloated() []BloatJSON {
-	return pkgsBloat
-}
-
-func PkgToId() map[string]int {
-	return pkgToId
 }

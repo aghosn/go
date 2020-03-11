@@ -40,9 +40,9 @@ const (
 
 const (
 	U_VAL = uint8(0)
-	R_VAL = uint8(1)
+	X_VAL = uint8(1)
 	W_VAL = uint8(1 << 1)
-	X_VAL = uint8(1 << 2)
+	R_VAL = uint8(1 << 2)
 	P_VAL = uint8(1 << 3)
 	D_VAL = R_VAL | W_VAL | X_VAL // default set
 )
