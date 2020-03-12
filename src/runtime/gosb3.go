@@ -26,6 +26,21 @@ type spanExtras struct {
 	tinyoffset uintptr
 }
 
+// setId takes care of calling our backend if we want to switch a section.
+// The move boolean is true if we are moving the span from one section to another.
+// It is false for newly mmapped sections.
+// TODO(aghosn) we could optimize that such that -1 (non-sandbox) does not require
+// tagging.
+// TODO(aghosn) can we have race conditions on the id?
+func (e *mspan) setId(id int, move bool) {
+	if move && transferSection != nil {
+		transferSection(e.id, id, e.startAddr, e.limit-e.startAddr)
+	} else if !move && registerSection != nil {
+		registerSection(id, e.startAddr, e.limit-e.startAddr)
+	}
+	e.id = id
+}
+
 // Initialize an empty doubly-linked list.
 func (list *sbSpanList) init() {
 	list.first = nil
@@ -53,7 +68,9 @@ func (list *sbSpanList) popOrEmpty() *mspan {
 func (list *sbSpanList) getId(id int) *mspan {
 	for s := list.first; s != nil; s = s.inext {
 		if s.id == id || s.allocCount == 0 {
-			s.id = id
+			if s.id != id {
+				s.setId(id, true)
+			}
 			return s
 		}
 	}

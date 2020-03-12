@@ -4,26 +4,37 @@ type Backend = int
 
 type backendConfig struct {
 	tpe Backend
-	//TODO(aghosn) see what we want to put in there.
+	//Functions for hooks in the runtime
+	transfer func(oldid, newid int, start, size uintptr)
+	register func(id int, start, size uintptr)
+
+	init func()
 }
 
 const (
-	VTX_BACKEND Backend = iota
-	MPK_BACKEND Backend = iota
+	SIM_BACKEND    Backend = iota
+	VTX_BACKEND    Backend = iota
+	MPK_BACKEND    Backend = iota
+	__BACKEND_SIZE Backend = iota
 )
 
+// Configurations
 var (
-	backend backendConfig
+	configBackends = [__BACKEND_SIZE]backendConfig{
+		backendConfig{SIM_BACKEND, nil, nil, nil},
+		backendConfig{VTX_BACKEND, nil, nil, nil},
+		backendConfig{MPK_BACKEND, mpkTransfer, mpkRegister, mpkInit},
+	}
+)
+
+// The actual backend that we use in this session
+var (
+	backend *backendConfig
 )
 
 func initBackend(b Backend) {
-	switch b {
-	case VTX_BACKEND:
-		panic("Implementation not ready yet")
-	case MPK_BACKEND:
-		backend.tpe = b
-		tagPackages()
-	default:
-		panic("Invalid backend config ID")
+	backend = &configBackends[b]
+	if backend.init != nil {
+		backend.init()
 	}
 }

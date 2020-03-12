@@ -55,8 +55,24 @@ var (
 	pkgGroups   [][]int
 )
 
-// tagPackages relies on sandboxes and pkgToId, they must be initialized before the call
-func tagPackages() {
+func mpkRegister(id int, start, size uintptr) {
+	//TODO(CharlyCst) implement this one.
+	//The goal is to go and look at sections, see if it already exists.
+	//If not, we create and add a new one and tag it with the correct key
+	//(i.e., the one that corresponds to the package id).
+	//If the section did not exist, it must be a dynamic library and hence should
+	//be added to the package as such.
+}
+
+func mpkTransfer(oldid, newid int, start, size uintptr) {
+	//TODO(charlyCst) implement this one.
+	//Apparently the section should already exist somewhere (we should keep a map of them with start address to make things easier).
+	//We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
+	//The same should apply for the previous function.
+}
+
+// mpkInit relies on sandboxes and pkgToId, they must be initialized before the call
+func mpkInit() {
 	n := len(packages)
 	pkgAppearsIn := make(map[int][]SandId, n)
 

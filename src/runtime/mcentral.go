@@ -58,7 +58,7 @@ retry:
 		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 			c.nonempty.remove(s)
 			c.empty.insertBack(s)
-			s.id = id
+			s.setId(id, true)
 			unlock(&c.lock)
 			s.sweep(true)
 			goto havespan
@@ -70,7 +70,7 @@ retry:
 		// we have a nonempty span that does not require sweeping, allocate from it
 		c.nonempty.remove(s)
 		c.empty.insertBack(s)
-		s.id = id
+		s.setId(id, true)
 		unlock(&c.lock)
 		goto havespan
 	}
@@ -273,6 +273,7 @@ func (c *mcentral) grow(id int) *mspan {
 	n := (npages << _PageShift) >> s.divShift * uintptr(s.divMul) >> s.divShift2
 	s.limit = s.base() + size*n
 	heapBitsForAddr(s.base()).initSpan(s)
-	s.id = id
+	// @aghosn The span is supposed to be fresh, we can just set the id
+	s.setId(id, false)
 	return s
 }

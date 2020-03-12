@@ -1071,10 +1071,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 		s.allocCount = 1
 		x = unsafe.Pointer(s.base())
 		size = s.elemsize
-		//TODO(aghosn) mark the span with the id.
-		//Probably will need to register it with the backend and protect it.
-		//Do we need to keep track of it?
-		s.id = id
+		//mark the span with the id.
+		s.setId(id, true)
 	}
 
 	var scanSize uintptr
