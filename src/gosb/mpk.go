@@ -151,10 +151,10 @@ func popMap(m map[int][]SandId) (int, []SandId) {
 /** Low Level Implementation **/
 
 // WritePKRU updates the value of the PKRU
-func WritePKRU(prot PKRU)
+func WritePKRU(prot PKRU) { /*TODO fix the assembly code*/ }
 
 // ReadPKRU returns the value of the PKRU
-func ReadPKRU() PKRU
+func ReadPKRU() PKRU { /*TODO fix the assembly code */ return 0 }
 
 func (p PKRU) String() string {
 	return fmt.Sprintf("0b%032b", p)
