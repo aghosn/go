@@ -65,6 +65,18 @@ func (dom *Domain) toVma() *addrSpace {
 
 // coalesce is called to merge vmareas
 func (s *addrSpace) coalesce() {
+	for curr := toElem(s.areas.first); curr != nil; curr = toElem(curr.next) {
+		next := toElem(curr.next)
+		if next == nil {
+			return
+		}
+		currVma := (*vmarea)(unsafe.Pointer(curr))
+		nextVma := (*vmarea)(unsafe.Pointer(next))
+		_, merged := currVma.merge(nextVma)
+		if merged {
+			s.areas.remove(next)
+		}
+	}
 }
 
 // intersect checks if two vmareas intersect, should return false if they are contiguous
