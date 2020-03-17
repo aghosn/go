@@ -9,27 +9,35 @@ import (
 	"unsafe"
 )
 
-// vmarea is similar to Section for the moment, but the goal is to coalesce them.
-// Maybe we'll merge the two later on, e.g., type vmarea = Section.
-type vmarea struct {
-	start uintptr
-	size  uintptr
-	prot  uint8
-}
-
 type pageTable struct {
 	entries [512]uint64
 }
 
 const (
-	PTE_P   = 0x0001 /* Present */
-	PTE_W   = 0x0002 /* Writeable */
-	PTE_U   = 0x0004 /* User */
-	PTE_PWT = 0x0008 /* Write-Through */
-	PTE_PCD = 0x0010 /* Cache-Disable */
-	PTE_A   = 0x0020 /* Accessed */
-	PTE_D   = 0x0040 /* Dirty */
+	PTE_P   = 0x0001  /* Present */
+	PTE_W   = 0x0002  /* Writeable */
+	PTE_U   = 0x0004  /* User */
+	PTE_PWT = 0x0008  /* Write-Through */
+	PTE_PCD = 0x0010  /* Cache-Disable */
+	PTE_A   = 0x0020  /* Accessed */
+	PTE_D   = 0x0040  /* Dirty */
+	PTE_NX  = 1 << 63 /* NX bit for non-execute 0x8000000000000000*/
 )
+
+//TODO(aghosn) handle U and P
+func toFlags(prot uint8) uintptr {
+	val := uintptr(PTE_P)
+	if prot&X_VAL == 0 {
+		val |= uintptr(PTE_NX)
+	}
+	if prot&W_VAL != 0 {
+		val |= uintptr(PTE_W)
+	}
+	if prot&R_VAL == 0 {
+		panic("Missing read val")
+	}
+	return val
+}
 
 const (
 	LVL_PTE    = 0
@@ -97,7 +105,7 @@ func toPageTable(e uintptr) *pageTable {
 //TODO(aghosn) we will probably need a specific function to allocate pageTables.
 //It should somehow register entries to be shared with the VM, and be off-heap.
 //For the moment I simply do it with the regular allocator.
-func pagewalk(root *pageTable, start, end uintptr, lvl int, apply int, f func(entry *uint64, lvl int), alloc func() *pageTable) {
+func pagewalk(root *pageTable, start, end uintptr, lvl int, apply int, f func(entry *uint64, lvl int), alloc func(cur uintptr, lvl int) *pageTable) {
 	if lvl < 0 {
 		return
 	}
@@ -107,8 +115,9 @@ func pagewalk(root *pageTable, start, end uintptr, lvl int, apply int, f func(en
 		curVa := baseVa + PDADDR(lvl, uintptr(i))
 		entry := &root.entries[i]
 		if !pte_present(*entry) && (apply&APPLY_CREATE != 0) {
-			newPte := alloc()
-			*entry = uint64(PTE_ADDR(newPte.ptr()) | PTE_P | PTE_W | PTE_U)
+			newPte := alloc(curVa, lvl)
+			// Simply mark the page as present, rely on f to add the bits.
+			*entry = uint64(PTE_ADDR(newPte.ptr()) | PTE_P)
 		}
 		if pte_present(*entry) && (apply&lvlApply(lvl) != 0) {
 			f(entry, lvl)
