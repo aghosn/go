@@ -9,6 +9,7 @@ import (
 var (
 	packages []*Package
 	pkgMap   map[string]*Package
+	idToPkg  map[int]*Package
 	domains  map[string]*Domain
 	once     sync.Once
 )

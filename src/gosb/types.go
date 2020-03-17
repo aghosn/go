@@ -27,7 +27,7 @@ type Package struct {
 	Name    string
 	Id      int
 	Sects   []Section
-	Dynamic []Section
+	Dynamic []*Section
 }
 
 type Section struct {
@@ -59,13 +59,21 @@ func loadPackages() {
 	packages = make([]*Package, 0)
 	err = json.Unmarshal(bloatBytes, &packages)
 	check(err)
+
+	// TODO(CharlyCst) handle memory allocation in `mpkRegister` (mpk.go)
+	for _, pkg := range packages {
+		pkg.Dynamic = make([]*Section,0,1000) 
+	}
+
 	// Generate the map for later TODO(aghosn) we might want to change that to int
 	pkgMap = make(map[string]*Package)
+	idToPkg = make(map[int]*Package)
 	for _, v := range packages {
 		if _, ok := pkgMap[v.Name]; ok {
 			log.Fatalf("Duplicated package %v\n", v.Name)
 		}
 		pkgMap[v.Name] = v
+		idToPkg[v.Id] = v
 	}
 	if i, j := len(pkgMap), len(packages); i != j {
 		log.Fatalf("Different size %v %v\n", i, j)
