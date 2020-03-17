@@ -24,6 +24,10 @@ func toPtr(e *listElem) uintptr {
 	return uintptr(unsafe.Pointer(e))
 }
 
+func toVma(e uintptr) *vmarea {
+	return (*vmarea)(unsafe.Pointer(e))
+}
+
 func (l *list) init() {
 	l.first = 0
 	l.last = 0
@@ -42,8 +46,8 @@ func (l *list) addBack(e *listElem) {
 		e.prev = l.last
 	} else {
 		l.first = toPtr(e)
-		l.last = toPtr(e)
 	}
+	l.last = toPtr(e)
 	e.l = l
 }
 

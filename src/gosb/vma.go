@@ -70,11 +70,16 @@ func (s *addrSpace) coalesce() {
 		if next == nil {
 			return
 		}
-		currVma := (*vmarea)(unsafe.Pointer(curr))
-		nextVma := (*vmarea)(unsafe.Pointer(next))
-		_, merged := currVma.merge(nextVma)
-		if merged {
+		currVma := toVma(toPtr(curr)) //(*vmarea)(unsafe.Pointer(curr))
+		nextVma := toVma(toPtr(next)) //(*vmarea)(unsafe.Pointer(next))
+		for v, merged := currVma.merge(nextVma); merged && nextVma != nil; {
 			s.areas.remove(next)
+			if currVma != v {
+				log.Fatalf("These should be equal %v %v\n", currVma, v)
+			}
+			next = toElem(curr.next)
+			nextVma = toVma(curr.next)
+			v, merged = currVma.merge(nextVma)
 		}
 	}
 }
@@ -104,6 +109,7 @@ func (vm *vmarea) contiguous(o *vmarea) bool {
 // merge tries to merge two vmareas into one if they overlap/are contiguous and have the same protection bits.
 // We try to avoid allocating new memory (TODO(aghosn) check that this is the case) because it might be called
 // from a hook inside malloc.
+// The result is always inside vm, and o can be discared.
 func (vm *vmarea) merge(o *vmarea) (*vmarea, bool) {
 	if !vm.intersect(o) && !vm.contiguous(o) {
 		return nil, false
