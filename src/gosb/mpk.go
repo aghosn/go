@@ -55,20 +55,58 @@ var (
 	pkgGroups   [][]int
 )
 
-func mpkRegister(id int, start, size uintptr) {
-	//TODO(CharlyCst) implement this one.
-	//The goal is to go and look at sections, see if it already exists.
-	//If not, we create and add a new one and tag it with the correct key
-	//(i.e., the one that corresponds to the package id).
-	//If the section did not exist, it must be a dynamic library and hence should
-	//be added to the package as such.
+// TODO(CharlyCst) fix allocation in mpkRegister
+var sectionFreeList []*Section
+var freeListIdx = 0
+
+func getSectionWithoutAlloc() *Section{
+	section := sectionFreeList[freeListIdx]
+	freeListIdx += 1
+	return section
 }
 
+//TODO(CharlyCst) implement this one.
+//The goal is to go and look at sections, see if it already exists.
+//If not, we create and add a new one and tag it with the correct key
+//(i.e., the one that corresponds to the package id).
+//If the section did not exist, it must be a dynamic library and hence should
+//be added to the package as such.
+func mpkRegister(id int, start, size uintptr) {
+	fmt.Println("/////////// Register ///////////")
+	fmt.Println(id)
+	pkg, ok := idToPkg[id]
+	if !ok {
+		fmt.Println("Package not found")
+		fmt.Println("///////////   Done   ///////////")
+		return
+	}
+	
+	for _, section := range pkg.Sects {
+		if section.Addr == uint64(start) {
+			fmt.Println("Section found")
+			fmt.Println("///////////   Done   ///////////")
+			return
+		}
+	}
+	fmt.Println("Adding new section")
+
+	// Pop a section from the free list
+	section := getSectionWithoutAlloc()
+	section.Addr = uint64(start)
+	section.Size = uint64(size)
+	// TODO(CharlyCst): Add Prot
+
+	pkg.Dynamic = append(pkg.Dynamic, section)
+	fmt.Println("///////////   Done   ///////////")
+}
+
+//TODO(charlyCst) implement this one.
+//Apparently the section should already exist somewhere (we should keep a map of them with start address to make things easier).
+//We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
+//The same should apply for the previous function.
 func mpkTransfer(oldid, newid int, start, size uintptr) {
-	//TODO(charlyCst) implement this one.
-	//Apparently the section should already exist somewhere (we should keep a map of them with start address to make things easier).
-	//We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
-	//The same should apply for the previous function.
+	fmt.Println("/////////// Transfer ///////////")
+	fmt.Println("///////////   Done   ///////////")
 }
 
 // mpkInit relies on sandboxes and pkgToId, they must be initialized before the call
@@ -76,7 +114,17 @@ func mpkInit() {
 	n := len(packages)
 	pkgAppearsIn := make(map[int][]SandId, n)
 
+	fmt.Println("Initilizing GOSB with MPK backend")
+	fmt.Printf("Nb of packages:%d\n", n)
+
 	for sbID, sb := range domains {
+		// Debug
+		fmt.Println("== Sandbox", sbID,"==")
+		for _, pkg := range sb.SPkgs {
+			fmt.Println(pkg.Name, pkg.Id)
+		}
+		// End debug
+
 		for _, pkg := range sb.SPkgs {
 			pkgID := pkg.Id
 
@@ -127,6 +175,14 @@ func mpkInit() {
 	for _, p := range packages {
 		fmt.Println(p.Name, "->", p.Id)
 	}*/
+
+	fmt.Println("Sandbox keys:",sandboxKeys)
+	fmt.Println("Package groups:",pkgGroups)
+
+	sectionFreeList = make([]*Section, 1000)
+	for i := 0; i < 1000; i++ {
+		sectionFreeList[i] = &Section{}
+	}
 }
 
 func groupEqual(a, b []SandId) bool {
