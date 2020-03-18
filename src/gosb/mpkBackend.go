@@ -8,11 +8,14 @@ package gosb
 import (
 	"errors"
 	"fmt"
+	"gosb/mpk"
 )
 
 var (
 	sandboxKeys map[SandId][]int
+	pkgKeys     map[int]mpk.Pkey
 	pkgGroups   [][]int
+	keys        []mpk.Pkey
 )
 
 // TODO(CharlyCst) fix allocation in mpkRegister
@@ -52,6 +55,18 @@ func mpkRegister(id int, start, size uintptr) {
 	// TODO(CharlyCst): Add Prot
 
 	pkg.Dynamic = append(pkg.Dynamic, section)
+
+	// Updating protection key
+	if id == 0 { // Runtime
+		return
+	}
+
+	key, ok := pkgKeys[id]
+	if !ok {
+		panic(errors.New("Package key not found"))
+		return
+	}
+	mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
 }
 
 //TODO(charlyCst) implement this one.
@@ -96,6 +111,37 @@ func mpkTransfer(oldid, newid int, start, size uintptr) {
 
 	// Add to new mapping
 	newPkg.Dynamic[len(newPkg.Dynamic)] = section
+
+	// TODO(CharlyCst) retag section with key
+}
+
+// allocateKey allocates MPK keys according to `sandboxKeys` and `pkgGroups`
+func allocateKey() {
+	mpk.WritePKRU(mpk.AllRightsPKRU)
+	fmt.Println(mpk.ReadPKRU())
+
+	keys = make([]mpk.Pkey, 0, len(pkgGroups))
+	for _, pkgGroup := range pkgGroups {
+		key, err := mpk.PkeyAlloc()
+		check(err)
+		keys = append(keys, key)
+
+		for _, pkgId := range pkgGroup {
+			tagPackage(pkgId, key)
+		}
+	}
+}
+
+// TODO(CharlyCst) handle dynamic pages
+func tagPackage(id int, key mpk.Pkey) {
+	pkg, ok := idToPkg[id]
+	if !ok {
+		panic(errors.New("Package not found"))
+	}
+
+	for _, section := range pkg.Sects {
+		mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
+	}
 }
 
 // mpkInit relies on domains and packages, they must be initialized before the call
@@ -105,17 +151,15 @@ func mpkInit() {
 
 	fmt.Println("Initilizing GOSB with MPK backend")
 	fmt.Printf("Nb of packages:%d\n", n)
+	fmt.Println(mpk.ReadPKRU())
 
 	for sbID, sb := range domains {
-		// Debug
-		fmt.Println("== Sandbox", sbID, "==")
-		for _, pkg := range sb.SPkgs {
-			fmt.Println(pkg.Name, pkg.Id)
-		}
-		// End debug
-
 		for _, pkg := range sb.SPkgs {
 			pkgID := pkg.Id
+
+			if pkgID == 0 { // Runtime
+				continue
+			}
 
 			sbGroup, ok := pkgAppearsIn[pkgID]
 			if !ok {
@@ -152,10 +196,22 @@ func mpkInit() {
 
 	// We have an allocation for the keys!
 	sandboxKeys = sbKeys
+	allocateKey()
+
+	pkgKeys = make(map[int]mpk.Pkey, len(pkgAppearsIn))
+	for idx, group := range pkgGroups {
+		key := keys[idx]
+		for _, pkg := range group {
+			pkgKeys[pkg] = key
+		}
+	}
 
 	fmt.Println("Sandbox keys:", sandboxKeys)
 	fmt.Println("Package groups:", pkgGroups)
+	fmt.Println("Keys:", keys)
+	fmt.Println("///// Done /////")
 
+	// Pre-allocate free list for mpkTransfer and mpkRegister
 	sectionFreeList = make([]*Section, 1000)
 	for i := 0; i < 1000; i++ {
 		sectionFreeList[i] = &Section{}
