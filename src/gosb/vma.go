@@ -96,8 +96,8 @@ func (s *addrSpace) translate() {
 	}
 }
 
-// insert is so far stupid and inefficient.
-func (s *addrSpace) insert(vma *vmarea) {
+// insert is so far stupid and inefficient, boolean used to know if root should be modified.
+func (s *addrSpace) insert(vma *vmarea, update bool) {
 	for v := s.areas.first.toVma(); v != nil; v = v.next.toVma() {
 		next := v.next.toVma()
 		if vma.start < v.start {
@@ -113,10 +113,17 @@ func (s *addrSpace) insert(vma *vmarea) {
 		log.Fatalf("Failed to insert vma %v\n", vma)
 	}
 	s.coalesce()
+	if update {
+		s.translate()
+	}
 }
 
 // intersect checks if two vmareas intersect, should return false if they are contiguous
 func (vm *vmarea) intersect(other *vmarea) bool {
+	if vm == nil || other == nil {
+		panic("This should never be called on nil")
+	}
+
 	smaller := vm.start < other.start && vm.start+vm.size > other.start
 	greater := vm.start > other.start && other.start+other.size > vm.start
 	return smaller || greater
@@ -142,6 +149,9 @@ func (vm *vmarea) contiguous(o *vmarea) bool {
 // from a hook inside malloc.
 // The result is always inside vm, and o can be discared.
 func (vm *vmarea) merge(o *vmarea) (*vmarea, bool) {
+	if o == nil {
+		return nil, false
+	}
 	if !vm.intersect(o) && !vm.contiguous(o) {
 		return nil, false
 	}
@@ -161,8 +171,12 @@ func (vm *vmarea) merge(o *vmarea) (*vmarea, bool) {
 		smaller = o
 		larger = vm
 	}
+	end := larger.size + larger.start
+	if se := smaller.start + smaller.size; se > end {
+		end = se
+	}
 	// Avoid allocations
-	size := larger.start + larger.size - smaller.start
+	size := end - smaller.start
 	vm.start = smaller.start
 	vm.size = size
 	return vm, true

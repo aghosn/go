@@ -56,7 +56,7 @@ func printList(l *list) {
 	fmt.Println("nil")
 }
 
-func TestInsert(t *testing.T) {
+func TestInsertAfter(t *testing.T) {
 	original := []int{1, 3, 5, 7, 9}
 	toInsert := []int{2, 4, 6, 8, 10}
 	newlist := convert(original)
@@ -80,5 +80,54 @@ func TestInsert(t *testing.T) {
 	if counter != len(expected) {
 		t.Errorf("Error expected %d got %d len\n", len(expected), counter)
 	}
+}
 
+func TestInsertBefore(t *testing.T) {
+	original := []int{2, 4, 6, 8, 10}
+	toInsert := []int{1, 3, 5, 7, 9}
+	expected := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	list := convert(original)
+	for i := range toInsert {
+		m := &mint{listElem{}, toInsert[i]}
+		for v := list.first.toMint(); v != nil; v = v.next.toMint() {
+			if v.val-1 == m.val {
+				list.insertBefore(m.toElem(), v.toElem())
+			}
+		}
+	}
+	counter := 0
+	for v := list.first.toMint(); v != nil; v = v.next.toMint() {
+		if v.val != expected[counter] {
+			t.Errorf("Expected %d got %d\n", expected[counter], v.val)
+		}
+		counter++
+	}
+	if counter != len(expected) {
+		t.Errorf("Expected %d got %d len\n", len(expected), counter)
+	}
+}
+
+func TestRemove(t *testing.T) {
+	original := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	expected := []int{1, 3, 5, 7, 9}
+	list := convert(original)
+	for v := list.first.toMint(); v != nil; {
+		if v.val%2 == 0 {
+			n := v.next.toMint()
+			list.remove(v.toElem())
+			v = n
+		} else {
+			v = v.next.toMint()
+		}
+	}
+	i := 0
+	for v := list.first.toMint(); v != nil; v = v.next.toMint() {
+		if v.val != expected[i] {
+			t.Errorf("Expected %d got %d\n", expected[i], v.val)
+		}
+		i++
+	}
+	if i != len(expected) {
+		t.Errorf("Expected %d got %d\n", len(expected), i)
+	}
 }

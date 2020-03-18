@@ -32,6 +32,28 @@ func initialize2() []*vmarea {
 	}
 }
 
+func initialize3() ([]*vmarea, []*vmarea, []*vmarea) {
+	return []*vmarea{
+			&vmarea{listElem{}, 0x40000, 0x1000, PTE_P | PTE_W},
+			&vmarea{listElem{}, 0x42000, 0x1000, PTE_P | PTE_W}, // insert contiguous 0x41000, 0x1000
+			&vmarea{listElem{}, 0x50000, 0x1000, PTE_P | PTE_W},
+			&vmarea{listElem{}, 0x52000, 0x1000, PTE_P | PTE_W}, // insert but not correct prot
+			&vmarea{listElem{}, 0x60000, 0x2000, PTE_P},         // insert 0x61000, 0x2000, allow overlap
+		},
+		[]*vmarea{
+			&vmarea{listElem{}, 0x40000, 0x3000, PTE_P | PTE_W},
+			&vmarea{listElem{}, 0x50000, 0x1000, PTE_P | PTE_W},
+			&vmarea{listElem{}, 0x51000, 0x1000, PTE_P},
+			&vmarea{listElem{}, 0x52000, 0x1000, PTE_P | PTE_W},
+			&vmarea{listElem{}, 0x60000, 0x3000, PTE_P},
+		},
+		[]*vmarea{
+			&vmarea{listElem{}, 0x41000, 0x1000, PTE_P | PTE_W},
+			&vmarea{listElem{}, 0x51000, 0x1000, PTE_P},
+			&vmarea{listElem{}, 0x61000, 0x2000, PTE_P},
+		}
+}
+
 func TestVmasMergeContiguous(t *testing.T) {
 	toMerge := initialize()
 	// Check that intersect and contiguous work
@@ -140,4 +162,41 @@ func TestCoalesce(t *testing.T) {
 	if v != nil || i != len(expected) {
 		t.Errorf("Wrong number of elements, expected %v, got %v, %v\n", len(expected), i, v)
 	}
+}
+
+func compare(t *testing.T, space *addrSpace, expected []*vmarea) {
+	counter := 0
+	for i, v := 0, space.areas.first.toVma(); i < len(expected) && v != nil; i, v = i+1, v.next.toVma() {
+		if v.start != expected[i].start {
+			t.Errorf("Expected %v got %v\n", expected[i].start, v.start)
+		}
+		if v.size != expected[i].size {
+			t.Errorf("Expected %v got %v\n", expected[i].size, v.size)
+		}
+		if v.prot != expected[i].prot {
+			t.Errorf("Expected %v got %v\n", expected[i].prot, v.prot)
+		}
+		counter++
+	}
+	if counter != len(expected) {
+		t.Errorf("Expected %v got %v\n", len(expected), counter)
+	}
+}
+
+func TestInsert(t *testing.T) {
+	orig, exp, ins := initialize3()
+	space := &addrSpace{}
+	space.areas.init()
+	for _, v := range orig {
+		space.areas.addBack(v.toElem())
+	}
+	// Should not change anything
+	space.coalesce()
+	compare(t, space, orig)
+
+	// Now insert the different elements
+	for _, v := range ins {
+		space.insert(v, false)
+	}
+	compare(t, space, exp)
 }

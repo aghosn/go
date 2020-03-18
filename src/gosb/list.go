@@ -62,6 +62,7 @@ func (l *list) insertBefore(toins, elem *listElem) {
 		}
 		l.first = toins
 	}
+	toins.l = l
 }
 
 func (l *list) insertAfter(toins, elem *listElem) {
@@ -83,6 +84,7 @@ func (l *list) insertAfter(toins, elem *listElem) {
 		}
 		l.last = toins
 	}
+	toins.l = l
 }
 
 func (l *list) remove(e *listElem) {
