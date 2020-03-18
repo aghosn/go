@@ -9,6 +9,11 @@ import (
 	"unsafe"
 )
 
+//TODO(aghosn) probably replace later with mmap
+func allocPageTable() *pageTable {
+	return &pageTable{}
+}
+
 func ioctl(fd int, op, arg uintptr) (int, sc.Errno) {
 	r1, _, err := sc.Syscall(sc.SYS_IOCTL, uintptr(fd), op, arg)
 	return int(r1), err

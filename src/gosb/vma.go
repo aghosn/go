@@ -84,6 +84,37 @@ func (s *addrSpace) coalesce() {
 	}
 }
 
+func (s *addrSpace) translate() {
+	if s.root == nil {
+		s.root = allocPageTable()
+	}
+	//TODO(aghosn) for each vma we should see if it is user of supervisor
+	//See if that can be added to our prot.
+	def := uintptr(PTE_P | PTE_W | PTE_U)
+	for v := toVma(s.areas.first); v != nil; v = toVma(v.next) {
+		v.translate(s.root, def)
+	}
+}
+
+// insert is so far stupid and inefficient.
+func (s *addrSpace) insert(vma *vmarea) {
+	for v := toVma(s.areas.first); v != nil; v = toVma(v.next) {
+		next := toVma(v.next)
+		if vma.start < v.start {
+			s.areas.insertBefore(vma.toElem(), v.toElem())
+			break
+		}
+		if vma.start >= v.start && (next == nil || vma.start <= next.start) {
+			s.areas.insertAfter(vma.toElem(), v.toElem())
+			break
+		}
+	}
+	if vma.l == nil {
+		log.Fatalf("Failed to insert vma %v\n", vma)
+	}
+	s.coalesce()
+}
+
 // intersect checks if two vmareas intersect, should return false if they are contiguous
 func (vm *vmarea) intersect(other *vmarea) bool {
 	smaller := vm.start < other.start && vm.start+vm.size > other.start
