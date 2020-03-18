@@ -44,10 +44,10 @@ func (dom *Domain) toVma() *addrSpace {
 		}
 		for _, s := range p.Sects {
 			acc = append(acc, &vmarea{
-				listElem{0, 0, nil}, uintptr(s.Addr), uintptr(s.Size), s.Prot & replace})
+				listElem{nil, nil, nil}, uintptr(s.Addr), uintptr(s.Size), s.Prot & replace})
 		}
 		for _, d := range p.Sects {
-			acc = append(acc, &vmarea{listElem{0, 0, nil}, uintptr(d.Addr), uintptr(d.Size), d.Prot & replace})
+			acc = append(acc, &vmarea{listElem{nil, nil, nil}, uintptr(d.Addr), uintptr(d.Size), d.Prot & replace})
 		}
 	}
 	// Sort and coalesce
@@ -65,20 +65,20 @@ func (dom *Domain) toVma() *addrSpace {
 
 // coalesce is called to merge vmareas
 func (s *addrSpace) coalesce() {
-	for curr := toElem(s.areas.first); curr != nil; curr = toElem(curr.next) {
-		next := toElem(curr.next)
+	for curr := s.areas.first; curr != nil; curr = curr.next {
+		next := curr.next
 		if next == nil {
 			return
 		}
-		currVma := toVma(toPtr(curr)) //(*vmarea)(unsafe.Pointer(curr))
-		nextVma := toVma(toPtr(next)) //(*vmarea)(unsafe.Pointer(next))
+		currVma := curr.toVma()
+		nextVma := next.toVma()
 		for v, merged := currVma.merge(nextVma); merged && nextVma != nil; {
 			s.areas.remove(next)
 			if currVma != v {
 				log.Fatalf("These should be equal %v %v\n", currVma, v)
 			}
-			next = toElem(curr.next)
-			nextVma = toVma(curr.next)
+			next = curr.next
+			nextVma = curr.next.toVma()
 			v, merged = currVma.merge(nextVma)
 		}
 	}
@@ -91,15 +91,15 @@ func (s *addrSpace) translate() {
 	//TODO(aghosn) for each vma we should see if it is user of supervisor
 	//See if that can be added to our prot.
 	def := uintptr(PTE_P | PTE_W | PTE_U)
-	for v := toVma(s.areas.first); v != nil; v = toVma(v.next) {
-		v.translate(s.root, def)
+	for v := s.areas.first; v != nil; v = v.next {
+		v.toVma().translate(s.root, def)
 	}
 }
 
 // insert is so far stupid and inefficient.
 func (s *addrSpace) insert(vma *vmarea) {
-	for v := toVma(s.areas.first); v != nil; v = toVma(v.next) {
-		next := toVma(v.next)
+	for v := s.areas.first.toVma(); v != nil; v = v.next.toVma() {
+		next := v.next.toVma()
 		if vma.start < v.start {
 			s.areas.insertBefore(vma.toElem(), v.toElem())
 			break

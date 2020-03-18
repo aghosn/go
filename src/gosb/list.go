@@ -6,48 +6,40 @@ import (
 )
 
 type listElem struct {
-	prev uintptr
-	next uintptr
+	prev *listElem
+	next *listElem
 	l    *list
 }
 
 type list struct {
-	first uintptr
-	last  uintptr
+	first *listElem
+	last  *listElem
 }
 
-func toElem(e uintptr) *listElem {
-	return (*listElem)(unsafe.Pointer(e))
-}
-
-func toPtr(e *listElem) uintptr {
-	return uintptr(unsafe.Pointer(e))
-}
-
-func toVma(e uintptr) *vmarea {
+func (e *listElem) toVma() *vmarea {
 	return (*vmarea)(unsafe.Pointer(e))
 }
 
 func (l *list) init() {
-	l.first = 0
-	l.last = 0
+	l.first = nil
+	l.last = nil
 }
 
 func (l *list) isEmpty() bool {
-	return l.first == 0
+	return l.first == nil
 }
 
 func (l *list) addBack(e *listElem) {
-	if e.prev != 0 || e.next != 0 || e.l != nil {
+	if e.prev != nil || e.next != nil || e.l != nil {
 		log.Fatalf("element already in a list! %v\n", e)
 	}
-	if l.last != 0 {
-		toElem(l.last).next = toPtr(e)
+	if l.last != nil {
+		l.last.next = e
 		e.prev = l.last
 	} else {
-		l.first = toPtr(e)
+		l.first = e
 	}
-	l.last = toPtr(e)
+	l.last = e
 	e.l = l
 }
 
@@ -55,20 +47,20 @@ func (l *list) insertBefore(toins, elem *listElem) {
 	if elem.l != l {
 		log.Fatalf("The element is not in the given list %v %v\n", elem.l, l)
 	}
-	if toins.next != 0 || toins.prev != 0 || toins.l != nil {
+	if toins.next != nil || toins.prev != nil || toins.l != nil {
 		log.Fatalf("The provided element is already in a list!\n")
 	}
 	oprev := elem.prev
-	elem.prev = toPtr(toins)
-	toins.next = toPtr(elem)
-	if oprev != 0 {
-		toElem(oprev).next = toPtr(toins)
+	elem.prev = toins
+	toins.next = elem
+	if oprev != nil {
+		oprev.next = toins
 		toins.prev = oprev
 	} else {
-		if l.first != toPtr(elem) {
+		if l.first != elem {
 			log.Fatalf("Malformed list, this should have been equal to the elem\n")
 		}
-		l.first = toPtr(toins)
+		l.first = toins
 	}
 }
 
@@ -76,20 +68,20 @@ func (l *list) insertAfter(toins, elem *listElem) {
 	if elem.l != l {
 		log.Fatalf("The element is not in the given list %v %v\n", elem.l, l)
 	}
-	if toins.next != 0 || toins.prev != 0 || toins.l != nil {
+	if toins.next != nil || toins.prev != nil || toins.l != nil {
 		log.Fatalf("The provided element is already in a list!\n")
 	}
 	onext := elem.next
-	elem.next = toPtr(toins)
-	toins.prev = toPtr(elem)
-	if onext != 0 {
-		toElem(onext).prev = toPtr(toins)
+	elem.next = toins
+	toins.prev = elem
+	if onext != nil {
+		onext.prev = toins
 		toins.next = onext
 	} else {
-		if l.last != toPtr(elem) {
+		if l.last != elem {
 			log.Fatalf("Malformed list, this should have been equal to the elem\n")
 		}
-		l.last = toPtr(toins)
+		l.last = toins
 	}
 }
 
@@ -97,17 +89,17 @@ func (l *list) remove(e *listElem) {
 	if e.l != l {
 		log.Fatalf("Removing element not in the correct list %v %v\n", e, l)
 	}
-	if l.first == toPtr(e) {
+	if l.first == e {
 		l.first = e.next
 	} else {
-		toElem(e.prev).next = e.next
+		e.prev.next = e.next
 	}
-	if l.last == toPtr(e) {
+	if l.last == e {
 		l.last = e.prev
 	} else {
-		toElem(e.next).prev = e.prev
+		e.next.prev = e.prev
 	}
-	e.next = 0
-	e.prev = 0
+	e.next = nil
+	e.prev = nil
 	e.l = nil
 }

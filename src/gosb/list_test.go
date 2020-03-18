@@ -15,6 +15,10 @@ func (m *mint) toElem() *listElem {
 	return (*listElem)(unsafe.Pointer(m))
 }
 
+func (e *listElem) toMint() *mint {
+	return (*mint)(unsafe.Pointer(e))
+}
+
 func toMint(e uintptr) *mint {
 	return (*mint)(unsafe.Pointer(e))
 }
@@ -34,7 +38,7 @@ func TestLists(t *testing.T) {
 	original := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	newlist := convert(original)
 	counter := 0
-	for i, v := 0, toMint(newlist.first); i < len(original) && v != nil; i, v = i+1, toMint(v.next) {
+	for i, v := 0, newlist.first.toMint(); i < len(original) && v != nil; i, v = i+1, v.next.toMint() {
 		if v.val != original[i] {
 			t.Errorf("Mismatched %v -- %v\n", v.val, original[i])
 		}
@@ -46,7 +50,7 @@ func TestLists(t *testing.T) {
 }
 
 func printList(l *list) {
-	for v := toMint(l.first); v != nil; v = toMint(v.next) {
+	for v := l.first.toMint(); v != nil; v = v.next.toMint() {
 		fmt.Printf("%v ->", v.val)
 	}
 	fmt.Println("nil")
@@ -54,25 +58,20 @@ func printList(l *list) {
 
 func TestInsert(t *testing.T) {
 	original := []int{1, 3, 5, 7, 9}
-	toInsert := []int{2, 4, 6, 10}
-	news := []*mint{}
+	toInsert := []int{2, 4, 6, 8, 10}
 	newlist := convert(original)
 	for i := range toInsert {
 		m := &mint{listElem{}, toInsert[i]}
-		news = append(news, m)
-		for v := toMint(newlist.first); v != nil; v = toMint(v.next) {
+		for v := newlist.first.toMint(); v != nil; v = v.next.toMint() {
 			if v.val == m.val-1 {
 				newlist.insertAfter(m.toElem(), v.toElem())
 				break
 			}
 		}
-		printList(newlist)
 	}
-	fmt.Println("Done")
-	printList(newlist)
 	counter := 0
 	expected := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	for i, v := 0, toMint(newlist.first); i < len(expected) && v != nil; i, v = i+1, toMint(v.next) {
+	for i, v := 0, newlist.first.toMint(); i < len(expected) && v != nil; i, v = i+1, v.next.toMint() {
 		if v.val != expected[i] {
 			t.Errorf("Error expected %d got %d\n", expected[i], v.val)
 		}

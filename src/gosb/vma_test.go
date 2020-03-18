@@ -105,7 +105,7 @@ func TestCoalesce(t *testing.T) {
 	// Check that everything was correclty inserted
 	i := 0
 	var v *vmarea = nil
-	for v = toVma(space.areas.first); v != nil && i < len(entries); v = toVma(v.next) {
+	for v = space.areas.first.toVma(); v != nil && i < len(entries); v = v.next.toVma() {
 		if v.start != entries[i].start {
 			t.Errorf("%d: Wrong address, expected %v, got %v\n", i, entries[i].start, v.start)
 		}
@@ -125,7 +125,7 @@ func TestCoalesce(t *testing.T) {
 	space.coalesce()
 	i = 0
 	v = nil
-	for v = toVma(space.areas.first); v != nil && i < len(expected); v = toVma(v.next) {
+	for v = space.areas.first.toVma(); v != nil && i < len(expected); v = v.next.toVma() {
 		if v.start != expected[i].start {
 			t.Errorf("%d: Wrong address, expected %v, got %v\n", i, expected[i].start, v.start)
 		}
