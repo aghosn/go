@@ -13,7 +13,7 @@ type backendConfig struct {
 
 const (
 	SIM_BACKEND    Backend = iota
-	VTX_BACKEND    Backend = iota
+	KVM_BACKEND    Backend = iota
 	MPK_BACKEND    Backend = iota
 	__BACKEND_SIZE Backend = iota
 )
@@ -22,7 +22,7 @@ const (
 var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
 		backendConfig{SIM_BACKEND, nil, nil, nil},
-		backendConfig{VTX_BACKEND, nil, nil, nil},
+		backendConfig{KVM_BACKEND, kvmTransfer, kvmRegister, kvmInit},
 		backendConfig{MPK_BACKEND, mpkTransfer, mpkRegister, mpkInit},
 	}
 )

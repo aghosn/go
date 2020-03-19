@@ -25,24 +25,24 @@ const (
 var (
 	kvmOnce sync.Once
 	kvmFd   int
+
+	pointer *int
 )
 
-func (v *VM) init() {
-	kvmInit()
+func kvmRegister(id int, start, size uintptr) {
+	//TODO(aghosn)
+	//Trying to debug dynamic allocation.
+	a := new(int)
+	*a = 3
+	pointer = a
+}
 
-	var err sc.Errno
-	v.sysFd = kvmFd
-	v.fd, err = ioctl(v.sysFd, KVM_CREATE_VM, 0)
-	if err != 0 {
-		log.Fatalf("Error KVM_CREATE %d\n", err)
-	}
-
-	//TODO(aghosn) here we should initialize the memory.
-	// We do not need to do mmaps probably, but we do need to generate our pagetable.
-	// We'll see how we do that. Do we need to put the runtime as system?
-	// This might mean too many transitions. We do need to mmap at least prolog
-	// and epilog as privileged code and trap on them.
-	// Look into kvm_segment see if we need several of them or one only
+func kvmTransfer(oldid, newid int, start, size uintptr) {
+	//TODO(aghosn)
+	//Trying to debug dynamic allocation
+	a := new(int)
+	*a = 4
+	pointer = a
 }
 
 // kvmInit should be called once to open the kvm file and get its fd.
@@ -60,7 +60,27 @@ func kvmInit() {
 		if r1 != 12 {
 			log.Fatalf("KVM_GET_API_VERSION %d, expected 12\n", r1)
 		}
+		//TODO(aghosn)
+		//create vms for each sandbox.
 	})
+}
+
+func (v *VM) init() {
+	kvmInit()
+
+	var err sc.Errno
+	v.sysFd = kvmFd
+	v.fd, err = ioctl(v.sysFd, KVM_CREATE_VM, 0)
+	if err != 0 {
+		log.Fatalf("Error KVM_CREATE %d\n", err)
+	}
+
+	//TODO(aghosn) here we should initialize the memory.
+	// We do not need to do mmaps probably, but we do need to generate our pagetable.
+	// We'll see how we do that. Do we need to put the runtime as system?
+	// This might mean too many transitions. We do need to mmap at least prolog
+	// and epilog as privileged code and trap on them.
+	// Look into kvm_segment see if we need several of them or one only
 }
 
 /*
