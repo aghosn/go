@@ -54,6 +54,49 @@ func initialize3() ([]*vmarea, []*vmarea, []*vmarea) {
 		}
 }
 
+func initialize4() ([]*vmarea, []*vmarea, []*vmarea) {
+	return []*vmarea{
+			// overlap, left ==, right greater
+			&vmarea{listElem{}, 0x10000, 0x1000, PTE_P}, // this disappears
+			// overlap, left smaller, right greater
+			&vmarea{listElem{}, 0x20000, 0x1000, PTE_P}, // this disappears
+			// overlap, left smaller, right equal
+			&vmarea{listElem{}, 0x30000, 0x1000, PTE_P}, // this disappears
+			// perfect overlap, left ==, right ==
+			&vmarea{listElem{}, 0x40000, 0x1000, PTE_P}, // this disappears
+			// overlap  left greater, right ==
+			&vmarea{listElem{}, 0x50000, 0x2000, PTE_P}, // this yields left remain 0x1000
+			// overlap left greater, right greater
+			&vmarea{listElem{}, 0x60000, 0x2000, PTE_P}, // this yields left remain 0x1000
+			// overlap left smaller, right smaller
+			&vmarea{listElem{}, 0x70000, 0x2000, PTE_P}, // this yields right remain 0x71000, 0x1000
+			//overlap left smaller, right equal
+			&vmarea{listElem{}, 0x80000, 0x1000, PTE_P}, // this disappears
+			// overlap contained
+			&vmarea{listElem{}, 0x90000, 0x3000, PTE_P}, // yields splits on both sides
+		}, //to remove
+		[]*vmarea{
+			&vmarea{listElem{}, 0x10000, 0x2000, PTE_P},
+			&vmarea{listElem{}, 0x1F000, 0x3000, PTE_P},
+			&vmarea{listElem{}, 0x2F000, 0x2000, PTE_P},
+			&vmarea{listElem{}, 0x40000, 0x1000, PTE_P},
+			&vmarea{listElem{}, 0x51000, 0x1000, PTE_P},
+			&vmarea{listElem{}, 0x61000, 0x2000, PTE_P},
+			&vmarea{listElem{}, 0x6F000, 0x2000, PTE_P},
+			&vmarea{listElem{}, 0x7F000, 0x2000, PTE_P},
+			&vmarea{listElem{}, 0x91000, 0x1000, PTE_P},
+		}, // result
+		[]*vmarea{
+			&vmarea{listElem{}, 0x50000, 0x1000, PTE_P},
+			&vmarea{listElem{}, 0x60000, 0x1000, PTE_P},
+			&vmarea{listElem{}, 0x71000, 0x1000, PTE_P},
+			// splits
+			&vmarea{listElem{}, 0x90000, 0x1000, PTE_P},
+			&vmarea{listElem{}, 0x92000, 0x1000, PTE_P},
+		}
+
+}
+
 func TestVmasMergeContiguous(t *testing.T) {
 	toMerge := initialize()
 	// Check that intersect and contiguous work
@@ -168,18 +211,18 @@ func compare(t *testing.T, space *addrSpace, expected []*vmarea) {
 	counter := 0
 	for i, v := 0, space.areas.first.toVma(); i < len(expected) && v != nil; i, v = i+1, v.next.toVma() {
 		if v.start != expected[i].start {
-			t.Errorf("Expected %v got %v\n", expected[i].start, v.start)
+			t.Errorf("%d: [addr] Expected %x got %x\n", i, expected[i].start, v.start)
 		}
 		if v.size != expected[i].size {
-			t.Errorf("Expected %v got %v\n", expected[i].size, v.size)
+			t.Errorf("%d: [size] Expected %x got %x\n", i, expected[i].size, v.size)
 		}
 		if v.prot != expected[i].prot {
-			t.Errorf("Expected %v got %v\n", expected[i].prot, v.prot)
+			t.Errorf("%d: [prot] Expected %x got %x\n", i, expected[i].prot, v.prot)
 		}
 		counter++
 	}
 	if counter != len(expected) {
-		t.Errorf("Expected %v got %v\n", len(expected), counter)
+		t.Errorf("[leng] Expected %v got %v\n", len(expected), counter)
 	}
 }
 
@@ -197,6 +240,22 @@ func TestInsert(t *testing.T) {
 	// Now insert the different elements
 	for _, v := range ins {
 		space.insert(v, false)
+	}
+	compare(t, space, exp)
+}
+
+func TestRemoveVma(t *testing.T) {
+	orig, torm, exp := initialize4()
+	space := &addrSpace{}
+	space.areas.init()
+	for _, v := range orig {
+		space.areas.addBack(v.toElem())
+	}
+	space.coalesce()
+	compare(t, space, orig)
+	// Now we remove elements
+	for _, v := range torm {
+		space.remove(v, false)
 	}
 	compare(t, space, exp)
 }

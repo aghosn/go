@@ -6,6 +6,7 @@ package gosb
 * TODO(aghosn) not sure what it should look like just yet.
  */
 import (
+	"log"
 	"unsafe"
 )
 
@@ -23,6 +24,20 @@ const (
 	PTE_D   = 0x0040  /* Dirty */
 	PTE_NX  = 1 << 63 /* NX bit for non-execute 0x8000000000000000*/
 )
+
+func (root *pageTable) unmap(vma *vmarea) {
+	apply := APPLY_PTE
+	f := func(entry *uint64, lvl int) {
+		if lvl != 0 {
+			log.Fatalf("Unmap should only be called at level 0")
+		}
+		if *entry&PTE_P == 0 {
+			log.Fatalf("Unmap should only be called on entries that are marked present\n")
+		}
+		*entry = *entry ^ PTE_P
+	}
+	pagewalk(root, vma.start, vma.start+vma.size-1, LVL_PML4, apply, f, nil)
+}
 
 //TODO(aghosn) handle U and P
 func toFlags(prot uint8) uintptr {
@@ -105,6 +120,7 @@ func toPageTable(e uintptr) *pageTable {
 //TODO(aghosn) we will probably need a specific function to allocate pageTables.
 //It should somehow register entries to be shared with the VM, and be off-heap.
 //For the moment I simply do it with the regular allocator.
+// @warning alloc can be nil
 func pagewalk(root *pageTable, start, end uintptr, lvl int, apply int, f func(entry *uint64, lvl int), alloc func(cur uintptr, lvl int) *pageTable) {
 	if lvl < 0 {
 		return

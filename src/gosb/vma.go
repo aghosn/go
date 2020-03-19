@@ -118,15 +118,58 @@ func (s *addrSpace) insert(vma *vmarea, update bool) {
 	}
 }
 
+func (s *addrSpace) remove(vma *vmarea, update bool) {
+	for v := s.areas.first.toVma(); v != nil; v = v.next.toVma() {
+	begin:
+		// Full overlap [xxx[vxvxvxvxvx]xxx]
+		if v.intersect(vma) && v.start >= vma.start && v.start+v.size <= vma.start+vma.size {
+			next := v.next.toVma()
+			s.areas.remove(v.toElem())
+			v = next
+			if v == nil {
+				break
+			}
+			goto begin
+		}
+		// Left case, reduces v : [vvvv[vxvxvxvx]xxx]
+		if v.intersect(vma) && v.start < vma.start && vma.start+vma.size >= v.start+v.size {
+			v.size = vma.start - v.start
+			continue
+		}
+		// Fully contained [vvvv[vxvxvx]vvvv], requires a split
+		if v.intersect(vma) && v.start < vma.start && v.start+v.size > vma.start+vma.size {
+			nstart := vma.start + vma.size
+			nsize := v.start + v.size - nstart
+			v.size = vma.start - v.start
+			s.insert(&vmarea{listElem{}, nstart, nsize, v.prot}, false)
+			break
+		}
+		// Right case, contained: [[xvxv]vvvvvv] or [xxxx[xvxvxvxvx]vvvv]
+		if v.intersect(vma) && v.start >= vma.start && v.start+vma.size > vma.start+vma.size {
+			nstart := vma.start + vma.size
+			nsize := v.start + v.size - nstart
+			v.start = nstart
+			v.size = nsize
+			break
+		}
+	}
+	if update {
+		s.root.unmap(vma)
+	}
+}
+
 // intersect checks if two vmareas intersect, should return false if they are contiguous
 func (vm *vmarea) intersect(other *vmarea) bool {
 	if vm == nil || other == nil {
 		panic("This should never be called on nil")
 	}
-
-	smaller := vm.start < other.start && vm.start+vm.size > other.start
-	greater := vm.start > other.start && other.start+other.size > vm.start
-	return smaller || greater
+	small := vm
+	great := other
+	if vm.start > other.start {
+		small = other
+		great = vm
+	}
+	return small.start+small.size > great.start
 }
 
 func (vm *vmarea) toElem() *listElem {
@@ -182,12 +225,14 @@ func (vm *vmarea) merge(o *vmarea) (*vmarea, bool) {
 	return vm, true
 }
 
+//TODO(aghosn) unmapping pages might be slightly more annoying then I thought.
 // translate takes a vmarea and applies it to a given page table.
 // We try to maintain the original virtual address and hence we map the last entry
 // i.e., the page, as the original page in the HVA.
 func (vm *vmarea) translate(pml *pageTable, defaultFlags uintptr) {
 	alloc := func(addr uintptr, lvl int) *pageTable {
 		if lvl > 0 {
+			//TODO(aghosn)modify this
 			return &pageTable{}
 		}
 		// TODO(aghosn) GPA = HVA ?
