@@ -31,7 +31,7 @@ var (
 // Or we use unused bits. I don't know yet.
 // Or maybe implement the toVma perpackage instead.
 // But we still need to remember which domains are using it.
-func (dom *Domain) toVma() *addrSpace {
+func (dom *Domain) toVmas() *addrSpace {
 	if v, ok := spaces[dom]; ok {
 		return v
 	}
@@ -43,10 +43,15 @@ func (dom *Domain) toVma() *addrSpace {
 			replace = v
 		}
 		for _, s := range p.Sects {
+			// @warning IMPORTANT Skip the empty sections (otherwise crashes)
+			if s.Size == 0 {
+				continue
+			}
 			acc = append(acc, &vmarea{
 				listElem{nil, nil, nil}, uintptr(s.Addr), uintptr(s.Size), s.Prot & replace})
 		}
-		for _, d := range p.Sects {
+		// map the dynamic sections
+		for _, d := range p.Dynamic {
 			acc = append(acc, &vmarea{listElem{nil, nil, nil}, uintptr(d.Addr), uintptr(d.Size), d.Prot & replace})
 		}
 	}
@@ -230,10 +235,13 @@ func (vm *vmarea) merge(o *vmarea) (*vmarea, bool) {
 // We try to maintain the original virtual address and hence we map the last entry
 // i.e., the page, as the original page in the HVA.
 func (vm *vmarea) translate(pml *pageTable, defaultFlags uintptr) {
+	if vm.start == 0 || vm.size == 0 {
+		log.Fatalf("Trying to map illegal area %d %d\n", vm.start, vm.size)
+	}
 	alloc := func(addr uintptr, lvl int) *pageTable {
 		if lvl > 0 {
 			//TODO(aghosn)modify this
-			return &pageTable{}
+			return allocPageTable()
 		}
 		// TODO(aghosn) GPA = HVA ?
 		return toPageTable(addr)

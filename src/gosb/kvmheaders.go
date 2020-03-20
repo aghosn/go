@@ -35,6 +35,22 @@ var (
 	KVM_INTERRUPT              = _IOW(KVMIO, 0x86, unsafe.Sizeof(kvm_interrupt{}))
 )
 
+type kvm_run struct {
+	request_interrupt_window      uint8
+	padding1                      [7]uint8
+	exit_reason                   uint32
+	ready_for_interrupt_injection uint8
+	if_flag                       uint8
+	padding2                      [2]uint8
+	cr8                           uint64
+	apic_base                     uint64
+
+	// TODO(aghosn) Hack from gvisor.
+	// This is the union data for exits. Interpretation depends entirely on
+	// the exitReason above (see vCPU code for more information).
+	data [32]uint64
+}
+
 /* for KVM_SET_USER_MEMORY_REGION */
 type kvm_userspace_memory_region struct {
 	slot            uint32

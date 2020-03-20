@@ -44,6 +44,10 @@ func (ctxt *Link) gosb_InitBloat() {
 			log.Fatalf("No name for id %v\n", id)
 		}
 		pkgInfo := &lb.Package{Name: pkg, Id: id, Sects: make([]lb.Section, sym.SABIALIAS)}
+		// Initialize protections
+		for i := range pkgInfo.Sects {
+			pkgInfo.Sects[i].Prot = symKindtoProt(sym.SymKind(i))
+		}
 		Bloats[pkg] = pkgInfo
 	}
 
@@ -53,6 +57,9 @@ func (ctxt *Link) gosb_InitBloat() {
 	}
 	// Add an entry for non-bloated packages.
 	nonbloat = &lb.Package{"non-bloat", -1, make([]lb.Section, sym.SABIALIAS), nil}
+	for i := range nonbloat.Sects {
+		nonbloat.Sects[i].Prot = symKindtoProt(sym.SymKind(i))
+	}
 	// For all the sandboxes, we get the transitive dependencies & generate
 	// the sandboxes informations.
 	ctxt.gosb_generateDomains()
@@ -327,4 +334,26 @@ func gosb_dumpSandboxes() []byte {
 		log.Fatalf("Error mashalling sandboxes %v\n", err.Error())
 	}
 	return res
+}
+
+// Translate a section's idx into protection
+func symKindtoProt(s sym.SymKind) uint8 {
+	prot := lb.R_VAL
+	// executable
+	if s == sym.STEXT || s == sym.SELFRXSECT {
+		prot |= lb.X_VAL
+		return prot
+	}
+	// read-only
+	if s >= sym.STYPE && s <= sym.SPCLNTAB {
+		// nothing to do
+		return prot
+	}
+	// writable
+	if s >= sym.SFirstWritable && s <= sym.SHOSTOBJ {
+		prot |= lb.W_VAL
+		return prot
+	}
+	// Debugging, TODO(aghosn) what should we do?
+	return prot
 }
