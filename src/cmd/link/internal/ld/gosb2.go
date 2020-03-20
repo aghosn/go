@@ -79,7 +79,7 @@ func (ctxt *Link) gosb_generateDomains() {
 			}
 			pack, ok := Bloats[s]
 			if !ok && (s == "go.runtime" || s == "go.itab") {
-				pack, ok = Bloats["runtime"]
+				panic("We said we ignored go.runtime and go.itab")
 			}
 			if !ok {
 				log.Fatalf("Error %v should have a package by now.\n", s)
@@ -89,6 +89,9 @@ func (ctxt *Link) gosb_generateDomains() {
 		}
 		// Maybe I should parse these things and refactor them.
 		for _, p := range v.Packages {
+			if p == "go.itab" || p == "go.runtime" {
+				panic("go.itab and go.runtime should not be here")
+			}
 			ctxt.gosb_walkTransDeps(p, f, c)
 		}
 		// Handle the extras and their permissions!
@@ -124,13 +127,6 @@ func (ctxt *Link) gosb_generateDomains() {
 			sb.Pkgs = append(sb.Pkgs, pack.Name)
 		}
 		sb.View = memView
-		/*for k, prot := range memView {
-			pack, ok := bloats[k]
-			if !ok {
-				log.Fatalf("We forgot to bloat %v\n", k)
-			}
-			sb.View[pack] = prot
-		}*/
 		domains = append(domains, sb)
 	}
 	// Create a fake sandbox for the nonbloated domain
@@ -190,6 +186,10 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	bloated := make(map[string][]*sym.Symbol)
 	sandSyms := make([]*sym.Symbol, 0)
 	for _, s := range syms {
+		// Safety check to avoid go.itab and go.runtime
+		if s.File == "go.runtime" || s.File == "go.itab" {
+			panic("We have a symbol that belongs to go.[itab|runtime]")
+		}
 		// Sandbox symbol itself needs to be seggragated
 		if _, ok := objfile.SBMap[s.Name]; ok {
 			sandSyms = append(sandSyms, s)
