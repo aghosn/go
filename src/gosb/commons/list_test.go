@@ -1,4 +1,4 @@
-package gosb
+package commons
 
 import (
 	"fmt"
@@ -7,15 +7,15 @@ import (
 )
 
 type mint struct {
-	listElem
+	ListElem
 	val int
 }
 
-func (m *mint) toElem() *listElem {
-	return (*listElem)(unsafe.Pointer(m))
+func (m *mint) toElem() *ListElem {
+	return (*ListElem)(unsafe.Pointer(m))
 }
 
-func (e *listElem) toMint() *mint {
+func (e *ListElem) toMint() *mint {
 	return (*mint)(unsafe.Pointer(e))
 }
 
@@ -23,12 +23,12 @@ func toMint(e uintptr) *mint {
 	return (*mint)(unsafe.Pointer(e))
 }
 
-func convert(o []int) *list {
-	l := &list{}
-	l.init()
+func convert(o []int) *List {
+	l := &List{}
+	l.Init()
 	for _, v := range o {
-		m := &mint{listElem{}, v}
-		l.addBack(m.toElem())
+		m := &mint{ListElem{}, v}
+		l.AddBack(m.toElem())
 	}
 	return l
 }
@@ -38,7 +38,7 @@ func TestLists(t *testing.T) {
 	original := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	newlist := convert(original)
 	counter := 0
-	for i, v := 0, newlist.first.toMint(); i < len(original) && v != nil; i, v = i+1, v.next.toMint() {
+	for i, v := 0, newlist.First.toMint(); i < len(original) && v != nil; i, v = i+1, v.Next.toMint() {
 		if v.val != original[i] {
 			t.Errorf("Mismatched %v -- %v\n", v.val, original[i])
 		}
@@ -49,8 +49,8 @@ func TestLists(t *testing.T) {
 	}
 }
 
-func printList(l *list) {
-	for v := l.first.toMint(); v != nil; v = v.next.toMint() {
+func printList(l *List) {
+	for v := l.First.toMint(); v != nil; v = v.Next.toMint() {
 		fmt.Printf("%v ->", v.val)
 	}
 	fmt.Println("nil")
@@ -61,17 +61,17 @@ func TestInsertAfter(t *testing.T) {
 	toInsert := []int{2, 4, 6, 8, 10}
 	newlist := convert(original)
 	for i := range toInsert {
-		m := &mint{listElem{}, toInsert[i]}
-		for v := newlist.first.toMint(); v != nil; v = v.next.toMint() {
+		m := &mint{ListElem{}, toInsert[i]}
+		for v := newlist.First.toMint(); v != nil; v = v.Next.toMint() {
 			if v.val == m.val-1 {
-				newlist.insertAfter(m.toElem(), v.toElem())
+				newlist.InsertAfter(m.toElem(), v.toElem())
 				break
 			}
 		}
 	}
 	counter := 0
 	expected := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	for i, v := 0, newlist.first.toMint(); i < len(expected) && v != nil; i, v = i+1, v.next.toMint() {
+	for i, v := 0, newlist.First.toMint(); i < len(expected) && v != nil; i, v = i+1, v.Next.toMint() {
 		if v.val != expected[i] {
 			t.Errorf("Error expected %d got %d\n", expected[i], v.val)
 		}
@@ -88,15 +88,15 @@ func TestInsertBefore(t *testing.T) {
 	expected := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	list := convert(original)
 	for i := range toInsert {
-		m := &mint{listElem{}, toInsert[i]}
-		for v := list.first.toMint(); v != nil; v = v.next.toMint() {
+		m := &mint{ListElem{}, toInsert[i]}
+		for v := list.First.toMint(); v != nil; v = v.Next.toMint() {
 			if v.val-1 == m.val {
-				list.insertBefore(m.toElem(), v.toElem())
+				list.InsertBefore(m.toElem(), v.toElem())
 			}
 		}
 	}
 	counter := 0
-	for v := list.first.toMint(); v != nil; v = v.next.toMint() {
+	for v := list.First.toMint(); v != nil; v = v.Next.toMint() {
 		if v.val != expected[counter] {
 			t.Errorf("Expected %d got %d\n", expected[counter], v.val)
 		}
@@ -111,17 +111,17 @@ func TestRemove(t *testing.T) {
 	original := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	expected := []int{1, 3, 5, 7, 9}
 	list := convert(original)
-	for v := list.first.toMint(); v != nil; {
+	for v := list.First.toMint(); v != nil; {
 		if v.val%2 == 0 {
-			n := v.next.toMint()
-			list.remove(v.toElem())
+			n := v.Next.toMint()
+			list.Remove(v.toElem())
 			v = n
 		} else {
-			v = v.next.toMint()
+			v = v.Next.toMint()
 		}
 	}
 	i := 0
-	for v := list.first.toMint(); v != nil; v = v.next.toMint() {
+	for v := list.First.toMint(); v != nil; v = v.Next.toMint() {
 		if v.val != expected[i] {
 			t.Errorf("Expected %d got %d\n", expected[i], v.val)
 		}

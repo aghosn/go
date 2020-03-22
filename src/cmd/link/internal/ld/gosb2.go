@@ -4,8 +4,7 @@ import (
 	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"encoding/json"
-	"gosb"
-	lb "gosb"
+	lb "gosb/commons"
 	"log"
 	"sort"
 	"strings"
@@ -289,7 +288,7 @@ func gosb_dumpPackages() []byte {
 		gosb_verifySymbols(v, ok)
 		k.Addr = uint64(first.Value)
 		k.Size = uint64(last.Value-first.Value) + uint64(last.Size)
-		k.Prot = gosb.W_VAL | gosb.R_VAL
+		k.Prot = lb.W_VAL | lb.R_VAL
 		if first.Sect != nil {
 			k.Prot = first.Sect.Rwx
 		}

@@ -1,4 +1,4 @@
-package gosb
+package kvm
 
 // Segment indices and Selectors.
 const (

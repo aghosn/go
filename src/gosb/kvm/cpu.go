@@ -1,7 +1,8 @@
-package gosb
+package kvm
 
 import (
 	"encoding/binary"
+	gc "gosb/commons"
 	"log"
 	"reflect"
 	"unsafe"
@@ -39,21 +40,21 @@ func (v *vCPU) init() {
 }
 
 func (v *vCPU) getSRegs() {
-	_, err := ioctl(v.fd, KVM_GET_SREGS, uintptr(unsafe.Pointer(&v.sregs)))
+	_, err := gc.Ioctl(v.fd, KVM_GET_SREGS, uintptr(unsafe.Pointer(&v.sregs)))
 	if err != 0 {
 		log.Fatalf("KVM_GET_SREGS %d\n", err)
 	}
 }
 
 func (v *vCPU) setSRegs() {
-	_, err := ioctl(v.fd, KVM_SET_SREGS, uintptr(unsafe.Pointer(&v.sregs)))
+	_, err := gc.Ioctl(v.fd, KVM_SET_SREGS, uintptr(unsafe.Pointer(&v.sregs)))
 	if err != 0 {
 		log.Fatalf("KVM_SET_SREGS %d\n", err)
 	}
 }
 
 func (v *vCPU) setURegs(regs *kvm_regs) {
-	_, err := ioctl(v.fd, KVM_SET_REGS, uintptr(unsafe.Pointer(regs)))
+	_, err := gc.Ioctl(v.fd, KVM_SET_REGS, uintptr(unsafe.Pointer(regs)))
 	if err != 0 {
 		log.Fatalf("KVM_SET_REGS %d\n", err)
 	}
@@ -95,7 +96,7 @@ func (v *vCPU) initRegsState() {
 }
 
 func (cpu *vCPU) setCPUID() {
-	_, errno := ioctl(cpu.fd, KVM_SET_CPUID2, uintptr(unsafe.Pointer(&cpuidSupported)))
+	_, errno := gc.Ioctl(cpu.fd, KVM_SET_CPUID2, uintptr(unsafe.Pointer(&cpuidSupported)))
 	if errno != 0 {
 		log.Fatalf("KVM_SET_CPUID2 %d\n", errno)
 	}

@@ -1,6 +1,7 @@
-package gosb
+package kvm
 
 import (
+	gc "gosb/commons"
 	"log"
 	"sort"
 	"unsafe"
@@ -9,24 +10,28 @@ import (
 // vmarea is similar to Section for the moment, but the goal is to coalesce them.
 // Maybe we'll merge the two later on, e.g., type vmarea = Section.
 type vmarea struct {
-	listElem
+	gc.ListElem
 	start uintptr
 	size  uintptr
 	prot  uint8
+}
+
+func toVma(e *gc.ListElem) *vmarea {
+	return (*vmarea)(unsafe.Pointer(e))
 }
 
 // addrSpace represents an address space.
 // It also acts as a page allocator and keeps track of allocated/freed pages
 // using mmap.
 type addrSpace struct {
-	areas list
+	areas gc.List
 	root  *pageTable
 }
 
 //TODO might need locks for dynamic updates.
 var (
 	//TODO this should be initialized from the backend.
-	spaces map[*Domain]*addrSpace
+	spaces map[*gc.Domain]*addrSpace
 )
 
 //TODO we are going to have issues with concurrent changes to dynamics.
@@ -34,7 +39,7 @@ var (
 // Or we use unused bits. I don't know yet.
 // Or maybe implement the toVma perpackage instead.
 // But we still need to remember which domains are using it.
-func (dom *Domain) toVmas() *addrSpace {
+func toVmas(dom *gc.Domain) *addrSpace {
 	if v, ok := spaces[dom]; ok {
 		return v
 	}
@@ -51,11 +56,11 @@ func (dom *Domain) toVmas() *addrSpace {
 				continue
 			}
 			acc = append(acc, &vmarea{
-				listElem{nil, nil, nil}, uintptr(s.Addr), uintptr(s.Size), s.Prot & replace})
+				gc.ListElem{}, uintptr(s.Addr), uintptr(s.Size), s.Prot & replace})
 		}
 		// map the dynamic sections
 		for _, d := range p.Dynamic {
-			acc = append(acc, &vmarea{listElem{nil, nil, nil}, uintptr(d.Addr), uintptr(d.Size), d.Prot & replace})
+			acc = append(acc, &vmarea{gc.ListElem{}, uintptr(d.Addr), uintptr(d.Size), d.Prot & replace})
 		}
 	}
 	// Sort and coalesce
@@ -63,9 +68,9 @@ func (dom *Domain) toVmas() *addrSpace {
 		return acc[i].start <= acc[j].start
 	})
 	space := &addrSpace{}
-	space.areas.init()
+	space.areas.Init()
 	for _, s := range acc {
-		space.areas.addBack(s.toElem())
+		space.areas.AddBack(s.toElem())
 	}
 	space.coalesce()
 	return space
@@ -73,20 +78,20 @@ func (dom *Domain) toVmas() *addrSpace {
 
 // coalesce is called to merge vmareas
 func (s *addrSpace) coalesce() {
-	for curr := s.areas.first; curr != nil; curr = curr.next {
-		next := curr.next
+	for curr := s.areas.First; curr != nil; curr = curr.Next {
+		next := curr.Next
 		if next == nil {
 			return
 		}
-		currVma := curr.toVma()
-		nextVma := next.toVma()
+		currVma := toVma(curr)
+		nextVma := toVma(next)
 		for v, merged := currVma.merge(nextVma); merged && nextVma != nil; {
-			s.areas.remove(next)
+			s.areas.Remove(next)
 			if currVma != v {
 				log.Fatalf("These should be equal %v %v\n", currVma, v)
 			}
-			next = curr.next
-			nextVma = curr.next.toVma()
+			next = curr.Next
+			nextVma = toVma(curr.Next)
 			v, merged = currVma.merge(nextVma)
 		}
 	}
@@ -99,25 +104,25 @@ func (s *addrSpace) translate() {
 	//TODO(aghosn) for each vma we should see if it is user of supervisor
 	//See if that can be added to our prot.
 	def := uintptr(PTE_P | PTE_W | PTE_U)
-	for v := s.areas.first; v != nil; v = v.next {
-		v.toVma().translate(s.root, def)
+	for v := s.areas.First; v != nil; v = v.Next {
+		toVma(v).translate(s.root, def)
 	}
 }
 
 // insert is so far stupid and inefficient, boolean used to know if root should be modified.
 func (s *addrSpace) insert(vma *vmarea, update bool) {
-	for v := s.areas.first.toVma(); v != nil; v = v.next.toVma() {
-		next := v.next.toVma()
+	for v := toVma(s.areas.First); v != nil; v = toVma(v.Next) {
+		next := toVma(v.Next)
 		if vma.start < v.start {
-			s.areas.insertBefore(vma.toElem(), v.toElem())
+			s.areas.InsertBefore(vma.toElem(), v.toElem())
 			break
 		}
 		if vma.start >= v.start && (next == nil || vma.start <= next.start) {
-			s.areas.insertAfter(vma.toElem(), v.toElem())
+			s.areas.InsertAfter(vma.toElem(), v.toElem())
 			break
 		}
 	}
-	if vma.l == nil {
+	if vma.List == nil {
 		log.Fatalf("Failed to insert vma %v\n", vma)
 	}
 	s.coalesce()
@@ -127,12 +132,12 @@ func (s *addrSpace) insert(vma *vmarea, update bool) {
 }
 
 func (s *addrSpace) remove(vma *vmarea, update bool) {
-	for v := s.areas.first.toVma(); v != nil; v = v.next.toVma() {
+	for v := toVma(s.areas.First); v != nil; v = toVma(v.Next) {
 	begin:
 		// Full overlap [xxx[vxvxvxvxvx]xxx]
 		if v.intersect(vma) && v.start >= vma.start && v.start+v.size <= vma.start+vma.size {
-			next := v.next.toVma()
-			s.areas.remove(v.toElem())
+			next := toVma(v.Next)
+			s.areas.Remove(v.toElem())
 			v = next
 			if v == nil {
 				break
@@ -149,7 +154,7 @@ func (s *addrSpace) remove(vma *vmarea, update bool) {
 			nstart := vma.start + vma.size
 			nsize := v.start + v.size - nstart
 			v.size = vma.start - v.start
-			s.insert(&vmarea{listElem{}, nstart, nsize, v.prot}, false)
+			s.insert(&vmarea{gc.ListElem{}, nstart, nsize, v.prot}, false)
 			break
 		}
 		// Right case, contained: [[xvxv]vvvvvv] or [xxxx[xvxvxvxvx]vvvv]
@@ -180,8 +185,8 @@ func (vm *vmarea) intersect(other *vmarea) bool {
 	return small.start+small.size > great.start
 }
 
-func (vm *vmarea) toElem() *listElem {
-	return (*listElem)(unsafe.Pointer(vm))
+func (vm *vmarea) toElem() *gc.ListElem {
+	return (*gc.ListElem)(unsafe.Pointer(vm))
 }
 
 // contiguous checks if two vmareas are contiguous
@@ -260,4 +265,9 @@ func (vm *vmarea) translate(pml *pageTable, defaultFlags uintptr) {
 	}
 	flags := APPLY_CREATE | APPLY_PML4 | APPLY_PDPTE | APPLY_PDE | APPLY_PTE
 	pagewalk(pml, vm.start, vm.start+vm.size-1, LVL_PML4, flags, f, alloc)
+}
+
+//TODO(aghosn) probably replace later with mmap
+func allocPageTable() *pageTable {
+	return &pageTable{}
 }

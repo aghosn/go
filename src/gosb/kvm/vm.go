@@ -1,4 +1,4 @@
-package gosb
+package kvm
 
 /**
 * author: aghosn
@@ -6,6 +6,7 @@ package gosb
 * TODO(aghosn) not sure what it should look like just yet.
  */
 import (
+	gc "gosb/commons"
 	"log"
 	"unsafe"
 )
@@ -46,13 +47,13 @@ func (root *pageTable) toUint64() uint64 {
 //TODO(aghosn) handle U and P
 func toFlags(prot uint8) uintptr {
 	val := uintptr(PTE_P)
-	if prot&X_VAL == 0 {
+	if prot&gc.X_VAL == 0 {
 		val |= uintptr(PTE_NX)
 	}
-	if prot&W_VAL != 0 {
+	if prot&gc.W_VAL != 0 {
 		val |= uintptr(PTE_W)
 	}
-	if prot&R_VAL == 0 {
+	if prot&gc.R_VAL == 0 {
 		panic("Missing read val")
 	}
 	return val

@@ -1,4 +1,4 @@
-package gosb
+package kvm
 
 const (
 	_IOC_NRBITS   = uintptr(8)

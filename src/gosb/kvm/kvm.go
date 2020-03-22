@@ -1,4 +1,4 @@
-package gosb
+package kvm
 
 /*
 * author: aghosn
@@ -7,6 +7,8 @@ package gosb
 **/
 
 import (
+	gc "gosb/commons"
+	gg "gosb/globals"
 	"log"
 	"sync"
 	sc "syscall"
@@ -42,7 +44,7 @@ var (
 	pointer *int
 )
 
-func kvmRegister(id int, start, size uintptr) {
+func KvmRegister(id int, start, size uintptr) {
 	//TODO(aghosn)
 	//Trying to debug dynamic allocation.
 	a := new(int)
@@ -50,7 +52,7 @@ func kvmRegister(id int, start, size uintptr) {
 	pointer = a
 }
 
-func kvmTransfer(oldid, newid int, start, size uintptr) {
+func KvmTransfer(oldid, newid int, start, size uintptr) {
 	//TODO(aghosn)
 	//Trying to debug dynamic allocation
 	a := new(int)
@@ -59,21 +61,21 @@ func kvmTransfer(oldid, newid int, start, size uintptr) {
 }
 
 // kvmInit should be called once to open the kvm file and get its fd.
-func kvmInit() {
+func KvmInit() {
 	kvmOnce.Do(func() {
 		var err error
 		kvmFd, err = sc.Open(kvmDriver, sc.O_RDWR|sc.O_CLOEXEC, 0)
 		if err != nil || kvmFd == -1 {
 			log.Fatalf(err.Error())
 		}
-		r1, errno := ioctl(kvmFd, KVM_GET_API_VERSION, 0)
+		r1, errno := gc.Ioctl(kvmFd, KVM_GET_API_VERSION, 0)
 		if errno != 0 {
 			log.Fatalf(errno.Error())
 		}
 		if r1 != 12 {
 			log.Fatalf("KVM_GET_API_VERSION %d, expected 12\n", r1)
 		}
-		r1, errno = ioctl(kvmFd, KVM_GET_VCPU_MMAP_SIZE, 0)
+		r1, errno = gc.Ioctl(kvmFd, KVM_GET_VCPU_MMAP_SIZE, 0)
 		if errno != 0 {
 			log.Fatalf("KVM_GET_VCPU_MMAP_SIZE %d\n", errno)
 		}
@@ -82,7 +84,7 @@ func kvmInit() {
 			log.Fatalf("KVM_GET_VCPU_MMAP_SIZE unexpectedly small %v\n", runSize)
 		}
 
-		_, errno = ioctl(kvmFd, KVM_GET_SUPPORTED_CPUID, uintptr(unsafe.Pointer(&cpuidSupported)))
+		_, errno = gc.Ioctl(kvmFd, KVM_GET_SUPPORTED_CPUID, uintptr(unsafe.Pointer(&cpuidSupported)))
 		if errno != 0 {
 			log.Fatalf("KVM_GET_SUPPORTED_CPUID %d-- %x\n", errno, KVM_GET_SUPPORTED_CPUID)
 		}
@@ -94,8 +96,8 @@ func kvmInit() {
 		userDataSegment.setData(0, 0xffffffff, 3)
 
 		// Create vms for each sandbox.
-		for _, d := range domains {
-			if d.config.Id == "-1" {
+		for _, d := range gg.Domains {
+			if d.Config.Id == "-1" {
 				continue
 			}
 			vm := &Machine{}
@@ -105,17 +107,17 @@ func kvmInit() {
 	})
 }
 
-func (v *Machine) init(d *Domain) {
+func (v *Machine) init(d *gc.Domain) {
 	var err sc.Errno
 	v.sysFd = kvmFd
-	v.fd, err = ioctl(v.sysFd, KVM_CREATE_VM, 0)
+	v.fd, err = gc.Ioctl(v.sysFd, KVM_CREATE_VM, 0)
 	if err != 0 || v.fd == -1 {
 		log.Fatalf("Error KVM_CREATE %d\n", err)
 	}
 
 	// Initialize the VCPU
 	//TODO(aghosn) the last argument here is the id
-	v.vcpu.fd, err = ioctl(v.fd, KVM_CREATE_VCPU, 0)
+	v.vcpu.fd, err = gc.Ioctl(v.fd, KVM_CREATE_VCPU, 0)
 	if err != 0 || v.vcpu.fd == -1 {
 		log.Fatalf("Error KVM_CREATE_VCPU %d\n", err)
 	}
@@ -132,7 +134,7 @@ func (v *Machine) init(d *Domain) {
 	// TODO(aghosn) figure out what to put inside the supervisor part of the address space.
 
 	// Let's generate the address space.
-	v.space = d.toVmas()
+	v.space = toVmas(d)
 	v.space.translate() // generate the page table.
 	v.vcpu.init()
 }

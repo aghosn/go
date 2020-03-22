@@ -1,4 +1,4 @@
-package gosb
+package mpk
 
 /*
 * @author: CharlyCst, aghosn
@@ -8,6 +8,8 @@ package gosb
 import (
 	"errors"
 	"fmt"
+	c "gosb/commons"
+	g "gosb/globals"
 	"syscall"
 )
 
@@ -51,11 +53,11 @@ const mask uint32 = 0xfffffff
 /** Higher Level Implementation **/
 
 var (
-	sandboxKeys map[SandId][]int
+	sandboxKeys map[c.SandId][]int
 	pkgGroups   [][]int
 )
 
-func mpkRegister(id int, start, size uintptr) {
+func MpkRegister(id int, start, size uintptr) {
 	//TODO(CharlyCst) implement this one.
 	//The goal is to go and look at sections, see if it already exists.
 	//If not, we create and add a new one and tag it with the correct key
@@ -64,7 +66,7 @@ func mpkRegister(id int, start, size uintptr) {
 	//be added to the package as such.
 }
 
-func mpkTransfer(oldid, newid int, start, size uintptr) {
+func MpkTransfer(oldid, newid int, start, size uintptr) {
 	//TODO(charlyCst) implement this one.
 	//Apparently the section should already exist somewhere (we should keep a map of them with start address to make things easier).
 	//We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
@@ -72,23 +74,23 @@ func mpkTransfer(oldid, newid int, start, size uintptr) {
 }
 
 // mpkInit relies on sandboxes and pkgToId, they must be initialized before the call
-func mpkInit() {
-	n := len(packages)
-	pkgAppearsIn := make(map[int][]SandId, n)
+func MpkInit() {
+	n := len(g.Packages)
+	pkgAppearsIn := make(map[int][]c.SandId, n)
 
-	for sbID, sb := range domains {
+	for sbID, sb := range g.Domains {
 		for _, pkg := range sb.SPkgs {
 			pkgID := pkg.Id
 
 			sbGroup, ok := pkgAppearsIn[pkgID]
 			if !ok {
-				sbGroup = make([]SandId, 0)
+				sbGroup = make([]c.SandId, 0)
 			}
 			pkgAppearsIn[pkgID] = append(sbGroup, sbID)
 		}
 	}
 
-	sbKeys := make(map[SandId][]int)
+	sbKeys := make(map[c.SandId][]int)
 	for i := range sbKeys {
 		sbKeys[i] = make([]int, 0)
 	}
@@ -129,7 +131,7 @@ func mpkInit() {
 	}*/
 }
 
-func groupEqual(a, b []SandId) bool {
+func groupEqual(a, b []c.SandId) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -141,7 +143,7 @@ func groupEqual(a, b []SandId) bool {
 	return true
 }
 
-func popMap(m map[int][]SandId) (int, []SandId) {
+func popMap(m map[int][]c.SandId) (int, []c.SandId) {
 	for id, group := range m {
 		return id, group
 	}

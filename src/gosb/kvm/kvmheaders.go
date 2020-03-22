@@ -1,4 +1,4 @@
-package gosb
+package kvm
 
 import (
 	"unsafe"

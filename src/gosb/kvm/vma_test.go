@@ -1,98 +1,99 @@
-package gosb
+package kvm
 
 import (
+	gc "gosb/commons"
 	"testing"
 )
 
 var (
 	expected = []*vmarea{
-		&vmarea{listElem{}, 0x40000, 0x5000, PTE_P | PTE_W},
-		&vmarea{listElem{}, 0x45000, 0x2000, PTE_P},
-		&vmarea{listElem{}, 0x48000, 0x1000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x40000, 0x5000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x45000, 0x2000, PTE_P},
+		&vmarea{gc.ListElem{}, 0x48000, 0x1000, PTE_P | PTE_W},
 	}
 )
 
 func initialize() []*vmarea {
 	return []*vmarea{
-		&vmarea{listElem{}, 0x40000, 0x2000, PTE_P | PTE_W},
-		&vmarea{listElem{}, 0x41000, 0x2000, PTE_P | PTE_W},
-		&vmarea{listElem{}, 0x43000, 0x2000, PTE_P | PTE_W},
-		&vmarea{listElem{}, 0x44000, 0x2000, PTE_P},
-		&vmarea{listElem{}, 0x46000, 0x1000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x40000, 0x2000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x41000, 0x2000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x43000, 0x2000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x44000, 0x2000, PTE_P},
+		&vmarea{gc.ListElem{}, 0x46000, 0x1000, PTE_P | PTE_W},
 	}
 }
 
 func initialize2() []*vmarea {
 	return []*vmarea{
-		&vmarea{listElem{}, 0x40000, 0x2000, PTE_P | PTE_W},
-		&vmarea{listElem{}, 0x41000, 0x2000, PTE_P | PTE_W},
-		&vmarea{listElem{}, 0x43000, 0x2000, PTE_P | PTE_W},
-		&vmarea{listElem{}, 0x45000, 0x2000, PTE_P},
-		&vmarea{listElem{}, 0x48000, 0x1000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x40000, 0x2000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x41000, 0x2000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x43000, 0x2000, PTE_P | PTE_W},
+		&vmarea{gc.ListElem{}, 0x45000, 0x2000, PTE_P},
+		&vmarea{gc.ListElem{}, 0x48000, 0x1000, PTE_P | PTE_W},
 	}
 }
 
 func initialize3() ([]*vmarea, []*vmarea, []*vmarea) {
 	return []*vmarea{
-			&vmarea{listElem{}, 0x40000, 0x1000, PTE_P | PTE_W},
-			&vmarea{listElem{}, 0x42000, 0x1000, PTE_P | PTE_W}, // insert contiguous 0x41000, 0x1000
-			&vmarea{listElem{}, 0x50000, 0x1000, PTE_P | PTE_W},
-			&vmarea{listElem{}, 0x52000, 0x1000, PTE_P | PTE_W}, // insert but not correct prot
-			&vmarea{listElem{}, 0x60000, 0x2000, PTE_P},         // insert 0x61000, 0x2000, allow overlap
+			&vmarea{gc.ListElem{}, 0x40000, 0x1000, PTE_P | PTE_W},
+			&vmarea{gc.ListElem{}, 0x42000, 0x1000, PTE_P | PTE_W}, // insert contiguous 0x41000, 0x1000
+			&vmarea{gc.ListElem{}, 0x50000, 0x1000, PTE_P | PTE_W},
+			&vmarea{gc.ListElem{}, 0x52000, 0x1000, PTE_P | PTE_W}, // insert but not correct prot
+			&vmarea{gc.ListElem{}, 0x60000, 0x2000, PTE_P},         // insert 0x61000, 0x2000, allow overlap
 		},
 		[]*vmarea{
-			&vmarea{listElem{}, 0x40000, 0x3000, PTE_P | PTE_W},
-			&vmarea{listElem{}, 0x50000, 0x1000, PTE_P | PTE_W},
-			&vmarea{listElem{}, 0x51000, 0x1000, PTE_P},
-			&vmarea{listElem{}, 0x52000, 0x1000, PTE_P | PTE_W},
-			&vmarea{listElem{}, 0x60000, 0x3000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x40000, 0x3000, PTE_P | PTE_W},
+			&vmarea{gc.ListElem{}, 0x50000, 0x1000, PTE_P | PTE_W},
+			&vmarea{gc.ListElem{}, 0x51000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x52000, 0x1000, PTE_P | PTE_W},
+			&vmarea{gc.ListElem{}, 0x60000, 0x3000, PTE_P},
 		},
 		[]*vmarea{
-			&vmarea{listElem{}, 0x41000, 0x1000, PTE_P | PTE_W},
-			&vmarea{listElem{}, 0x51000, 0x1000, PTE_P},
-			&vmarea{listElem{}, 0x61000, 0x2000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x41000, 0x1000, PTE_P | PTE_W},
+			&vmarea{gc.ListElem{}, 0x51000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x61000, 0x2000, PTE_P},
 		}
 }
 
 func initialize4() ([]*vmarea, []*vmarea, []*vmarea) {
 	return []*vmarea{
 			// overlap, left ==, right greater
-			&vmarea{listElem{}, 0x10000, 0x1000, PTE_P}, // this disappears
+			&vmarea{gc.ListElem{}, 0x10000, 0x1000, PTE_P}, // this disappears
 			// overlap, left smaller, right greater
-			&vmarea{listElem{}, 0x20000, 0x1000, PTE_P}, // this disappears
+			&vmarea{gc.ListElem{}, 0x20000, 0x1000, PTE_P}, // this disappears
 			// overlap, left smaller, right equal
-			&vmarea{listElem{}, 0x30000, 0x1000, PTE_P}, // this disappears
+			&vmarea{gc.ListElem{}, 0x30000, 0x1000, PTE_P}, // this disappears
 			// perfect overlap, left ==, right ==
-			&vmarea{listElem{}, 0x40000, 0x1000, PTE_P}, // this disappears
+			&vmarea{gc.ListElem{}, 0x40000, 0x1000, PTE_P}, // this disappears
 			// overlap  left greater, right ==
-			&vmarea{listElem{}, 0x50000, 0x2000, PTE_P}, // this yields left remain 0x1000
+			&vmarea{gc.ListElem{}, 0x50000, 0x2000, PTE_P}, // this yields left remain 0x1000
 			// overlap left greater, right greater
-			&vmarea{listElem{}, 0x60000, 0x2000, PTE_P}, // this yields left remain 0x1000
+			&vmarea{gc.ListElem{}, 0x60000, 0x2000, PTE_P}, // this yields left remain 0x1000
 			// overlap left smaller, right smaller
-			&vmarea{listElem{}, 0x70000, 0x2000, PTE_P}, // this yields right remain 0x71000, 0x1000
+			&vmarea{gc.ListElem{}, 0x70000, 0x2000, PTE_P}, // this yields right remain 0x71000, 0x1000
 			//overlap left smaller, right equal
-			&vmarea{listElem{}, 0x80000, 0x1000, PTE_P}, // this disappears
+			&vmarea{gc.ListElem{}, 0x80000, 0x1000, PTE_P}, // this disappears
 			// overlap contained
-			&vmarea{listElem{}, 0x90000, 0x3000, PTE_P}, // yields splits on both sides
+			&vmarea{gc.ListElem{}, 0x90000, 0x3000, PTE_P}, // yields splits on both sides
 		}, //to remove
 		[]*vmarea{
-			&vmarea{listElem{}, 0x10000, 0x2000, PTE_P},
-			&vmarea{listElem{}, 0x1F000, 0x3000, PTE_P},
-			&vmarea{listElem{}, 0x2F000, 0x2000, PTE_P},
-			&vmarea{listElem{}, 0x40000, 0x1000, PTE_P},
-			&vmarea{listElem{}, 0x51000, 0x1000, PTE_P},
-			&vmarea{listElem{}, 0x61000, 0x2000, PTE_P},
-			&vmarea{listElem{}, 0x6F000, 0x2000, PTE_P},
-			&vmarea{listElem{}, 0x7F000, 0x2000, PTE_P},
-			&vmarea{listElem{}, 0x91000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x10000, 0x2000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x1F000, 0x3000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x2F000, 0x2000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x40000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x51000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x61000, 0x2000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x6F000, 0x2000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x7F000, 0x2000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x91000, 0x1000, PTE_P},
 		}, // result
 		[]*vmarea{
-			&vmarea{listElem{}, 0x50000, 0x1000, PTE_P},
-			&vmarea{listElem{}, 0x60000, 0x1000, PTE_P},
-			&vmarea{listElem{}, 0x71000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x50000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x60000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x71000, 0x1000, PTE_P},
 			// splits
-			&vmarea{listElem{}, 0x90000, 0x1000, PTE_P},
-			&vmarea{listElem{}, 0x92000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x90000, 0x1000, PTE_P},
+			&vmarea{gc.ListElem{}, 0x92000, 0x1000, PTE_P},
 		}
 
 }
