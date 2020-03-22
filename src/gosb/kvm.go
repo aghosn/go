@@ -13,14 +13,16 @@ import (
 	"unsafe"
 )
 
-type VM struct {
+type Machine struct {
 	sysFd int
 	fd    int
-	vcpu  vCPU
+
+	kernel Kernel
+
+	vcpu vCPU // TODO(aghosn) maybe an array of them, not sure yet.
 
 	// memory setup
 	space *addrSpace //TODO change once we have more complicated implementation
-	// TODO9aghosn) maybe add vcpus too.
 	// This is similar to machine in gvisor.
 }
 
@@ -29,11 +31,12 @@ const (
 )
 
 var (
-	kvmOnce sync.Once
-	kvmFd   int
-	runSize uintptr
-	// TODO(aghons) change this afterwards, need to better keep track of stuff.
-	vms []*VM
+	kvmOnce        sync.Once
+	kvmFd          int
+	runSize        uintptr
+	cpuidSupported = kvm_cpuid2{nr: _KVM_NR_CPUID_ENTRIES}
+	// TODO(aghosn) change this afterwards, need to better keep track of stuff.
+	vms []*Machine
 
 	//TODO remove afterwards, just to avoid dce below
 	pointer *int
@@ -78,19 +81,31 @@ func kvmInit() {
 		if runSize < unsafe.Sizeof(kvm_run{}) {
 			log.Fatalf("KVM_GET_VCPU_MMAP_SIZE unexpectedly small %v\n", runSize)
 		}
+
+		_, errno = ioctl(kvmFd, KVM_GET_SUPPORTED_CPUID, uintptr(unsafe.Pointer(&cpuidSupported)))
+		if errno != 0 {
+			log.Fatalf("KVM_GET_SUPPORTED_CPUID %d-- %x\n", errno, KVM_GET_SUPPORTED_CPUID)
+		}
+		// Initialize the kernel & user segments
+		kernelCodeSegment.setCode64(0, 0, 0)
+		kernelDataSegment.setData(0, 0xffffffff, 0)
+		userCodeSegment64.setCode64(0, 0, 3)
+		userCodeSegment32.setCode64(0, 0, 3)
+		userDataSegment.setData(0, 0xffffffff, 3)
+
 		// Create vms for each sandbox.
 		for _, d := range domains {
 			if d.config.Id == "-1" {
 				continue
 			}
-			vm := &VM{}
+			vm := &Machine{}
 			vm.init(d)
 			vms = append(vms, vm)
 		}
 	})
 }
 
-func (v *VM) init(d *Domain) {
+func (v *Machine) init(d *Domain) {
 	var err sc.Errno
 	v.sysFd = kvmFd
 	v.fd, err = ioctl(v.sysFd, KVM_CREATE_VM, 0)
@@ -104,7 +119,8 @@ func (v *VM) init(d *Domain) {
 	if err != 0 || v.vcpu.fd == -1 {
 		log.Fatalf("Error KVM_CREATE_VCPU %d\n", err)
 	}
-	v.vcpu.vm = v
+	v.vcpu.machine = v
+	v.vcpu.kernel = &v.kernel
 	// TODO set TSS later.
 
 	//TODO(aghosn) here we should initialize the memory.
@@ -121,7 +137,7 @@ func (v *VM) init(d *Domain) {
 	v.vcpu.init()
 }
 
-func (v *VM) setMemoryRegion(slot int, area *vmarea) sc.Errno {
+func (v *Machine) setMemoryRegion(slot int, area *vmarea) sc.Errno {
 	//TODO(aghosn) implement
 	return 0
 }

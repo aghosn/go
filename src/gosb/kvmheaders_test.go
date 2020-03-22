@@ -14,11 +14,13 @@ func TestSizes(t *testing.T) {
 	given := []uintptr{
 		unsafe.Sizeof(kvm_userspace_memory_region{}),
 		unsafe.Sizeof(kvm_sregs{}),
+		//unsafe.Sizeof(kvm_cpuid2{}),
 	}
 
 	expected := []uintptr{
 		32,
 		312,
+		//	8,
 	}
 
 	if len(expected) != len(given) {
@@ -43,6 +45,8 @@ func TestConstants(t *testing.T) {
 		KVM_GET_SREGS,
 		KVM_SET_SREGS,
 		KVM_SET_REGS,
+		KVM_GET_SUPPORTED_CPUID,
+		KVM_SET_CPUID2,
 	}
 	expected := []uintptr{
 		uintptr(44544),
@@ -54,6 +58,8 @@ func TestConstants(t *testing.T) {
 		uintptr(2167975555),
 		uintptr(1094233732),
 		uintptr(1083223682),
+		uintptr(0xc008ae05),
+		uintptr(0x4008ae90),
 	}
 
 	if len(expected) != len(given) {
@@ -61,7 +67,7 @@ func TestConstants(t *testing.T) {
 	}
 	for i := range given {
 		if given[i] != expected[i] {
-			t.Errorf("Constant at index %d has wrong value, found %v, expected %v\n", i, given[i], expected[i])
+			t.Errorf("Constant at index %d has wrong value, found %x, expected %x\n", i, given[i], expected[i])
 		}
 	}
 }

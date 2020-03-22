@@ -15,6 +15,9 @@ type vmarea struct {
 	prot  uint8
 }
 
+// addrSpace represents an address space.
+// It also acts as a page allocator and keeps track of allocated/freed pages
+// using mmap.
 type addrSpace struct {
 	areas list
 	root  *pageTable

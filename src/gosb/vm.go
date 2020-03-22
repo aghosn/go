@@ -39,6 +39,10 @@ func (root *pageTable) unmap(vma *vmarea) {
 	pagewalk(root, vma.start, vma.start+vma.size-1, LVL_PML4, apply, f, nil)
 }
 
+func (root *pageTable) toUint64() uint64 {
+	return uint64(uintptr(unsafe.Pointer(root)))
+}
+
 //TODO(aghosn) handle U and P
 func toFlags(prot uint8) uintptr {
 	val := uintptr(PTE_P)
