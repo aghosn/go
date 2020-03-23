@@ -1,6 +1,7 @@
 package kvm
 
 import (
+	"gosb/vtx/platform/cpuid"
 	"gosb/vtx/platform/ring0"
 )
 
@@ -144,4 +145,11 @@ type cpuidEntries struct {
 	nr      uint32
 	_       uint32
 	entries [_KVM_NR_CPUID_ENTRIES]cpuidEntry
+}
+
+func UpdateGlobalOnce(fd int) error {
+	//	physicalInit()
+	err := updateSystemValues(int(fd))
+	ring0.Init(cpuid.HostFeatureSet())
+	return err
 }

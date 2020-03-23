@@ -1,0 +1,114 @@
+#include "funcdata.h"
+#include "textflag.h"
+
+// fxrstor loads floating point state.
+//
+// The code corresponds to:
+//
+//     fxrstor64 (%rbx)
+//
+TEXT ·fxrstor(SB),NOSPLIT,$0-8
+	MOVQ addr+0(FP), BX
+	MOVL $0xffffffff, AX
+	MOVL $0xffffffff, DX
+	BYTE $0x48; BYTE $0x0f; BYTE $0xae; BYTE $0x0b;
+	RET
+
+// xrstor loads floating point state.
+//
+// The code corresponds to:
+//
+//     xrstor (%rdi)
+//
+TEXT ·xrstor(SB),NOSPLIT,$0-8
+	MOVQ addr+0(FP), DI
+	MOVL $0xffffffff, AX
+	MOVL $0xffffffff, DX
+	BYTE $0x48; BYTE $0x0f; BYTE $0xae; BYTE $0x2f;
+	RET
+
+// fxsave saves floating point state.
+//
+// The code corresponds to:
+//
+//     fxsave64 (%rbx)
+//
+TEXT ·fxsave(SB),NOSPLIT,$0-8
+	MOVQ addr+0(FP), BX
+	MOVL $0xffffffff, AX
+	MOVL $0xffffffff, DX
+	BYTE $0x48; BYTE $0x0f; BYTE $0xae; BYTE $0x03;
+	RET
+
+// xsave saves floating point state.
+//
+// The code corresponds to:
+//
+//     xsave (%rdi)
+//
+TEXT ·xsave(SB),NOSPLIT,$0-8
+	MOVQ addr+0(FP), DI
+	MOVL $0xffffffff, AX
+	MOVL $0xffffffff, DX
+	BYTE $0x48; BYTE $0x0f; BYTE $0xae; BYTE $0x27;
+	RET
+
+// xsaveopt saves floating point state.
+//
+// The code corresponds to:
+//
+//     xsaveopt (%rdi)
+//
+TEXT ·xsaveopt(SB),NOSPLIT,$0-8
+	MOVQ addr+0(FP), DI
+	MOVL $0xffffffff, AX
+	MOVL $0xffffffff, DX
+	BYTE $0x48; BYTE $0x0f; BYTE $0xae; BYTE $0x37;
+	RET
+
+// wrfsbase writes to the FS base.
+//
+// The code corresponds to:
+//
+// 	wrfsbase %rax
+//
+TEXT ·wrfsbase(SB),NOSPLIT,$0-8
+	MOVQ addr+0(FP), AX
+	BYTE $0xf3; BYTE $0x48; BYTE $0x0f; BYTE $0xae; BYTE $0xd0;
+	RET
+
+// wrfsmsr writes to the FSBASE MSR.
+//
+// The code corresponds to:
+//
+// 	wrmsr (writes EDX:EAX to the MSR in ECX)
+//
+TEXT ·wrfsmsr(SB),NOSPLIT,$0-8
+	MOVQ addr+0(FP), AX
+	MOVQ AX, DX
+	SHRQ $32, DX
+	MOVQ $0xc0000100, CX // MSR_FS_BASE
+	BYTE $0x0f; BYTE $0x30;
+	RET
+
+// wrgsbase writes to the GS base.
+//
+// The code corresponds to:
+//
+// 	wrgsbase %rax
+//
+TEXT ·wrgsbase(SB),NOSPLIT,$0-8
+	MOVQ addr+0(FP), AX
+	BYTE $0xf3; BYTE $0x48; BYTE $0x0f; BYTE $0xae; BYTE $0xd8;
+	RET
+
+// wrgsmsr writes to the GSBASE MSR.
+//
+// See wrfsmsr.
+TEXT ·wrgsmsr(SB),NOSPLIT,$0-8
+	MOVQ addr+0(FP), AX
+	MOVQ AX, DX
+	SHRQ $32, DX
+	MOVQ $0xc0000101, CX     // MSR_GS_BASE
+	BYTE $0x0f; BYTE $0x30;  // WRMSR
+	RET

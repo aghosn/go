@@ -2,7 +2,7 @@ package gosb
 
 import (
 	"gosb/mpk"
-	"gosb/vtx"
+	vtx "gosb/vtx/old"
 )
 
 type Backend = int

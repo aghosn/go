@@ -368,3 +368,12 @@ type TaskState64 struct {
 	_              uint16
 	ioPerm         uint16
 }
+
+// Setup the globals
+func init() {
+	KernelCodeSegment.setCode64(0, 0, 0)
+	KernelDataSegment.setData(0, 0xffffffff, 0)
+	UserCodeSegment32.setCode64(0, 0, 3)
+	UserDataSegment.setData(0, 0xffffffff, 3)
+	UserCodeSegment64.setCode64(0, 0, 3)
+}
