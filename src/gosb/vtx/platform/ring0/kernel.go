@@ -1,5 +1,14 @@
 package ring0
 
+// Init initializes a new kernel.
+//
+// N.B. that constraints on KernelOpts must be satisfied.
+//
+//go:nosplit
+func (k *Kernel) Init(opts KernelOpts) {
+	k.init(opts)
+}
+
 // Halt halts execution.
 func Halt() {}
 

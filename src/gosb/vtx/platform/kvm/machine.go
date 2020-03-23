@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-type machine struct {
+type Machine struct {
 	// fd is the vm fd
 	fd int
 
@@ -56,7 +56,7 @@ type vCPU struct {
 	runData *runData
 
 	// machine associated with this vCPU.
-	machine *machine
+	machine *Machine
 
 	// active is the current addressSpace: this is set and read atomically,
 	// it is used to elide unnecessary interrupts due to invalidations.
@@ -77,7 +77,7 @@ type dieState struct {
 	guestRegs userRegs
 }
 
-func (m *machine) newVCPU() *vCPU {
+func (m *Machine) newVCPU() *vCPU {
 	if m.vCPU != nil {
 		log.Fatalf("Trying to re-allocate a vcpu for machine %d\n", m.fd)
 	}
@@ -110,4 +110,8 @@ func (m *machine) newVCPU() *vCPU {
 	}
 
 	return c
+}
+
+func (m *Machine) Init(dom *commons.Domain) {
+	// Create the pagetables BEFORE calling new VCPU
 }

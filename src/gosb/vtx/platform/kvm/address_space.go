@@ -7,7 +7,7 @@ import (
 // addressSpace is a wrapper for PageTables.
 type addressSpace struct {
 	// machine is the underlying machine.
-	machine *machine
+	machine *Machine
 
 	// pageTables are for this particular address space.
 	pageTables *pagetables.PageTables

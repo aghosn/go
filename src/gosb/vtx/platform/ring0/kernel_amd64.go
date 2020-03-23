@@ -4,6 +4,26 @@ import (
 	"encoding/binary"
 )
 
+//TODO(aghosn) implement
+// init initializes architecture-specific state.
+func (k *Kernel) init(opts KernelOpts) {
+	// Save the root page tables.
+	k.PageTables = opts.PageTables
+
+	// Setup the IDT, which is uniform.
+	//	for v, handler := range handlers {
+	//		// Allow Breakpoint and Overflow to be called from all
+	//		// privilege levels.
+	//		dpl := 0
+	//		if v == Breakpoint || v == Overflow {
+	//			dpl = 3
+	//		}
+	//		// Note that we set all traps to use the interrupt stack, this
+	//		// is defined below when setting up the TSS.
+	//		k.globalIDT[v].setInterrupt(Kcode, uint64(kernelFunc(handler)), dpl, 1 /* ist */)
+	//	}
+}
+
 // init initializes architecture-specific state.
 func (c *CPU) init() {
 	// Null segment.
