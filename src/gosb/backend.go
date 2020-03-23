@@ -1,8 +1,8 @@
 package gosb
 
 import (
-	"gosb/kvm"
 	"gosb/mpk"
+	"gosb/vtx"
 )
 
 type Backend = int
@@ -27,7 +27,7 @@ const (
 var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
 		backendConfig{SIM_BACKEND, nil, nil, nil},
-		backendConfig{KVM_BACKEND, kvm.KvmTransfer, kvm.KvmRegister, kvm.KvmInit},
+		backendConfig{KVM_BACKEND, vtx.KvmTransfer, vtx.KvmRegister, vtx.KvmInit},
 		backendConfig{MPK_BACKEND, mpk.MpkTransfer, mpk.MpkRegister, mpk.MpkInit},
 	}
 )

@@ -1,4 +1,4 @@
-package kvm
+package vtx
 
 const (
 	_IOC_NRBITS   = uintptr(8)

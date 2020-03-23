@@ -1,4 +1,4 @@
-package kvm
+package vtx
 
 // Segment indices and Selectors.
 const (
