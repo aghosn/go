@@ -1,0 +1,66 @@
+package kvm
+
+import (
+	"fmt"
+	"gosb/commons"
+	"syscall"
+	"unsafe"
+)
+
+// setSignalMask sets the vCPU signal mask.
+//
+// This must be called prior to running the vCPU.
+func (c *vCPU) setSignalMask() error {
+	// The layout of this structure implies that it will not necessarily be
+	// the same layout chosen by the Go compiler. It gets fudged here.
+	var data struct {
+		length uint32
+		mask1  uint32
+		mask2  uint32
+		_      uint32
+	}
+	data.length = 8 // Fixed sigset size.
+	data.mask1 = ^uint32(bounceSignalMask & 0xffffffff)
+	data.mask2 = ^uint32(bounceSignalMask >> 32)
+	if _, errno := commons.Ioctl(c.fd, _KVM_SET_SIGNAL_MASK,
+		uintptr(unsafe.Pointer(&data))); errno != 0 {
+		return fmt.Errorf("error setting signal mask: %v\n", errno)
+	}
+	return nil
+}
+
+// setCPUID sets the CPUID to be used by the guest.
+func (c *vCPU) setCPUID() error {
+	if _, errno := commons.Ioctl(c.fd, _KVM_SET_CPUID2, uintptr(unsafe.Pointer(&cpuidSupported))); errno != 0 {
+		return fmt.Errorf("error setting CPUID: %v", errno)
+	}
+	return nil
+}
+
+// setUserRegisters sets user registers in the vCPU.
+func (c *vCPU) setUserRegisters(uregs *userRegs) error {
+	if _, errno := commons.Ioctl(c.fd, _KVM_SET_REGS, uintptr(unsafe.Pointer(uregs))); errno != 0 {
+		return fmt.Errorf("error setting user registers: %v", errno)
+	}
+	return nil
+}
+
+// getUserRegisters reloads user registers in the vCPU.
+//
+// This is safe to call from a nosplit context.
+//
+//go:nosplit
+func (c *vCPU) getUserRegisters(uregs *userRegs) syscall.Errno {
+	if _, errno := commons.Ioctl(c.fd, _KVM_GET_REGS, uintptr(unsafe.Pointer(uregs))); errno != 0 {
+		return errno
+	}
+	return 0
+}
+
+// setSystemRegisters sets system registers.
+func (c *vCPU) setSystemRegisters(sregs *systemRegs) error {
+	if _, errno := commons.Ioctl(c.fd, _KVM_SET_SREGS, uintptr(unsafe.Pointer(sregs))); errno != 0 {
+		return fmt.Errorf("error setting system registers: %v", errno)
+	}
+	return nil
+}
