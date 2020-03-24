@@ -1,24 +1,24 @@
 package kvm
 
 import (
+	"gosb/commons"
 	"gosb/vtx/platform/ring0"
+	"log"
+	"reflect"
 	"syscall"
 )
 
 // bluepill enters guest mode.
-//TODO(aghosn) implement
-func bluepill(*vCPU) { panic("Implement") }
+func bluepill(*vCPU)
 
 // sighandler is the signal entry point.
-//TODO(aghosn) implement
-func sighandler() { panic("Implement") }
+func sighandler()
 
 // dieTrampoline is the assembly trampoline. This calls dieHandler.
 //
 // This uses an architecture-specific calling convention, documented in
 // dieArchSetup and the assembly implementation for dieTrampoline.
-//TODO(aghosn) implement
-func dieTrampoline() { panic("Implement") }
+func dieTrampoline()
 
 var (
 	// bounceSignal is the signal used for bouncing KVM.
@@ -41,3 +41,20 @@ var (
 	// dieTrampolineAddr is the address of dieTrampoline.
 	dieTrampolineAddr uintptr
 )
+
+// redpill invokes a syscall with -1.
+//
+//go:nosplit
+func redpill() {
+	syscall.RawSyscall(^uintptr(0), 0, 0, 0)
+}
+
+func init() {
+	// Install the handler.
+	if err := commons.ReplaceSignalHandler(bluepillSignal, reflect.ValueOf(sighandler).Pointer(), &savedHandler); err != nil {
+		log.Fatalf("Unable to set handler for signal %d: %v", bluepillSignal, err)
+	}
+
+	// Extract the address for the trampoline.
+	dieTrampolineAddr = reflect.ValueOf(dieTrampoline).Pointer()
+}

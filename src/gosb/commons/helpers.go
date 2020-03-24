@@ -5,6 +5,7 @@ package commons
 * Helper functions that we use to simulate some C code.
 **/
 import (
+	"fmt"
 	sc "syscall"
 	"unsafe"
 )
@@ -33,4 +34,50 @@ func Memcpy(dest, src, size uintptr) {
 		s := (*byte)(unsafe.Pointer(src + i))
 		*d = *s
 	}
+}
+
+// @from gvisor
+// ReplaceSignalHandler replaces the existing signal handler for the provided
+// signal with the one that handles faults in safecopy-protected functions.
+//
+// It stores the value of the previously set handler in previous.
+//
+// This function will be called on initialization in order to install safecopy
+// handlers for appropriate signals. These handlers will call the previous
+// handler however, and if this is function is being used externally then the
+// same courtesy is expected.
+func ReplaceSignalHandler(sig sc.Signal, handler uintptr, previous *uintptr) error {
+	var sa struct {
+		handler  uintptr
+		flags    uint64
+		restorer uintptr
+		mask     uint64
+	}
+	const maskLen = 8
+
+	// Get the existing signal handler information, and save the current
+	// handler. Once we replace it, we will use this pointer to fall back to
+	// it when we receive other signals.
+	if _, _, e := sc.RawSyscall6(
+		sc.SYS_RT_SIGACTION, uintptr(sig), 0,
+		uintptr(unsafe.Pointer(&sa)), maskLen, 0, 0); e != 0 {
+		return e
+	}
+
+	// Fail if there isn't a previous handler.
+	if sa.handler == 0 {
+		return fmt.Errorf("previous handler for signal %x isn't set", sig)
+	}
+
+	*previous = sa.handler
+
+	// Install our own handler.
+	sa.handler = handler
+	if _, _, e := sc.RawSyscall6(
+		sc.SYS_RT_SIGACTION, uintptr(sig),
+		uintptr(unsafe.Pointer(&sa)), 0, maskLen, 0, 0); e != 0 {
+		return e
+	}
+
+	return nil
 }

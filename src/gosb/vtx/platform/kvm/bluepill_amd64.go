@@ -2,6 +2,12 @@ package kvm
 
 import (
 	"gosb/vtx/platform/ring0"
+	"syscall"
+)
+
+var (
+	// The action for bluepillSignal is changed by sigaction().
+	bluepillSignal = syscall.SIGSEGV
 )
 
 // KernelSyscall handles kernel syscalls.
