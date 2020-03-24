@@ -11,6 +11,10 @@ import (
 type VMArea struct {
 	commons.ListElem
 	commons.Section
+
+	// PhysicalAddr is used only for specific regions.
+	// It allows to break HVA == GPA == GVA for VM specific parts.
+	PhysicalAddr uintptr
 }
 
 // ToElem converts a VMArea pointer to a ListElem pointer.

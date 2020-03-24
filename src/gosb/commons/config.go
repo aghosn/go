@@ -40,12 +40,18 @@ const (
 
 const (
 	// These constants are made to match the ones in cmd/link/internal/ld/elf.go
+	// This is an unmap flag
 	U_VAL = uint8(0)
 	X_VAL = uint8(1)
 	W_VAL = uint8(1 << 1)
 	R_VAL = uint8(1 << 2)
-	P_VAL = uint8(1 << 3)
-	D_VAL = R_VAL | W_VAL | X_VAL // default set
+	// Extra definitions that we require for seggregating pages.
+	USER_VAL  = uint8(1 << 3)
+	SUPER_VAL = uint8(1 << 4)
+	// Our own definition to say that we break HVA == GPA == GVA
+	FAKE_VAL = uint8(1 << 5)
+	P_VAL    = uint8(1 << 6)
+	D_VAL    = R_VAL | W_VAL | X_VAL | USER_VAL // default set
 )
 
 func ParseMemoryView(memc string) ([]Entry, error) {

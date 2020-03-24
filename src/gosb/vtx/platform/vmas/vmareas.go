@@ -2,6 +2,7 @@ package vmas
 
 import (
 	"gosb/commons"
+	pg "gosb/vtx/platform/ring0/pagetables"
 	"log"
 	"sort"
 )
@@ -16,6 +17,8 @@ type VMAreas struct {
 // Or we use unused bits. I don't know yet.
 // Or maybe implement the toVma perpackage instead.
 // But we still need to remember which domains are using it.
+// TODO(aghosn) also need to mark the areas that are supposed to be supervisor.
+// TODO(aghosn) mmap TSS as well, can we do that by introducing physical to VMAreas?
 func ToVMAreas(dom *commons.Domain) *VMAreas {
 	acc := make([]*VMArea, 0)
 	//TODO should probably lock the package
@@ -32,6 +35,7 @@ func ToVMAreas(dom *commons.Domain) *VMAreas {
 			acc = append(acc, &VMArea{
 				commons.ListElem{},
 				commons.Section{s.Addr, s.Size, s.Prot & replace},
+				0,
 			})
 		}
 		// map the dynamic sections
@@ -39,9 +43,14 @@ func ToVMAreas(dom *commons.Domain) *VMAreas {
 			acc = append(acc, &VMArea{
 				commons.ListElem{},
 				commons.Section{d.Addr, d.Size, d.Prot & replace},
+				0,
 			})
 		}
 	}
+
+	// Add special sections: TSS.
+	acc = append(acc, specialVMAreas()...)
+
 	// Sort and coalesce
 	sort.Slice(acc, func(i, j int) bool {
 		return acc[i].Addr <= acc[j].Addr
@@ -123,6 +132,7 @@ func (s *VMAreas) Unmap(vma *VMArea) {
 			s.Map(&VMArea{
 				commons.ListElem{},
 				commons.Section{nstart, nsize, v.Prot},
+				0,
 			})
 			break
 		}
@@ -134,5 +144,44 @@ func (s *VMAreas) Unmap(vma *VMArea) {
 			v.Size = nsize
 			break
 		}
+	}
+}
+
+// Apply transforms these VMAreas into pages tables referenced by table.
+// It would have been better to implement this as part of the kernel,
+// but we want to avoid introducing our own code inside ring0.
+//
+//go:nosplit
+func (v *VMAreas) Apply(tables *pg.PageTables) {
+	defFlags := pg.ConvertOpts(commons.D_VAL)
+	for v := ToVMA(v.First); v != nil; v = ToVMA(v.Next) {
+		flags := pg.ConvertOpts(v.Prot)
+		alloc := func(addr uintptr, lvl int) *pg.PTEs {
+			if lvl > 0 {
+				return tables.Allocator.NewPTEs()
+			}
+			// Special case for special areas.
+			if v.Prot&commons.FAKE_VAL != 0 {
+				if v.PhysicalAddr == 0 {
+					log.Fatalf("error nil PhysicalAddr %v\n", v)
+				}
+				addr = addr - uintptr(v.Addr) + uintptr(v.PhysicalAddr)
+			}
+			return tables.Allocator.LookupPTEs(addr)
+		}
+		visit := func(pte *pg.PTE, lvl int) {
+			if lvl == 0 {
+				pte.SetFlags(flags)
+				return
+			}
+			pte.SetFlags(defFlags)
+		}
+		visitor := pg.Visitor{
+			Applies: [4]bool{true, true, true, true},
+			Create:  true,
+			Alloc:   alloc,
+			Visit:   visit,
+		}
+		tables.Map(uintptr(v.Addr), uintptr(v.Addr)+uintptr(v.Size), &visitor)
 	}
 }

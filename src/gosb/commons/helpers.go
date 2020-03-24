@@ -19,6 +19,11 @@ func Mmap(addr, size, prot, flags uintptr, fd int, off uintptr) (uintptr, sc.Err
 	return r1, err
 }
 
+func Munmap(addr, size uintptr) sc.Errno {
+	_, _, err := sc.Syscall(sc.SYS_MUNMAP, addr, size, 0)
+	return err
+}
+
 func Memcpy(dest, src, size uintptr) {
 	if dest == 0 || src == 0 {
 		panic("nil argument to copy")

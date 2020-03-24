@@ -45,6 +45,12 @@ func wrgsbase(addr uintptr)
 // wrgsmsr writes to the GS_BASE MSR.
 func wrgsmsr(addr uintptr)
 
+// wrmsr reads to the given MSR.
+func wrmsr(reg, value uintptr)
+
+// rdmsr reads the given MSR.
+func rdmsr(reg uintptr) uintptr
+
 // Mostly-constants set by Init.
 var (
 	hasSMEP       bool

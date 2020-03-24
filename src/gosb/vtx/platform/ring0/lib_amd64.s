@@ -112,3 +112,30 @@ TEXT ·wrgsmsr(SB),NOSPLIT,$0-8
 	MOVQ $0xc0000101, CX     // MSR_GS_BASE
 	BYTE $0x0f; BYTE $0x30;  // WRMSR
 	RET
+
+// wrmsr writes to a control register.
+//
+// The code corresponds to:
+//
+// 	wrmsr
+//
+TEXT ·wrmsr(SB),NOSPLIT,$0-16
+	MOVL reg+0(FP), CX
+	MOVL value+8(FP), AX
+	MOVL value+12(FP), DX
+	BYTE $0x0f; BYTE $0x30;
+	RET
+
+
+// rdmsr reads a control register.
+//
+// The code corresponds to:
+//
+// 	rdmsr
+//
+TEXT ·rdmsr(SB),NOSPLIT,$0-16
+	MOVL reg+0(FP), CX
+	BYTE $0x0f; BYTE $0x32;
+	MOVL AX, ret+8(FP)
+	MOVL DX, ret+12(FP)
+	RET

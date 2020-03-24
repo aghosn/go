@@ -2,9 +2,6 @@ package kvm
 
 import (
 	"gosb/commons"
-	"gosb/vtx/platform/ring0"
-	"gosb/vtx/platform/ring0/pagetables"
-	"gosb/vtx/platform/vmas"
 	"log"
 	"syscall"
 )
@@ -36,15 +33,4 @@ func New(fd int, d *commons.Domain) *KVM {
 		log.Fatalf("error creating the machine: %v\n", err)
 	}
 	return &KVM{Machine: machine}
-}
-
-func newMachine(vm int, d *commons.Domain) (*Machine, error) {
-	// Create the machine.
-	m := &Machine{fd: vm}
-	m.kernel.Init(ring0.KernelOpts{
-		VMareas:    vmas.ToVMAreas(d),
-		PageTables: pagetables.New(newAllocator()),
-	})
-	//TODO(aghosn) continue here.
-	return m, nil
 }

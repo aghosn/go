@@ -2,6 +2,7 @@ package pagetables
 
 import (
 	"sync/atomic"
+	"unsafe"
 )
 
 // CR3 returns the CR3 value for these tables.
@@ -76,4 +77,31 @@ func (p *PTE) IsSuper() bool {
 //go:nosplit
 func (p *PTE) Address() uintptr {
 	return atomic.LoadUintptr((*uintptr)(p)) &^ optionMask
+}
+
+// Flags extracs the entry's flags.
+//
+//go:nosplit
+func (p *PTE) Flags() uintptr {
+	return atomic.LoadUintptr((*uintptr)(p)) & optionMask
+}
+
+// SetAddr atomically sets the address for this page table entry.
+// Carefull it removes rights!
+//
+//go:nosplit
+func (p *PTE) SetAddr(addr uintptr) {
+	v := (addr &^ optionMask) | present | accessed
+	atomic.StoreUintptr((*uintptr)(p), v)
+}
+
+func (p *PTE) SetFlags(flags uintptr) {
+	v := p.Address()
+	v |= flags | accessed
+	atomic.StoreUintptr((*uintptr)(p), v)
+}
+
+func (p *PTE) AddressAsPTES() *PTEs {
+	addr := p.Address()
+	return (*PTEs)(unsafe.Pointer(addr))
 }

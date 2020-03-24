@@ -136,3 +136,24 @@ func (c *CPU) CR4() uint64 {
 func (c *CPU) EFER() uint64 {
 	return _EFER_LME | _EFER_LMA | _EFER_SCE | _EFER_NX
 }
+
+// SetCPUIDFaulting sets CPUID faulting per the boolean value.
+//
+// True is returned if faulting could be set.
+//
+//go:nosplit
+func SetCPUIDFaulting(on bool) bool {
+	// Per the SDM (Vol 3, Table 2-43), PLATFORM_INFO bit 31 denotes support
+	// for CPUID faulting, and we enable and disable via the MISC_FEATURES MSR.
+	if rdmsr(_MSR_PLATFORM_INFO)&_PLATFORM_INFO_CPUID_FAULT != 0 {
+		features := rdmsr(_MSR_MISC_FEATURES)
+		if on {
+			features |= _MISC_FEATURE_CPUID_TRAP
+		} else {
+			features &^= _MISC_FEATURE_CPUID_TRAP
+		}
+		wrmsr(_MSR_MISC_FEATURES, features)
+		return true // Setting successful.
+	}
+	return false
+}

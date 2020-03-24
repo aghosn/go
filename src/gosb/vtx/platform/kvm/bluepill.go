@@ -7,18 +7,18 @@ import (
 
 // bluepill enters guest mode.
 //TODO(aghosn) implement
-func bluepill(*vCPU) {}
+func bluepill(*vCPU) { panic("Implement") }
 
 // sighandler is the signal entry point.
 //TODO(aghosn) implement
-func sighandler() {}
+func sighandler() { panic("Implement") }
 
 // dieTrampoline is the assembly trampoline. This calls dieHandler.
 //
 // This uses an architecture-specific calling convention, documented in
 // dieArchSetup and the assembly implementation for dieTrampoline.
 //TODO(aghosn) implement
-func dieTrampoline() {}
+func dieTrampoline() { panic("Implement") }
 
 var (
 	// bounceSignal is the signal used for bouncing KVM.

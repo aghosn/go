@@ -1,9 +1,39 @@
 package kvm
 
 import (
+	"gosb/commons"
 	"gosb/vtx/platform/ring0"
 	"reflect"
+	"runtime/debug"
 )
+
+// initArchState initializes architecture-specific state.
+func (m *Machine) initArchState() error {
+	// Set the legacy TSS address. This address is covered by the reserved
+	// range (up to 4GB). In fact, this is a main reason it exists.
+	if _, errno := commons.Ioctl(
+		m.fd,
+		_KVM_SET_TSS_ADDR,
+		uintptr(commons.ReservedMemory-(3*_PageSize))); errno != 0 {
+		return errno
+	}
+
+	// Enable CPUID faulting, if possible. Note that this also serves as a
+	// basic platform sanity tests, since we will enter guest mode for the
+	// first time here. The recovery is necessary, since if we fail to read
+	// the platform info register, we will retry to host mode and
+	// ultimately need to handle a segmentation fault.
+	old := debug.SetPanicOnFault(true)
+	defer func() {
+		recover()
+		debug.SetPanicOnFault(old)
+	}()
+	m.retryInGuest(func() {
+		ring0.SetCPUIDFaulting(true)
+	})
+
+	return nil
+}
 
 type vCPUArchState struct {
 }
@@ -75,4 +105,26 @@ func (c *vCPU) initArchState() error {
 
 	// Set the time offset to the host native time.
 	return nil //c.setSystemTime()
+}
+
+// retryInGuest runs the given function in guest mode.
+//
+// If the function does not complete in guest mode (due to execution of a
+// system call due to a GC stall, for example), then it will be retried. The
+// given function must be idempotent as a result of the retry mechanism.
+func (m *Machine) retryInGuest(fn func()) {
+	c := m.vCPU
+	for {
+		c.ClearErrorCode() // See below.
+		bluepill(c)        // Force guest mode.
+		fn()               // Execute the given function.
+		_, user := c.ErrorCode()
+		if user {
+			// If user is set, then we haven't bailed back to host
+			// mode via a kernel exception or system call. We
+			// consider the full function to have executed in guest
+			// mode and we can return.
+			break
+		}
+	}
 }

@@ -3,6 +3,8 @@ package kvm
 import (
 	"gosb/commons"
 	"gosb/vtx/platform/ring0"
+	"gosb/vtx/platform/ring0/pagetables"
+	"gosb/vtx/platform/vmas"
 	"log"
 )
 
@@ -112,6 +114,27 @@ func (m *Machine) newVCPU() *vCPU {
 	return c
 }
 
-func (m *Machine) Init(dom *commons.Domain) {
-	// Create the pagetables BEFORE calling new VCPU
+func newMachine(vm int, d *commons.Domain) (*Machine, error) {
+	// Create the machine.
+	m := &Machine{fd: vm}
+	m.kernel.Init(ring0.KernelOpts{
+		VMareas:    vmas.ToVMAreas(d),
+		PageTables: pagetables.New(newAllocator()),
+	})
+
+	// Apply the mappings to the page tables.
+	m.kernel.InitVMA2Root()
+
+	// Allocate a virtual CPU for this machine.
+	// @warn must be done after pagetables are initialized.
+	m.vCPU = m.newVCPU()
+
+	// Initialize architecture state.
+	if err := m.initArchState(); err != nil {
+		log.Fatalf("Error initializing machine %v\n", err)
+	}
+
+	//TODO(aghosn) should we set the finalizer?
+	//runtime.SetFinalizer(m, (*machine).Destroy)
+	return m, nil
 }

@@ -130,6 +130,12 @@ type KernelOpts struct {
 	PageTables *pagetables.PageTables
 }
 
+// InitVMA2Root initially translate the VMAreas to page tables.
+// @aghosn introduced this.
+func (k *KernelOpts) InitVMA2Root() {
+	k.VMareas.Apply(k.PageTables)
+}
+
 // KernelArchState contains architecture-specific state.
 type KernelArchState struct {
 	KernelOpts
@@ -380,4 +386,24 @@ func init() {
 	UserCodeSegment32.setCode64(0, 0, 3)
 	UserDataSegment.setData(0, 0xffffffff, 3)
 	UserCodeSegment64.setCode64(0, 0, 3)
+}
+
+// ErrorCode returns the last error code.
+//
+// The returned boolean indicates whether the error code corresponds to the
+// last user error or not. If it does not, then fault information must be
+// ignored. This is generally the result of a kernel fault while servicing a
+// user fault.
+//
+//go:nosplit
+func (c *CPU) ErrorCode() (value uintptr, user bool) {
+	return c.errorCode, c.errorType != 0
+}
+
+// ClearErrorCode resets the error code.
+//
+//go:nosplit
+func (c *CPU) ClearErrorCode() {
+	c.errorCode = 0
+	c.errorType = 1
 }
