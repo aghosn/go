@@ -7,6 +7,8 @@ type backendConfig struct {
 	//Functions for hooks in the runtime
 	transfer func(oldid, newid int, start, size uintptr)
 	register func(id int, start, size uintptr)
+	execute  func(id int)
+	park     func(id int)
 
 	init func()
 }
@@ -21,9 +23,9 @@ const (
 // Configurations
 var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
-		backendConfig{SIM_BACKEND, nil, nil, nil},
-		backendConfig{KVM_BACKEND, kvmTransfer, kvmRegister, kvmInit},
-		backendConfig{MPK_BACKEND, mpkTransfer, mpkRegister, mpkInit},
+		backendConfig{SIM_BACKEND, nil, nil, nil, nil, nil},
+		backendConfig{KVM_BACKEND, kvmTransfer, kvmRegister, nil, nil, kvmInit},
+		backendConfig{MPK_BACKEND, mpkTransfer, mpkRegister, mpkExecute, mpkPark, mpkInit},
 	}
 )
 

@@ -28,6 +28,17 @@ func getSectionWithoutAlloc() *Section {
 	return section
 }
 
+// mpkExecute turns on sandbox isolation
+func mpkExecute(id int) {
+	// For now clean PKRU and grant full access
+	mpk.WritePKRU(mpk.AllRightsPKRU)
+}
+
+// mpkPark remove sandbox isolation
+func mpkPark(id int) {
+	mpk.WritePKRU(mpk.AllRightsPKRU)
+}
+
 //TODO(CharlyCst) implement this one.
 //The goal is to go and look at sections, see if it already exists.
 //If not, we create and add a new one and tag it with the correct key
@@ -35,38 +46,44 @@ func getSectionWithoutAlloc() *Section {
 //If the section did not exist, it must be a dynamic library and hence should
 //be added to the package as such.
 func mpkRegister(id int, start, size uintptr) {
-	pkg, ok := idToPkg[id]
-	if !ok {
-		panic(errors.New("Package not found"))
-		return
-	}
+	// if id == 0 { // Runtime
+	// 	return
+	// }
 
-	for _, section := range pkg.Sects {
-		if section.Addr == uint64(start) {
-			panic(errors.New("Section not found"))
-			return
-		}
-	}
+	// fmt.Println("Register")
 
-	// Pop a section from the free list
-	section := getSectionWithoutAlloc()
-	section.Addr = uint64(start)
-	section.Size = uint64(size)
-	// TODO(CharlyCst): Add Prot
+	// pkg, ok := idToPkg[id]
+	// if !ok {
+	// 	panic(errors.New("Package not found"))
+	// 	return
+	// }
 
-	pkg.Dynamic = append(pkg.Dynamic, section)
+	// for _, section := range pkg.Sects {
+	// 	if section.Addr == uint64(start) {
+	// 		panic(errors.New("Section not found"))
+	// 		return
+	// 	}
+	// }
 
-	// Updating protection key
-	if id == 0 { // Runtime
-		return
-	}
+	// // Pop a section from the free list
+	// section := getSectionWithoutAlloc()
+	// section.Addr = uint64(start)
+	// section.Size = uint64(size)
+	// // TODO(CharlyCst): Add Prot
 
-	key, ok := pkgKeys[id]
-	if !ok {
-		panic(errors.New("Package key not found"))
-		return
-	}
-	mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
+	// pkg.Dynamic = append(pkg.Dynamic, section)
+
+	// // Updating protection key
+	// if id == 0 { // Runtime
+	// 	return
+	// }
+
+	// key, ok := pkgKeys[id]
+	// if !ok {
+	// 	panic(errors.New("Package key not found"))
+	// 	return
+	// }
+	// mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
 }
 
 //TODO(charlyCst) implement this one.
@@ -74,45 +91,48 @@ func mpkRegister(id int, start, size uintptr) {
 //We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
 //The same should apply for the previous function.
 func mpkTransfer(oldid, newid int, start, size uintptr) {
-	// Sanity check
-	if oldid == newid {
-		panic(errors.New("Transfer a section from one package to itself"))
-	}
-	oldPkg, ok := idToPkg[oldid]
-	if !ok {
-		panic(errors.New("Old package not found"))
-	}
-	newPkg, ok := idToPkg[newid]
-	if !ok {
-		panic(errors.New("New package not found"))
-	}
+	// fmt.Println("Transfer")
 
-	// Find in old mapping, linear scan
-	found := false
-	var idx int
-	for i, section := range oldPkg.Dynamic {
-		if section.Addr == uint64(start) && section.Size == uint64(size) {
-			found = true
-			idx = i
-			fmt.Println("Found")
-			break
-		}
-	}
-	if !found {
-		panic(errors.New("Section not found"))
-	}
+	// // Sanity check
+	// if oldid == newid {
+	// 	panic(errors.New("Transfer a section from one package to itself"))
+	// }
+	// oldPkg, ok := idToPkg[oldid]
+	// if !ok {
+	// 	panic(errors.New("Old package not found"))
+	// }
+	// newPkg, ok := idToPkg[newid]
+	// if !ok {
+	// 	panic(errors.New("New package not found"))
+	// }
 
-	section := oldPkg.Dynamic[idx]
+	// // Find in old mapping, linear scan
+	// found := false
+	// var idx int
+	// for i, section := range oldPkg.Dynamic {
+	// 	if section.Addr == uint64(start) && section.Size == uint64(size) {
+	// 		found = true
+	// 		idx = i
+	// 		fmt.Println("Found")
+	// 		break
+	// 	}
+	// }
+	// if !found {
+	// 	panic(errors.New("Section not found"))
+	// }
 
-	// Removing from old mapping
-	n := len(oldPkg.Dynamic) - 1
-	oldPkg.Dynamic[idx] = oldPkg.Dynamic[n]
-	oldPkg.Dynamic = oldPkg.Dynamic[:n]
+	// section := oldPkg.Dynamic[idx]
 
-	// Add to new mapping
-	newPkg.Dynamic[len(newPkg.Dynamic)] = section
+	// // Removing from old mapping
+	// n := len(oldPkg.Dynamic) - 1
+	// oldPkg.Dynamic[idx] = oldPkg.Dynamic[n]
+	// oldPkg.Dynamic = oldPkg.Dynamic[:n]
 
-	// TODO(CharlyCst) retag section with key
+	// // Add to new mapping
+	// newPkg.Dynamic[len(newPkg.Dynamic)] = section
+
+	// // TODO(CharlyCst) retag section with key
+
 }
 
 // allocateKey allocates MPK keys according to `sandboxKeys` and `pkgGroups`
@@ -140,7 +160,9 @@ func tagPackage(id int, key mpk.Pkey) {
 	}
 
 	for _, section := range pkg.Sects {
-		mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
+		if section.Size > 0 {
+			mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
+		}
 	}
 }
 

@@ -29,7 +29,7 @@ func initRuntime() {
 	for k, d := range pkgMap {
 		pkgToId[k] = d.Id
 	}
-	runtime.LitterboxHooks(pkgToId, getPkgName, backend.transfer, backend.register)
+	runtime.LitterboxHooks(pkgToId, getPkgName, backend.transfer, backend.register, backend.execute, backend.park)
 }
 
 // getPkgName is called by the runtime.

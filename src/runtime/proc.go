@@ -2203,6 +2203,9 @@ func execute(gp *g, inheritTime bool) {
 		traceGoStart()
 	}
 
+	if executeSandbox != nil {
+		executeSandbox(gp.sbid)
+	}
 	gogo(&gp.sched)
 }
 
