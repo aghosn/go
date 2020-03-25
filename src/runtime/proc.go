@@ -267,14 +267,14 @@ func forcegchelper() {
 // suspend the current goroutine, so execution resumes automatically.
 func Gosched() {
 	checkTimeouts()
-	mcall(gosched_m)
+	gosbmcall(gosched_m)
 }
 
 // goschedguarded yields the processor like gosched, but also checks
 // for forbidden states and opts out of the yield in those cases.
 //go:nosplit
 func goschedguarded() {
-	mcall(goschedguarded_m)
+	gosbmcall(goschedguarded_m)
 }
 
 // Puts the current goroutine into a waiting state and calls unlockf.
@@ -302,7 +302,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason w
 	mp.waittraceskip = traceskip
 	releasem(mp)
 	// can't do anything that might move the G between Ms here.
-	mcall(park_m)
+	gosbmcall(park_m)
 }
 
 // Puts the current goroutine into a waiting state and unlocks the lock.
@@ -2203,9 +2203,11 @@ func execute(gp *g, inheritTime bool) {
 		traceGoStart()
 	}
 
+	// GOSB hook
 	if executeSandbox != nil {
 		executeSandbox(gp.sbid)
 	}
+
 	gogo(&gp.sched)
 }
 
@@ -2848,7 +2850,7 @@ func goexit1() {
 	if trace.enabled {
 		traceGoEnd()
 	}
-	mcall(goexit0)
+	gosbmcall(goexit0)
 }
 
 // goexit continuation on g0.
@@ -3199,7 +3201,7 @@ func exitsyscall() {
 	_g_.m.locks--
 
 	// Call the scheduler.
-	mcall(exitsyscall0)
+	gosbmcall(exitsyscall0)
 
 	if _g_.m.mcache == nil {
 		throw("lost mcache")

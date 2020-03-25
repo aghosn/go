@@ -35,6 +35,7 @@ func mpkExecute(id int) {
 }
 
 // mpkPark remove sandbox isolation
+//go:nosplit
 func mpkPark(id int) {
 	mpk.WritePKRU(mpk.AllRightsPKRU)
 }

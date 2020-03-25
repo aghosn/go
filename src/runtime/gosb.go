@@ -44,3 +44,12 @@ func LitterboxHooks(m map[string]int, f func(string) string, t func(int, int, ui
 	parkSandbox = p
 	bloatInitDone = true
 }
+
+//go:nosplit
+func gosbmcall(fn func(*g)) {
+	_g_ := getg()
+	if parkSandbox != nil && _g_ == _g_.m.curg {
+		parkSandbox(_g_.sbid)
+	}
+	mcall(fn)
+}
