@@ -46,44 +46,42 @@ func mpkPark(id int) {
 //If the section did not exist, it must be a dynamic library and hence should
 //be added to the package as such.
 func mpkRegister(id int, start, size uintptr) {
-	// if id == 0 { // Runtime
-	// 	return
-	// }
+	if id == 0 { // Runtime
+		return
+	}
 
-	// fmt.Println("Register")
+	pkg, ok := idToPkg[id]
+	if !ok {
+		println("[MPK BACKEND]: Register package not found")
+		return
+	}
 
-	// pkg, ok := idToPkg[id]
-	// if !ok {
-	// 	panic(errors.New("Package not found"))
-	// 	return
-	// }
+	for _, section := range pkg.Sects {
+		if section.Addr == uint64(start) {
+			println("[MPK BACKEND]: Register section not found")
+			return
+		}
+	}
 
-	// for _, section := range pkg.Sects {
-	// 	if section.Addr == uint64(start) {
-	// 		panic(errors.New("Section not found"))
-	// 		return
-	// 	}
-	// }
+	// Pop a section from the free list
+	section := getSectionWithoutAlloc()
+	section.Addr = uint64(start)
+	section.Size = uint64(size)
+	// TODO(CharlyCst): Add Prot
 
-	// // Pop a section from the free list
-	// section := getSectionWithoutAlloc()
-	// section.Addr = uint64(start)
-	// section.Size = uint64(size)
-	// // TODO(CharlyCst): Add Prot
+	pkg.Dynamic = append(pkg.Dynamic, section)
 
-	// pkg.Dynamic = append(pkg.Dynamic, section)
+	// Updating protection key
+	if id == 0 { // Runtime
+		return
+	}
 
-	// // Updating protection key
-	// if id == 0 { // Runtime
-	// 	return
-	// }
-
-	// key, ok := pkgKeys[id]
-	// if !ok {
-	// 	panic(errors.New("Package key not found"))
-	// 	return
-	// }
-	// mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
+	key, ok := pkgKeys[id]
+	if !ok {
+		println("[MPK BACKEND]: Register key not found")
+		return
+	}
+	mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
 }
 
 //TODO(charlyCst) implement this one.
@@ -91,47 +89,51 @@ func mpkRegister(id int, start, size uintptr) {
 //We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
 //The same should apply for the previous function.
 func mpkTransfer(oldid, newid int, start, size uintptr) {
-	// fmt.Println("Transfer")
+	// Sanity check
+	if newid == 0 || oldid == 0 {
+		return
+	}
+	if oldid == newid {
+		println("[MPK BACKEND]: Transfer from a package to itself")
+		return
+	}
+	oldPkg, ok := idToPkg[oldid]
+	if !ok {
+		println("[MPK BACKEND]: Transfer old package not found")
+		return
+	}
+	newPkg, ok := idToPkg[newid]
+	if !ok {
+		println("[MPK BACKEND]: Transfer new package not found")
+		return
+	}
 
-	// // Sanity check
-	// if oldid == newid {
-	// 	panic(errors.New("Transfer a section from one package to itself"))
-	// }
-	// oldPkg, ok := idToPkg[oldid]
-	// if !ok {
-	// 	panic(errors.New("Old package not found"))
-	// }
-	// newPkg, ok := idToPkg[newid]
-	// if !ok {
-	// 	panic(errors.New("New package not found"))
-	// }
+	// Find in old mapping, linear scan
+	found := false
+	var idx int
+	for i, section := range oldPkg.Dynamic {
+		if section.Addr == uint64(start) && section.Size == uint64(size) {
+			found = true
+			idx = i
+			break
+		}
+	}
+	if !found {
+		println("[MPK BACKEND]: Transfer section not found in old package")
+		return
+	}
 
-	// // Find in old mapping, linear scan
-	// found := false
-	// var idx int
-	// for i, section := range oldPkg.Dynamic {
-	// 	if section.Addr == uint64(start) && section.Size == uint64(size) {
-	// 		found = true
-	// 		idx = i
-	// 		fmt.Println("Found")
-	// 		break
-	// 	}
-	// }
-	// if !found {
-	// 	panic(errors.New("Section not found"))
-	// }
+	section := oldPkg.Dynamic[idx]
 
-	// section := oldPkg.Dynamic[idx]
+	// Removing from old mapping
+	n := len(oldPkg.Dynamic) - 1
+	oldPkg.Dynamic[idx] = oldPkg.Dynamic[n]
+	oldPkg.Dynamic = oldPkg.Dynamic[:n]
 
-	// // Removing from old mapping
-	// n := len(oldPkg.Dynamic) - 1
-	// oldPkg.Dynamic[idx] = oldPkg.Dynamic[n]
-	// oldPkg.Dynamic = oldPkg.Dynamic[:n]
+	// Add to new mapping
+	newPkg.Dynamic[len(newPkg.Dynamic)] = section
 
-	// // Add to new mapping
-	// newPkg.Dynamic[len(newPkg.Dynamic)] = section
-
-	// // TODO(CharlyCst) retag section with key
+	// TODO(CharlyCst) retag section with key
 
 }
 
