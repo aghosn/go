@@ -19,7 +19,7 @@ var (
 	machines map[commons.SandId]*kvm.KVM
 )
 
-func vtxInit() {
+func VtxInit() {
 	kvmOnce.Do(func() {
 		kvmFd, err := os.OpenFile(_KVM_DRIVER_PATH, syscall.O_RDWR, 0)
 		if err != nil {
@@ -45,5 +45,16 @@ func vtxInit() {
 		// We should be done with it now.
 		kvmFd.Close()
 	})
+}
 
+func VtxTransfer(oldid, newid int, start, size uintptr) {
+	// TODO(aghosn) implement.
+	// Probably a syscall -1, and this needs to be mapped too.
+	// So probably needs to be bloated too.
+}
+
+func VtxRegister(id int, start, size uintptr) {
+	// TODO(aghosn) implement
+	// Probably a syscall -1, and this needs to be mapped in the user space too.
+	// So probably needs to be bloated.
 }

@@ -28,6 +28,7 @@ func (m *Machine) initArchState() error {
 		recover()
 		debug.SetPanicOnFault(old)
 	}()
+	//TODO(aghosn) Doesn't work yet.
 	m.retryInGuest(func() {
 		ring0.SetCPUIDFaulting(true)
 	})
@@ -113,7 +114,8 @@ func (c *vCPU) initArchState() error {
 // system call due to a GC stall, for example), then it will be retried. The
 // given function must be idempotent as a result of the retry mechanism.
 func (m *Machine) retryInGuest(fn func()) {
-	c := m.vCPU
+	c := m.Get()
+	defer m.Put(c)
 	for {
 		c.ClearErrorCode() // See below.
 		bluepill(c)        // Force guest mode.

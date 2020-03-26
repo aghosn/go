@@ -9,7 +9,9 @@ import (
 func (k *Kernel) init(opts KernelOpts) {
 	// Save the root page tables.
 	k.PageTables = opts.PageTables
+	k.VMareas = opts.VMareas
 
+	// TODO(aghosn) setup the idt !!!
 	// Setup the IDT, which is uniform.
 	//	for v, handler := range handlers {
 	//		// Allow Breakpoint and Overflow to be called from all

@@ -12,6 +12,10 @@ type VMAreas struct {
 	commons.List
 }
 
+const (
+	_PageSize = 0x1000
+)
+
 //TODO we are going to have issues with concurrent changes to dynamics.
 //Maybe we should make it so that address spaces can all get updated more easily
 // Or we use unused bits. I don't know yet.
@@ -28,13 +32,20 @@ func ToVMAreas(dom *commons.Domain) *VMAreas {
 			replace = v
 		}
 		for _, s := range p.Sects {
+			if s.Addr%_PageSize != 0 {
+				log.Fatalf("error, section address not aligned %v\n", s)
+			}
 			// @warning IMPORTANT Skip the empty sections (otherwise crashes)
 			if s.Size == 0 {
 				continue
 			}
+			size := s.Size
+			if size%_PageSize != 0 {
+				size = ((size / _PageSize) + 1) * _PageSize
+			}
 			acc = append(acc, &VMArea{
 				commons.ListElem{},
-				commons.Section{s.Addr, s.Size, s.Prot & replace},
+				commons.Section{s.Addr, size, s.Prot & replace},
 				0,
 			})
 		}
@@ -182,6 +193,6 @@ func (v *VMAreas) Apply(tables *pg.PageTables) {
 			Alloc:   alloc,
 			Visit:   visit,
 		}
-		tables.Map(uintptr(v.Addr), uintptr(v.Addr)+uintptr(v.Size), &visitor)
+		tables.Map(uintptr(v.Addr), uintptr(v.Size), &visitor)
 	}
 }

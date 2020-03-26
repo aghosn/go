@@ -24,6 +24,7 @@ const (
 	PTE_A   = 0x0020  /* Accessed */
 	PTE_D   = 0x0040  /* Dirty */
 	PTE_NX  = 1 << 63 /* NX bit for non-execute 0x8000000000000000*/
+	PTE_PS  = 1 << 7
 )
 
 func (root *pageTable) unmap(vma *vmarea) {

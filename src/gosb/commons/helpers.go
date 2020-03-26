@@ -10,8 +10,9 @@ import (
 	"unsafe"
 )
 
+//go:nosplit
 func Ioctl(fd int, op, arg uintptr) (int, sc.Errno) {
-	r1, _, err := sc.Syscall(sc.SYS_IOCTL, uintptr(fd), op, arg)
+	r1, _, err := sc.RawSyscall(sc.SYS_IOCTL, uintptr(fd), op, arg)
 	return int(r1), err
 }
 

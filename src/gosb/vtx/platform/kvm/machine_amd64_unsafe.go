@@ -3,9 +3,38 @@ package kvm
 import (
 	"fmt"
 	"gosb/commons"
+	"gosb/vtx/platform/linux"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
+
+// loadSegments copies the current segments.
+//
+// This may be called from within the signal context and throws on error.
+//
+//go:nosplit
+func (c *vCPU) loadSegments(tid uint64) {
+	if _, _, errno := syscall.RawSyscall(
+		syscall.SYS_ARCH_PRCTL,
+		linux.ARCH_GET_FS,
+		uintptr(unsafe.Pointer(&c.CPU.Registers().Fs_base)),
+		0); errno != 0 {
+		throw("getting FS segment")
+	}
+
+	if c.CPU.Registers() == nil {
+		panic("Wut")
+	}
+	if _, _, errno := syscall.RawSyscall(
+		syscall.SYS_ARCH_PRCTL,
+		linux.ARCH_GET_GS,
+		uintptr(unsafe.Pointer(&c.CPU.Registers().Gs_base)),
+		0); errno != 0 {
+		throw("getting GS segment")
+	}
+	atomic.StoreUint64(&c.tid, tid)
+}
 
 // setSignalMask sets the vCPU signal mask.
 //

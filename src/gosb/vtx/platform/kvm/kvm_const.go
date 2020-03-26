@@ -49,6 +49,7 @@ const (
 	_KVM_NR_VCPUS         = 0xff
 	_KVM_NR_INTERRUPTS    = 0x100
 	_KVM_NR_CPUID_ENTRIES = 0x100
+	_KVM_MEM_MAX_NR_PAGES = (1 << 31) - 1
 )
 
 // KVM kvm_memory_region::flags.

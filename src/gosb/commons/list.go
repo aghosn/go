@@ -14,6 +14,7 @@ type ListElem struct {
 type List struct {
 	First *ListElem
 	Last  *ListElem
+	Len   uint64
 }
 
 func (l *List) Init() {
@@ -37,6 +38,7 @@ func (l *List) AddBack(e *ListElem) {
 	}
 	l.Last = e
 	e.List = l
+	l.Len++
 }
 
 func (l *List) InsertBefore(toins, elem *ListElem) {
@@ -59,6 +61,7 @@ func (l *List) InsertBefore(toins, elem *ListElem) {
 		l.First = toins
 	}
 	toins.List = l
+	l.Len++
 }
 
 func (l *List) InsertAfter(toins, elem *ListElem) {
@@ -81,6 +84,7 @@ func (l *List) InsertAfter(toins, elem *ListElem) {
 		l.Last = toins
 	}
 	toins.List = l
+	l.Len++
 }
 
 func (l *List) Remove(e *ListElem) {
@@ -100,4 +104,5 @@ func (l *List) Remove(e *ListElem) {
 	e.Next = nil
 	e.Prev = nil
 	e.List = nil
+	l.Len--
 }

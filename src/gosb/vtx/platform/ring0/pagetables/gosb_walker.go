@@ -38,7 +38,7 @@ func (p *PageTables) Map(start, length uintptr, v *Visitor) {
 // pageWalk is our homebrewed recursive pagewalker.
 // TODO(aghosn) not sure if the nosplit is valid here.
 //
-//go:nosplit
+//TODO(aghosn) implement a go:nosplit version.
 func (p *PageTables) pageWalk(root *PTEs, start, end uintptr, lvl int, v *Visitor) {
 	if lvl < 0 || lvl > _LVL_PML4 {
 		panic("wrong pageWalk level")

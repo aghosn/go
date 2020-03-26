@@ -2,6 +2,7 @@ package kvm
 
 import (
 	"gosb/commons"
+	"gosb/vtx/platform/arch"
 	"gosb/vtx/platform/ring0"
 	"log"
 	"reflect"
@@ -49,6 +50,25 @@ func redpill() {
 	syscall.RawSyscall(^uintptr(0), 0, 0, 0)
 }
 
+// dieHandler is called by dieTrampoline.
+//
+//go:nosplit
+func dieHandler(c *vCPU) {
+	throw(c.dieState.message)
+}
+
+// die is called to set the vCPU up to panic.
+//
+// This loads vCPU state, and sets up a call for the trampoline.
+//
+//go:nosplit
+func (c *vCPU) die(context *arch.SignalContext64, msg string) {
+	// Save the death message, which will be thrown.
+	c.dieState.message = msg
+
+	// Setup the trampoline.
+	dieArchSetup(c, context, &c.dieState.guestRegs)
+}
 func init() {
 	// Install the handler.
 	if err := commons.ReplaceSignalHandler(bluepillSignal, reflect.ValueOf(sighandler).Pointer(), &savedHandler); err != nil {

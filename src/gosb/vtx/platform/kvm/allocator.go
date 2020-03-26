@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	_POOL_SIZE = 100
+	_PoolSize  = 100
 	_PageSize  = 0x1000
+	_ArenaSize = 10
 	_DEF_PROT  = syscall.PROT_READ | syscall.PROT_WRITE
 	_DEF_FLAG  = syscall.MAP_ANONYMOUS | syscall.MAP_PRIVATE
 )
@@ -55,7 +56,7 @@ type kvmAllocator struct {
 	all PageList
 
 	// pool is the set of free-to-use PTEs.
-	pool [_POOL_SIZE]*pg.PTEs
+	pool [_PoolSize]*pg.PTEs
 }
 
 // newKvmAllocator returns our custom allocator.
@@ -66,7 +67,7 @@ func newKvmAllocator() *kvmAllocator {
 
 // NewPTEs returns a new set of PTEs and their physical address.
 //
-//go:nosplit
+//TODO(aghosn) implement a go:nosplit version?
 func (a *kvmAllocator) NewPTEs() *pg.PTEs {
 	var ptes *pg.PTEs = nil
 
@@ -107,7 +108,7 @@ func (a *kvmAllocator) LookupPTEs(physical uintptr) *pg.PTEs {
 // FreePTEs marks a set of PTEs a freed, although they may not be available
 // for use again until Recycle is called, below.
 //
-//go:nosplit
+//TODO(aghosn) implement a go:nosplit version
 func (a *kvmAllocator) FreePTEs(ptes *pg.PTEs) {
 	// First, remove it from the list.
 	var (
@@ -144,8 +145,8 @@ func (a *kvmAllocator) Recycle() {
 	//TODO(aghosn) We chose to ignore that.
 }
 
-func newAllocator() *kvmAllocator {
-	return newKvmAllocator()
+func newAllocator() *gosbAllocator {
+	return newGosbAllocator()
 }
 
 // newAlignedPTEs relies on mmap to allocate page tables.

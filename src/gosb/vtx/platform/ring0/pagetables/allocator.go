@@ -16,7 +16,4 @@ type Allocator interface {
 	// FreePTEs marks a set of PTEs a freed, although they may not be available
 	// for use again until Recycle is called, below.
 	FreePTEs(ptes *PTEs)
-
-	// Recycle makes freed PTEs available for use again.
-	Recycle()
 }

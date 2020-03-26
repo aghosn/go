@@ -5,6 +5,7 @@ const (
 	pmdShift = 21
 	pudShift = 30
 	pgdShift = 39
+	fakShift = 48
 
 	executeDisable = 1 << 63
 	entriesPerPage = 512
@@ -16,14 +17,16 @@ const (
 	_LVL_PDE   = 1
 	_LVL_PDPTE = 2
 	_LVL_PML4  = 3
+	_LVL_FAKE  = 4
 )
 
 var (
-	pdshift = [4]int{
+	pdshift = [5]int{
 		pteShift,
 		pmdShift,
 		pudShift,
 		pgdShift,
+		fakShift,
 	}
 )
 

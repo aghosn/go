@@ -2,15 +2,27 @@ package kvm
 
 import (
 	"gosb/commons"
+	"gosb/vtx/platform/procid"
 	"gosb/vtx/platform/ring0"
 	"gosb/vtx/platform/ring0/pagetables"
 	"gosb/vtx/platform/vmas"
 	"log"
+	"runtime"
+	"sync/atomic"
 )
 
 type Machine struct {
 	// fd is the vm fd
 	fd int
+
+	// nextSlot is the next slot for setMemoryRegion.
+	//
+	// This must be accessed atomically. If nextSlot is ^uint32(0), then
+	// slots are currently being updated, and the caller should retry.
+	nextSlot uint32
+
+	// Quick access to allocator
+	allocator *gosbAllocator
 
 	// kernel is the set of global structures.
 	kernel ring0.Kernel
@@ -49,6 +61,8 @@ type vCPU struct {
 	// fd is the vCPU fd.
 	fd int
 
+	// tid is the last set tid.
+	tid uint64
 	// state is the vCPU state.
 	//
 	// This is a bitmask of the three fields (vCPU*) described above.
@@ -116,14 +130,17 @@ func (m *Machine) newVCPU() *vCPU {
 
 func newMachine(vm int, d *commons.Domain) (*Machine, error) {
 	// Create the machine.
-	m := &Machine{fd: vm}
+	m := &Machine{fd: vm, allocator: newAllocator()}
 	m.kernel.Init(ring0.KernelOpts{
 		VMareas:    vmas.ToVMAreas(d),
-		PageTables: pagetables.New(newAllocator()),
+		PageTables: pagetables.New(m.allocator),
 	})
-
 	// Apply the mappings to the page tables.
 	m.kernel.InitVMA2Root()
+
+	// Register the memory address range.
+	// @aghosn, for the moment let's try to map the entire memory space.
+	m.setFullMemoryRegion()
 
 	// Allocate a virtual CPU for this machine.
 	// @warn must be done after pagetables are initialized.
@@ -137,4 +154,26 @@ func newMachine(vm int, d *commons.Domain) (*Machine, error) {
 	//TODO(aghosn) should we set the finalizer?
 	//runtime.SetFinalizer(m, (*machine).Destroy)
 	return m, nil
+}
+
+// Get gets an available vCPU.
+//
+// This will return with the OS thread locked.
+// TODO(aghosn) we have a simplified version for now.
+func (m *Machine) Get() *vCPU {
+	runtime.LockOSThread()
+	tid := procid.Current()
+	c := m.vCPU
+	if !atomic.CompareAndSwapUint32(&c.state, vCPUReady, vCPUUser) {
+		throw("Unexpected state")
+	}
+	c.loadSegments(tid)
+	return c
+}
+
+func (m *Machine) Put(c *vCPU) {
+	if c != m.vCPU {
+		throw("vCPU do not match.")
+	}
+	runtime.UnlockOSThread()
 }

@@ -17,7 +17,12 @@ const (
 
 const (
 	CR0_PE = 1 << 0
+	CR0_MP = 1 << 1
+	CR0_EM = 1 << 2
+	CR0_TS = 1 << 3
 	CR0_ET = 1 << 4
+	CR0_NE = 1 << 5
+	CR0_WP = 1 << 16
 	CR0_AM = 1 << 18
 	CR0_PG = 1 << 31
 
