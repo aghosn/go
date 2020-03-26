@@ -9,6 +9,8 @@ type backendConfig struct {
 	register func(id int, start, size uintptr)
 	execute  func(id int)
 	park     func(id int)
+	prolog   func(id SandId)
+	epilog   func(id SandId)
 
 	init func()
 }
@@ -23,9 +25,9 @@ const (
 // Configurations
 var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
-		backendConfig{SIM_BACKEND, nil, nil, nil, nil, nil},
-		backendConfig{KVM_BACKEND, kvmTransfer, kvmRegister, nil, nil, kvmInit},
-		backendConfig{MPK_BACKEND, mpkTransfer, mpkRegister, mpkExecute, mpkPark, mpkInit},
+		backendConfig{SIM_BACKEND, nil, nil, nil, nil, nil, nil, nil},
+		backendConfig{KVM_BACKEND, kvmTransfer, kvmRegister, nil, nil, nil, nil, kvmInit},
+		backendConfig{MPK_BACKEND, mpkTransfer, mpkRegister, mpkExecute, mpkPark, mpkProlog, mpkEpilog, mpkInit},
 	}
 )
 

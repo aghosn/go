@@ -40,6 +40,14 @@ func mpkPark(id int) {
 	mpk.WritePKRU(mpk.AllRightsPKRU)
 }
 
+func mpkProlog(id SandId) {
+
+}
+
+func mpkEpilog(id SandId) {
+
+}
+
 //TODO(CharlyCst) implement this one.
 //The goal is to go and look at sections, see if it already exists.
 //If not, we create and add a new one and tag it with the correct key

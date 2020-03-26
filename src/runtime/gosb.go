@@ -20,17 +20,30 @@ var (
 	transferSection   func(oldid, newid int, start, size uintptr) = nil
 	executeSandbox    func(id int)                                = nil
 	parkSandbox       func(id int)                                = nil
+	prologHook        func(id string)                             = nil
+	epilogHook        func(id string)                             = nil
 )
 
 func sandbox_prolog(id, mem, syscalls string) {
 	println("SB: prolog", id, mem, syscalls)
+	prologHook(id)
 }
 
 func sandbox_epilog(id, mem, syscalls string) {
 	println("SB: epilog", id, mem, syscalls)
+	epilogHook(id)
 }
 
-func LitterboxHooks(m map[string]int, f func(string) string, t func(int, int, uintptr, uintptr), r func(int, uintptr, uintptr), e func(int), p func(int)) {
+func LitterboxHooks(
+	m map[string]int,
+	f func(string) string,
+	t func(int, int, uintptr, uintptr),
+	r func(int, uintptr, uintptr),
+	e func(int),
+	p func(int),
+	prolog func(string),
+	epilog func(string),
+) {
 	idToPkg = make(map[int]string)
 	pkgToId = make(map[string]int)
 	for k, v := range m {
@@ -42,6 +55,8 @@ func LitterboxHooks(m map[string]int, f func(string) string, t func(int, int, ui
 	registerSection = r
 	executeSandbox = e
 	parkSandbox = p
+	prologHook = prolog
+	epilogHook = epilog
 	bloatInitDone = true
 }
 
