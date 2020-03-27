@@ -16,6 +16,7 @@ func (m *Machine) setFullMemoryRegion() {
 	// Set the memory allocator space
 	for v := toArena(m.allocator.all.First); v != nil; v = toArena(v.Next) {
 		m.setMemoryRegion(int(m.nextSlot), v.start, _arenaSize*_PageSize, v.start, 0)
+		v.umemSlot = m.nextSlot
 		m.nextSlot++
 	}
 
@@ -23,6 +24,7 @@ func (m *Machine) setFullMemoryRegion() {
 	areas := m.kernel.VMareas
 	for v := vmas.ToVMA(areas.First); v != nil; v = vmas.ToVMA(v.Next) {
 		m.setMemoryRegion(int(m.nextSlot), uintptr(v.Addr), uintptr(v.Size), uintptr(v.Addr), 0)
+		v.UmemSlot = m.nextSlot
 		m.nextSlot++
 	}
 }

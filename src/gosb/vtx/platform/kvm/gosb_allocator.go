@@ -10,15 +10,19 @@ import (
 
 const (
 	_arenaSize = 10
+	_PageSize  = 0x1000
+	_defProt   = syscall.PROT_READ | syscall.PROT_WRITE
+	_defFlag   = syscall.MAP_ANONYMOUS | syscall.MAP_PRIVATE
 )
 
 // arenaAlloc is a small optimization to mmap less often and map userRegions
 // more easily.
 type arenaAlloc struct {
 	commons.ListElem
-	start uintptr
-	curr  int
-	full  bool
+	start    uintptr
+	curr     int
+	full     bool
+	umemSlot uint32
 }
 
 func (a *arenaAlloc) toElem() *commons.ListElem {
@@ -27,10 +31,11 @@ func (a *arenaAlloc) toElem() *commons.ListElem {
 
 func (a *arenaAlloc) Init() {
 	var err syscall.Errno
-	a.start, err = commons.Mmap(0, _arenaSize*_PageSize, _DEF_PROT, _DEF_FLAG, -1, 0)
+	a.start, err = commons.Mmap(0, _arenaSize*_PageSize, _defProt, _defFlag, -1, 0)
 	if err != 0 {
 		log.Fatalf("error mapping allocator arena: %v\n", err)
 	}
+	a.umemSlot = ^uint32(0)
 }
 
 func (a *arenaAlloc) Get() *pg.PTEs {
@@ -93,4 +98,9 @@ func (a *gosbAllocator) LookupPTEs(physical uintptr) *pg.PTEs {
 //go:nosplit
 func (a *gosbAllocator) FreePTEs(ptes *pg.PTEs) {
 	//TODO(aghosn) implement something
+}
+
+// newAllocator hides the allocator details
+func newAllocator() *gosbAllocator {
+	return newGosbAllocator()
 }

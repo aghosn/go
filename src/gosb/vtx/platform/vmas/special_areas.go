@@ -21,6 +21,7 @@ var (
 			Prot: commons.D_VAL | commons.FAKE_VAL,
 		},
 		0,
+		^uint32(0),
 	}
 )
 

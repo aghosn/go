@@ -47,6 +47,7 @@ func ToVMAreas(dom *commons.Domain) *VMAreas {
 				commons.ListElem{},
 				commons.Section{s.Addr, size, s.Prot & replace},
 				0,
+				^uint32(0),
 			})
 		}
 		// map the dynamic sections
@@ -55,6 +56,7 @@ func ToVMAreas(dom *commons.Domain) *VMAreas {
 				commons.ListElem{},
 				commons.Section{d.Addr, d.Size, d.Prot & replace},
 				0,
+				^uint32(0),
 			})
 		}
 	}
@@ -144,6 +146,7 @@ func (s *VMAreas) Unmap(vma *VMArea) {
 				commons.ListElem{},
 				commons.Section{nstart, nsize, v.Prot},
 				0,
+				^uint32(0),
 			})
 			break
 		}

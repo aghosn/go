@@ -15,6 +15,9 @@ type VMArea struct {
 	// PhysicalAddr is used only for specific regions.
 	// It allows to break HVA == GPA == GVA for VM specific parts.
 	PhysicalAddr uintptr
+
+	// Slot that corresponds to the userMemoryRegion registered with kvm
+	UmemSlot uint32
 }
 
 // ToElem converts a VMArea pointer to a ListElem pointer.
