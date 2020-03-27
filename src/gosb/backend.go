@@ -7,8 +7,8 @@ type backendConfig struct {
 	//Functions for hooks in the runtime
 	transfer func(oldid, newid int, start, size uintptr)
 	register func(id int, start, size uintptr)
-	execute  func(id int)
-	park     func(id int)
+	execute  func(id SandId)
+	park     func(id SandId)
 	prolog   func(id SandId)
 	epilog   func(id SandId)
 

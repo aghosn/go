@@ -37,7 +37,7 @@ func initRuntime() {
 		backend.execute,
 		backend.park,
 		backend.prolog,
-		backend.prolog,
+		backend.epilog,
 	)
 }
 

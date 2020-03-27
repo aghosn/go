@@ -18,14 +18,15 @@ var (
 	registerSection   func(id int, start, size uintptr)           = nil
 	unregisterSection func(old int, start, size uintptr)          = nil
 	transferSection   func(oldid, newid int, start, size uintptr) = nil
-	executeSandbox    func(id int)                                = nil
-	parkSandbox       func(id int)                                = nil
+	executeSandbox    func(id string)                             = nil
+	parkSandbox       func(id string)                             = nil
 	prologHook        func(id string)                             = nil
 	epilogHook        func(id string)                             = nil
 )
 
 func sandbox_prolog(id, mem, syscalls string) {
 	println("SB: prolog", id, mem, syscalls)
+	getg().m.curg.sbid = id
 	prologHook(id)
 }
 
@@ -39,8 +40,8 @@ func LitterboxHooks(
 	f func(string) string,
 	t func(int, int, uintptr, uintptr),
 	r func(int, uintptr, uintptr),
-	e func(int),
-	p func(int),
+	e func(string),
+	p func(string),
 	prolog func(string),
 	epilog func(string),
 ) {

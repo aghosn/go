@@ -436,7 +436,7 @@ type g struct {
 	labels         unsafe.Pointer // profiler labels
 	timer          *timer         // cached timer for time.Sleep
 	selectDone     uint32         // are we participating in a select and did someone win the race?
-	sbid           int            // gosb sandbox ID
+	sbid           string         // gosb sandbox ID
 
 	// Per-G GC state
 

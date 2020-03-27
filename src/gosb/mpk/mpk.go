@@ -42,11 +42,14 @@ const (
 	SysProtR   SysProt = syscall.PROT_READ
 )
 
-// AllRightsPKRU is the default value of the PKRU, that allows everything
-const AllRightsPKRU PKRU = 0
+// Initial values for PKRU
+const (
+	AllRightsPKRU PKRU = 0
+	NoRightsPKRU  PKRU = 0xfffffffc
+)
 
 // Mask
-const mask uint32 = 0xfffffff
+const mask uint32 = 0xffffffff
 
 // WritePKRU updates the value of the PKRU
 func WritePKRU(prot PKRU)

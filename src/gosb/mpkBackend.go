@@ -8,14 +8,13 @@ package gosb
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"gosb/mpk"
 )
 
 var (
-	sandboxKeys map[SandId][]int
+	sbPKRU      map[SandId]mpk.PKRU
 	pkgKeys     map[int]mpk.Pkey
-	pkgGroups   [][]int
-	keys        []mpk.Pkey
 )
 
 // TODO(CharlyCst) fix allocation in mpkRegister
@@ -29,23 +28,32 @@ func getSectionWithoutAlloc() *Section {
 }
 
 // mpkExecute turns on sandbox isolation
-func mpkExecute(id int) {
+func mpkExecute(id SandId) {
 	// For now clean PKRU and grant full access
 	mpk.WritePKRU(mpk.AllRightsPKRU)
 }
 
 // mpkPark remove sandbox isolation
 //go:nosplit
-func mpkPark(id int) {
+func mpkPark(id SandId) {
 	mpk.WritePKRU(mpk.AllRightsPKRU)
 }
 
+// mpkProlog initialize isolation of the sandbox
 func mpkProlog(id SandId) {
-
+	pkru, ok := sbPKRU[id]
+	if !ok {
+		println("[MPK BACKEND]: Sandbox PKRU not found in prolog")
+		return
+	}
+	fmt.Println(pkru)
+	mpk.WritePKRU(pkru)
 }
 
+// mpkEpilog is called at the end of the execution of a given sandbox
 func mpkEpilog(id SandId) {
-
+	// Clean PKRU
+	mpk.WritePKRU(mpk.AllRightsPKRU)
 }
 
 //TODO(CharlyCst) implement this one.
@@ -146,12 +154,12 @@ func mpkTransfer(oldid, newid int, start, size uintptr) {
 
 }
 
-// allocateKey allocates MPK keys according to `sandboxKeys` and `pkgGroups`
-func allocateKey() {
+// allocateKey allocates MPK keys and tag sections with those keys
+func allocateKey(sandboxKeys map[SandId][]int, pkgGroups [][]int) []mpk.Pkey{
 	mpk.WritePKRU(mpk.AllRightsPKRU)
 	fmt.Println(mpk.ReadPKRU())
 
-	keys = make([]mpk.Pkey, 0, len(pkgGroups))
+	keys := make([]mpk.Pkey, 0, len(pkgGroups))
 	for _, pkgGroup := range pkgGroups {
 		key, err := mpk.PkeyAlloc()
 		check(err)
@@ -161,9 +169,10 @@ func allocateKey() {
 			tagPackage(pkgId, key)
 		}
 	}
+
+	return keys
 }
 
-// TODO(CharlyCst) handle dynamic pages
 func tagPackage(id int, key mpk.Pkey) {
 	pkg, ok := idToPkg[id]
 	if !ok {
@@ -174,6 +183,19 @@ func tagPackage(id int, key mpk.Pkey) {
 		if section.Size > 0 {
 			mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
 		}
+	}
+}
+
+// computePKRU initializes `sbPKRU` with corresponding PKRUs
+func computePKRU(sandboxKeys map[SandId][]int, keys []mpk.Pkey) {
+	sbPKRU = make(map[SandId]mpk.PKRU, len(sandboxKeys))
+	for sbID, keyIDs := range sandboxKeys {
+		pkru := mpk.NoRightsPKRU
+		for _, keyID := range keyIDs {
+			key := keys[keyID]
+			pkru = pkru.Update(key, mpk.ProtRWX)
+		}
+		sbPKRU[sbID] = pkru
 	}
 }
 
@@ -198,7 +220,12 @@ func mpkInit() {
 			if !ok {
 				sbGroup = make([]SandId, 0)
 			}
-			pkgAppearsIn[pkgID] = append(sbGroup, sbID)
+			id, err := strconv.Unquote(sbID)
+			if err == nil {
+				pkgAppearsIn[pkgID] = append(sbGroup, id)
+			} else {
+				pkgAppearsIn[pkgID] = append(sbGroup, sbID)
+			}
 		}
 	}
 
@@ -207,7 +234,7 @@ func mpkInit() {
 		sbKeys[i] = make([]int, 0)
 	}
 
-	pkgGroups = make([][]int, 0)
+	pkgGroups := make([][]int, 0)
 	for len(pkgAppearsIn) > 0 {
 		key := len(pkgGroups)
 		group := make([]int, 0)
@@ -228,8 +255,8 @@ func mpkInit() {
 	}
 
 	// We have an allocation for the keys!
-	sandboxKeys = sbKeys
-	allocateKey()
+	keys := allocateKey(sbKeys, pkgGroups)
+	computePKRU(sbKeys, keys)
 
 	pkgKeys = make(map[int]mpk.Pkey, len(pkgAppearsIn))
 	for idx, group := range pkgGroups {
@@ -239,9 +266,11 @@ func mpkInit() {
 		}
 	}
 
-	fmt.Println("Sandbox keys:", sandboxKeys)
+	fmt.Println("Sandbox keys:", sbKeys)
 	fmt.Println("Package groups:", pkgGroups)
 	fmt.Println("Keys:", keys)
+	fmt.Println(sbPKRU)
+	fmt.Println(sbPKRU["\"3:0\""])
 	fmt.Println("///// Done /////")
 
 	// Pre-allocate free list for mpkTransfer and mpkRegister
