@@ -51,6 +51,7 @@ func (ctxt *Link) gosb_InitBloat() {
 	}
 
 	// Get the transitive dependencies for each package
+	registerExtraPackages()
 	for k := range objfile.SegregatedPkgs {
 		ctxt.gosb_walkTransDeps(k, create, check)
 	}
@@ -62,6 +63,14 @@ func (ctxt *Link) gosb_InitBloat() {
 	// For all the sandboxes, we get the transitive dependencies & generate
 	// the sandboxes informations.
 	ctxt.gosb_generateDomains()
+}
+
+// addExtraPackages registers packages that are not sandbox dependencies
+// but that we still want to bloat.
+func registerExtraPackages() {
+	if objfile.SegregatedPkgs != nil {
+		objfile.SegregatedPkgs["gosb"] = true
+	}
 }
 
 func (ctxt *Link) gosb_generateDomains() {
