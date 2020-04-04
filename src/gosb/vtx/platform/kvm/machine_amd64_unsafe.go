@@ -93,3 +93,11 @@ func (c *vCPU) setSystemRegisters(sregs *systemRegs) error {
 	}
 	return nil
 }
+
+// getSystemRegisters gets system registers.
+func (c *vCPU) getSystemRegisters(sregs *systemRegs) error {
+	if _, errno := commons.Ioctl(c.fd, _KVM_GET_SREGS, uintptr(unsafe.Pointer(sregs))); errno != 0 {
+		return fmt.Errorf("error setting system registers: %v", errno)
+	}
+	return nil
+}

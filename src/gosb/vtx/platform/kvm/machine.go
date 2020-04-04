@@ -45,6 +45,9 @@ type Machine struct {
 
 	// maxVCPUs is the maximum number of vCPUs supported by the machine.
 	maxVCPUs int
+
+	// TODO(aghosn) remove afterwards.
+	Start uintptr
 }
 
 const (
@@ -146,10 +149,11 @@ func (m *Machine) newVCPU() *vCPU {
 }
 
 func newMachine(vm int, d *commons.Domain) (*Machine, error) {
+	panic("Enable once it is fixed")
 	// Create the machine.
 	m := &Machine{
 		fd:        vm,
-		allocator: newAllocator(),
+		allocator: newAllocator(nil),
 		vCPUs:     make(map[uint64]*vCPU),
 		vCPUsByID: make(map[int]*vCPU),
 	}
@@ -174,9 +178,10 @@ func newMachine(vm int, d *commons.Domain) (*Machine, error) {
 	m.setFullMemoryRegion()
 
 	// Initialize architecture state.
-	if err := m.initArchState(); err != nil {
+	//TODO(aghosn) uncomment once it works.
+	/*	if err := m.initArchState(); err != nil {
 		log.Fatalf("Error initializing machine %v\n", err)
-	}
+	}*/
 
 	//TODO(aghosn) should we set the finalizer?
 	//runtime.SetFinalizer(m, (*machine).Destroy)

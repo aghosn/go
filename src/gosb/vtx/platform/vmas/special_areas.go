@@ -2,7 +2,9 @@ package vmas
 
 import (
 	"gosb/commons"
+	"gosb/globals"
 	"log"
+	"strings"
 	"syscall"
 )
 
@@ -35,5 +37,18 @@ func specialVMAreas() []*VMArea {
 	if err != 0 {
 		log.Fatalf("error mmaping special section %d\n", err)
 	}
-	return []*VMArea{tss}
+	res := []*VMArea{tss}
+	// Map gosb package as supervisor.
+	for _, v := range globals.Packages {
+		if v.Name == "gosb" || strings.HasPrefix(v.Name, "gosb/") {
+			res = append(res, PackageToVMAreas(v, ^uint8(0))...)
+		}
+	}
+	return res
+}
+
+// init looks at the map for heap space.
+// @aghosn I parse everything just in case we need it later on.
+func init() {
+
 }

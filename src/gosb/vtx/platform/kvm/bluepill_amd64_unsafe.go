@@ -32,6 +32,8 @@ func dieArchSetup(c *vCPU, context *arch.SignalContext64, guestRegs *userRegs) {
 		context.Rsp = guestRegs.RSP
 		context.Rbp = guestRegs.RBP
 		context.Eflags = guestRegs.RFLAGS
+		// TODO(aghosn) remove afterwards
+		context.Rsp = c.CPU.Registers().Rsp
 	}
 	context.Rbx = uint64(uintptr(unsafe.Pointer(c)))
 	context.Rip = uint64(dieTrampolineAddr)

@@ -10,6 +10,10 @@ import (
 // VMAreas represents an address space, i.e., a list of VMArea.
 type VMAreas struct {
 	commons.List
+	// Indirection for guest physical pages
+
+	// Physical mappings available to this address space.
+	Phys commons.PhysMap
 }
 
 const (
@@ -22,7 +26,7 @@ const (
 // Or maybe implement the toVma perpackage instead.
 // But we still need to remember which domains are using it.
 // TODO(aghosn) also need to mark the areas that are supposed to be supervisor.
-// TODO(aghosn) mmap TSS as well, can we do that by introducing physical to VMAreas?
+// TODO(aghosn) mmap TSS as well?
 func ToVMAreas(dom *commons.Domain) *VMAreas {
 	acc := make([]*VMArea, 0)
 	//TODO should probably lock the package
@@ -31,39 +35,14 @@ func ToVMAreas(dom *commons.Domain) *VMAreas {
 		if v, ok := dom.SView[p]; ok {
 			replace = v
 		}
-		for _, s := range p.Sects {
-			if s.Addr%_PageSize != 0 {
-				log.Fatalf("error, section address not aligned %v\n", s)
-			}
-			// @warning IMPORTANT Skip the empty sections (otherwise crashes)
-			if s.Size == 0 {
-				continue
-			}
-			size := s.Size
-			if size%_PageSize != 0 {
-				size = ((size / _PageSize) + 1) * _PageSize
-			}
-			acc = append(acc, &VMArea{
-				commons.ListElem{},
-				commons.Section{s.Addr, size, s.Prot & replace},
-				0,
-				^uint32(0),
-			})
-		}
-		// map the dynamic sections
-		for _, d := range p.Dynamic {
-			acc = append(acc, &VMArea{
-				commons.ListElem{},
-				commons.Section{d.Addr, d.Size, d.Prot & replace},
-				0,
-				^uint32(0),
-			})
-		}
+		acc = append(acc, PackageToVMAreas(p, replace)...)
 	}
-
-	// Add special sections: TSS.
+	// Add special sections: TSS, gosbs as supervisor.
 	acc = append(acc, specialVMAreas()...)
+	return Convert(acc)
+}
 
+func Convert(acc []*VMArea) *VMAreas {
 	// Sort and coalesce
 	sort.Slice(acc, func(i, j int) bool {
 		return acc[i].Addr <= acc[j].Addr
@@ -74,7 +53,79 @@ func ToVMAreas(dom *commons.Domain) *VMAreas {
 		space.List.AddBack(s.ToElem())
 	}
 	space.Coalesce()
+	space.InitPhys()
+	space.GeneratePhys()
 	return space
+}
+
+// InitPhys mirros the Address space to find free areas.
+func (s *VMAreas) InitPhys() {
+	invert := &VMAreas{}
+	a := &VMArea{
+		commons.ListElem{},
+		commons.Section{
+			Addr: 0x0,
+			Size: uint64(commons.Limit39bits),
+		},
+		0,
+		^uint32(0),
+	}
+	invert.AddBack(a.ToElem())
+	for v := ToVMA(s.First); v != nil && uintptr(v.Addr) < commons.Limit39bits; v = ToVMA(v.Next) {
+		invert.Unmap(v)
+	}
+	res := make([]*commons.PhysArea, 0)
+	for v := ToVMA(invert.First); v != nil; v = ToVMA(v.Next) {
+		p := &commons.PhysArea{}
+		p.Init(uintptr(v.Addr), uintptr(v.Size))
+		res = append(res, p)
+	}
+	s.Phys.Init(res)
+}
+
+// Generate the physical area for that vma.
+func (s *VMAreas) GeneratePhys() {
+	// TODO maybe we'll need to get the physical address limits reworked, or get that as an argument.
+	for v := ToVMA(s.First); v != nil; v = ToVMA(v.Next) {
+		if !v.InvalidAddr() {
+			v.PhysicalAddr = uintptr(v.Addr)
+			continue
+		}
+		v.PhysicalAddr = s.Phys.AllocPhys(uintptr(v.Size))
+		if v.Size%_PageSize != 0 {
+			log.Fatalf("vma size is not page aligned: %x, %x\n", v.Addr, v.Size)
+		}
+	}
+}
+
+// PackageToVMAreas translates a package into a slice of vmareas,
+// applying the replacement view mask to the protection.
+func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
+	acc := make([]*VMArea, 0)
+	//TODO should probably lock the package
+	for _, s := range p.Sects {
+		if s.Addr%_PageSize != 0 {
+			log.Fatalf("error, section address not aligned %v\n", s)
+		}
+		area := SectVMA(&s)
+		// @warning IMPORTANT Skip the empty sections (otherwise crashes)
+		if area == nil {
+			continue
+		}
+		area.Prot &= replace
+		acc = append(acc, area)
+	}
+
+	// map the dynamic sections
+	for _, d := range p.Dynamic {
+		area := SectVMA(&d)
+		if area == nil {
+			log.Fatalf("error, dynamic section should no be empty")
+		}
+		area.Prot &= replace
+		acc = append(acc, area)
+	}
+	return acc
 }
 
 // coalesce is called to merge vmareas
@@ -170,18 +221,13 @@ func (v *VMAreas) Apply(tables *pg.PageTables) {
 	defFlags := pg.ConvertOpts(commons.D_VAL)
 	for v := ToVMA(v.First); v != nil; v = ToVMA(v.Next) {
 		flags := pg.ConvertOpts(v.Prot)
-		alloc := func(addr uintptr, lvl int) *pg.PTEs {
+		alloc := func(addr uintptr, lvl int) uintptr {
 			if lvl > 0 {
-				return tables.Allocator.NewPTEs()
+				return tables.Allocator.PhysicalFor(tables.Allocator.NewPTEs())
 			}
-			// Special case for special areas.
-			if v.Prot&commons.FAKE_VAL != 0 {
-				if v.PhysicalAddr == 0 {
-					log.Fatalf("error nil PhysicalAddr %v\n", v)
-				}
-				addr = addr - uintptr(v.Addr) + uintptr(v.PhysicalAddr)
-			}
-			return tables.Allocator.LookupPTEs(addr)
+			// This is a PTE entry, i.e., a physical page.
+			gpa := (addr - uintptr(v.Addr) + uintptr(v.PhysicalAddr))
+			return gpa
 		}
 		visit := func(pte *pg.PTE, lvl int) {
 			if lvl == 0 {

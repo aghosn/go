@@ -20,6 +20,23 @@ type VMArea struct {
 	UmemSlot uint32
 }
 
+// SectVMA translates a section into a vmarea
+func SectVMA(s *commons.Section) *VMArea {
+	if s == nil || s.Size == 0 {
+		return nil
+	}
+	size := s.Size
+	if size%_PageSize != 0 {
+		size = ((size / _PageSize) + 1) * _PageSize
+	}
+	return &VMArea{
+		commons.ListElem{},
+		commons.Section{s.Addr, size, s.Prot},
+		0,
+		^uint32(0),
+	}
+}
+
 // ToElem converts a VMArea pointer to a ListElem pointer.
 //
 //go:nosplit
@@ -94,4 +111,9 @@ func (vm *VMArea) merge(o *VMArea) (*VMArea, bool) {
 	vm.Addr = smaller.Addr
 	vm.Size = size
 	return vm, true
+}
+
+// InvalidAddr return true if the address is above the guest physical limit.
+func (v *VMArea) InvalidAddr() bool {
+	return uintptr(v.Addr+v.Size) > commons.Limit39bits
 }

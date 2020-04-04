@@ -23,7 +23,8 @@ type Visitor struct {
 	// Alloc is an allocator function.
 	// This can come from the allocator itself, and is used to either allocate
 	// a new PTEs or to insert the address mapping.
-	Alloc func(curr uintptr, lvl int) *PTEs
+	// Returns the GPA of the new PTE
+	Alloc func(curr uintptr, lvl int) uintptr
 
 	// Visit is a function called upon visiting an entry.
 	Visit func(pte *PTE, lvl int)
@@ -36,7 +37,6 @@ func (p *PageTables) Map(start, length uintptr, v *Visitor) {
 }
 
 // pageWalk is our homebrewed recursive pagewalker.
-// TODO(aghosn) not sure if the nosplit is valid here.
 //
 //TODO(aghosn) implement a go:nosplit version.
 func (p *PageTables) pageWalk(root *PTEs, start, end uintptr, lvl int, v *Visitor) {
@@ -49,9 +49,9 @@ func (p *PageTables) pageWalk(root *PTEs, start, end uintptr, lvl int, v *Visito
 		curVa := baseVa + PDADDR(lvl, uintptr(i))
 		entry := &root[i]
 		if !entry.Valid() && v.Create {
-			newPte := v.Alloc(curVa, lvl)
+			newPteGpa := v.Alloc(curVa, lvl)
 			// Simply mark the page as present, rely on f to add the bits.
-			entry.SetAddr(p.Allocator.PhysicalFor(newPte))
+			entry.SetAddr(newPteGpa)
 		}
 		if entry.Valid() && v.Applies[lvl] {
 			v.Visit(entry, lvl)
@@ -65,7 +65,7 @@ func (p *PageTables) pageWalk(root *PTEs, start, end uintptr, lvl int, v *Visito
 		}
 		// Early stop to avoid a nested page.
 		if lvl > 0 {
-			p.pageWalk(entry.AddressAsPTES(), nstart, nend, lvl-1, v)
+			p.pageWalk(p.Allocator.LookupPTEs(entry.Address()), nstart, nend, lvl-1, v)
 		}
 	}
 }

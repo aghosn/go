@@ -128,11 +128,13 @@ func bluepillHandler(context unsafe.Pointer) {
 			c.die(bluepillArchContext(context), "I/O")
 			return
 		case _KVM_EXIT_INTERNAL_ERROR:
+			// @from gvisor
 			// An internal error is typically thrown when emulation
 			// fails. This can occur via the MMIO path below (and
 			// it might fail because we have multiple regions that
 			// are not mapped). We would actually prefer that no
 			// emulation occur, and don't mind at all if it fails.
+			c.die(bluepillArchContext(context), "internal error")
 		case _KVM_EXIT_HYPERCALL:
 			c.die(bluepillArchContext(context), "hypercall")
 			return

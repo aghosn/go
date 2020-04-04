@@ -39,8 +39,12 @@ func VtxInit() {
 			if d.Config.Id == "-1" {
 				continue
 			}
-			machines[d.Config.Id] = kvm.New(int(kvmFd.Fd()), d)
+			//TODO(aghosn) uncomment once it works
+			//machines[d.Config.Id] = kvm.New(int(kvmFd.Fd()), d)
 		}
+
+		//TODO(aghosn) remove afterwards, just trying :(
+		kvm.FullMapTest(int(kvmFd.Fd()))
 
 		// We should be done with it now.
 		kvmFd.Close()

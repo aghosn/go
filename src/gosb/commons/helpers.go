@@ -10,6 +10,10 @@ import (
 	"unsafe"
 )
 
+const (
+	Limit39bits = uintptr(1 << 39)
+)
+
 //go:nosplit
 func Ioctl(fd int, op, arg uintptr) (int, sc.Errno) {
 	r1, _, err := sc.RawSyscall(sc.SYS_IOCTL, uintptr(fd), op, arg)

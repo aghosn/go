@@ -1,8 +1,11 @@
 package kvm
 
 import (
+	//	"fmt"
 	"gosb/commons"
+	"gosb/vtx/old"
 	"gosb/vtx/platform/ring0"
+	"log"
 	"reflect"
 	"runtime/debug"
 )
@@ -47,23 +50,53 @@ func (c *vCPU) initArchState() error {
 	)
 
 	// Set base control registers.
-	kernelSystemRegs.CR0 = c.CR0()
-	kernelSystemRegs.CR4 = c.CR4()
-	kernelSystemRegs.EFER = c.EFER()
+	/*	kernelSystemRegs.CR0 = c.CR0()
+		kernelSystemRegs.CR4 = c.CR4()
+		kernelSystemRegs.EFER = c.EFER()
 
-	// Set the IDT & GDT in the registers.
-	kernelSystemRegs.IDT.base, kernelSystemRegs.IDT.limit = c.IDT()
-	kernelSystemRegs.GDT.base, kernelSystemRegs.GDT.limit = c.GDT()
-	kernelSystemRegs.CS.Load(&ring0.KernelCodeSegment, ring0.Kcode)
-	kernelSystemRegs.DS.Load(&ring0.UserDataSegment, ring0.Udata)
-	kernelSystemRegs.ES.Load(&ring0.UserDataSegment, ring0.Udata)
-	kernelSystemRegs.SS.Load(&ring0.KernelDataSegment, ring0.Kdata)
-	kernelSystemRegs.FS.Load(&ring0.UserDataSegment, ring0.Udata)
-	kernelSystemRegs.GS.Load(&ring0.UserDataSegment, ring0.Udata)
-	tssBase, tssLimit, tss := c.TSS()
-	kernelSystemRegs.TR.Load(tss, ring0.Tss)
-	kernelSystemRegs.TR.base = tssBase
-	kernelSystemRegs.TR.limit = uint32(tssLimit)
+		// Set the IDT & GDT in the registers.
+		kernelSystemRegs.IDT.base, kernelSystemRegs.IDT.limit = c.IDT()
+		kernelSystemRegs.GDT.base, kernelSystemRegs.GDT.limit = c.GDT()
+		kernelSystemRegs.CS.Load(&ring0.KernelCodeSegment, ring0.Kcode)
+		kernelSystemRegs.DS.Load(&ring0.UserDataSegment, ring0.Udata)
+		kernelSystemRegs.ES.Load(&ring0.UserDataSegment, ring0.Udata)
+		kernelSystemRegs.SS.Load(&ring0.KernelDataSegment, ring0.Kdata)
+		kernelSystemRegs.FS.Load(&ring0.UserDataSegment, ring0.Udata)
+		kernelSystemRegs.GS.Load(&ring0.UserDataSegment, ring0.Udata)
+		tssBase, tssLimit, tss := c.TSS()
+		kernelSystemRegs.TR.Load(tss, ring0.Tss)
+		kernelSystemRegs.TR.base = tssBase
+		kernelSystemRegs.TR.limit = uint32(tssLimit)*/
+
+	// Do a get first, as some segments need to be set.
+	err1 := c.getSystemRegisters(&kernelSystemRegs)
+	if err1 != nil {
+		log.Fatalf("error kvm_get_sregs %v\n", err1)
+	}
+	kernelSystemRegs.CR4 = old.CR4_PAE
+	kernelSystemRegs.CR0 = old.CR0_PE | old.CR0_MP | old.CR0_ET | old.CR0_NE | old.CR0_WP | old.CR0_AM | old.CR0_PG
+	kernelSystemRegs.EFER = old.EFER_LME | old.EFER_LMA
+
+	seg := segment{
+		base:     0,
+		limit:    0xffffffff,
+		selector: 1 << 3,
+		present:  1,
+		typ:      11,
+		DPL:      0,
+		DB:       0,
+		S:        1,
+		L:        1,
+		G:        1,
+	}
+	kernelSystemRegs.CS = seg
+	seg.typ = 3
+	seg.selector = 2 << 3
+	kernelSystemRegs.DS = seg
+	kernelSystemRegs.ES = seg
+	kernelSystemRegs.FS = seg
+	kernelSystemRegs.GS = seg
+	kernelSystemRegs.SS = seg
 
 	// Point to kernel page tables, with no initial PCID.
 	kernelSystemRegs.CR3 = c.machine.kernel.PageTables.CR3(false, 0)
@@ -83,10 +116,12 @@ func (c *vCPU) initArchState() error {
 		return err
 	}
 
-	// Set the entrypoint for the kernel.
-	kernelUserRegs.RIP = uint64(reflect.ValueOf(ring0.Start).Pointer())
+	// Set the entrypoint for the kernel
+	kernelUserRegs.RIP = uint64(c.machine.Start /*reflect.ValueOf(ring0.Start).Pointer()*/)
 	kernelUserRegs.RAX = uint64(reflect.ValueOf(&c.CPU).Pointer())
 	kernelUserRegs.RFLAGS = ring0.KernelFlagsSet
+	kernelUserRegs.RSP = c.StackTop()
+	//	fmt.Printf("Set the stack to %x\n", c.StackTop())
 
 	// Set the system registers.
 	if err := c.setSystemRegisters(&kernelSystemRegs); err != nil {
@@ -119,7 +154,9 @@ func (m *Machine) retryInGuest(fn func()) {
 	for {
 		c.ClearErrorCode() // See below.
 		bluepill(c)        // Force guest mode.
-		fn()               // Execute the given function.
+		Flag = 111
+		fn() // Execute the given function.
+		Flag = 3
 		_, user := c.ErrorCode()
 		if user {
 			// If user is set, then we haven't bailed back to host
