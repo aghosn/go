@@ -8,51 +8,62 @@ package gosb
 import (
 	"errors"
 	"fmt"
-	"strconv"
+	c "gosb/commons"
+	g "gosb/globals"
 	"gosb/mpk"
+	"strconv"
 )
 
 var (
-	sbPKRU      map[SandId]mpk.PKRU
-	pkgKeys     map[int]mpk.Pkey
+	sbPKRU  map[c.SandId]mpk.PKRU
+	pkgKeys map[int]mpk.Pkey
 )
 
 // TODO(CharlyCst) fix allocation in mpkRegister
-var sectionFreeList []*Section
+var sectionFreeList []*c.Section
 var freeListIdx = 0
 
-func getSectionWithoutAlloc() *Section {
+func getSectionWithoutAlloc() *c.Section {
 	section := sectionFreeList[freeListIdx]
 	freeListIdx += 1
 	return section
 }
 
 // mpkExecute turns on sandbox isolation
-func mpkExecute(id SandId) {
-	// For now clean PKRU and grant full access
-	mpk.WritePKRU(mpk.AllRightsPKRU)
+func mpkExecute(id c.SandId) {
+	pkru, ok := sbPKRU[id]
+	println(id)
+	if !ok {
+		println("Could not find pkru")
+		return
+	}
+	println("execute")
+	println(pkru)
+	mpk.WritePKRU(pkru)
 }
 
 // mpkPark remove sandbox isolation
 //go:nosplit
-func mpkPark(id SandId) {
+func mpkPark(id c.SandId) {
+	println("park")
 	mpk.WritePKRU(mpk.AllRightsPKRU)
 }
 
 // mpkProlog initialize isolation of the sandbox
-func mpkProlog(id SandId) {
+func mpkProlog(id c.SandId) {
 	pkru, ok := sbPKRU[id]
 	if !ok {
 		println("[MPK BACKEND]: Sandbox PKRU not found in prolog")
 		return
 	}
-	fmt.Println(pkru)
 	mpk.WritePKRU(pkru)
+	fmt.Println(mpk.ReadPKRU())
 }
 
 // mpkEpilog is called at the end of the execution of a given sandbox
-func mpkEpilog(id SandId) {
+func mpkEpilog(id c.SandId) {
 	// Clean PKRU
+	fmt.Println(mpk.ReadPKRU())
 	mpk.WritePKRU(mpk.AllRightsPKRU)
 }
 
@@ -63,11 +74,11 @@ func mpkEpilog(id SandId) {
 //If the section did not exist, it must be a dynamic library and hence should
 //be added to the package as such.
 func mpkRegister(id int, start, size uintptr) {
-	if id == 0 { // Runtime
+	if id == 0 || id == -1 { // Runtime
 		return
 	}
 
-	pkg, ok := idToPkg[id]
+	pkg, ok := g.IdToPkg[id]
 	if !ok {
 		println("[MPK BACKEND]: Register package not found")
 		return
@@ -86,7 +97,7 @@ func mpkRegister(id int, start, size uintptr) {
 	section.Size = uint64(size)
 	// TODO(CharlyCst): Add Prot
 
-	pkg.Dynamic = append(pkg.Dynamic, section)
+	pkg.Dynamic = append(pkg.Dynamic, *section)
 
 	// Updating protection key
 	if id == 0 { // Runtime
@@ -114,12 +125,12 @@ func mpkTransfer(oldid, newid int, start, size uintptr) {
 		println("[MPK BACKEND]: Transfer from a package to itself")
 		return
 	}
-	oldPkg, ok := idToPkg[oldid]
+	oldPkg, ok := g.IdToPkg[oldid]
 	if !ok {
 		println("[MPK BACKEND]: Transfer old package not found")
 		return
 	}
-	newPkg, ok := idToPkg[newid]
+	newPkg, ok := g.IdToPkg[newid]
 	if !ok {
 		println("[MPK BACKEND]: Transfer new package not found")
 		return
@@ -155,10 +166,7 @@ func mpkTransfer(oldid, newid int, start, size uintptr) {
 }
 
 // allocateKey allocates MPK keys and tag sections with those keys
-func allocateKey(sandboxKeys map[SandId][]int, pkgGroups [][]int) []mpk.Pkey{
-	mpk.WritePKRU(mpk.AllRightsPKRU)
-	fmt.Println(mpk.ReadPKRU())
-
+func allocateKey(sandboxKeys map[c.SandId][]int, pkgGroups [][]int) []mpk.Pkey {
 	keys := make([]mpk.Pkey, 0, len(pkgGroups))
 	for _, pkgGroup := range pkgGroups {
 		key, err := mpk.PkeyAlloc()
@@ -174,21 +182,22 @@ func allocateKey(sandboxKeys map[SandId][]int, pkgGroups [][]int) []mpk.Pkey{
 }
 
 func tagPackage(id int, key mpk.Pkey) {
-	pkg, ok := idToPkg[id]
+	pkg, ok := g.IdToPkg[id]
 	if !ok {
 		panic(errors.New("Package not found"))
 	}
 
 	for _, section := range pkg.Sects {
 		if section.Size > 0 {
+			// fmt.Printf("section %06x + %06x -- pkg %02d\n", section.Addr, section.Size, id)
 			mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
 		}
 	}
 }
 
 // computePKRU initializes `sbPKRU` with corresponding PKRUs
-func computePKRU(sandboxKeys map[SandId][]int, keys []mpk.Pkey) {
-	sbPKRU = make(map[SandId]mpk.PKRU, len(sandboxKeys))
+func computePKRU(sandboxKeys map[c.SandId][]int, keys []mpk.Pkey) {
+	sbPKRU = make(map[c.SandId]mpk.PKRU, len(sandboxKeys))
 	for sbID, keyIDs := range sandboxKeys {
 		pkru := mpk.NoRightsPKRU
 		for _, keyID := range keyIDs {
@@ -201,24 +210,27 @@ func computePKRU(sandboxKeys map[SandId][]int, keys []mpk.Pkey) {
 
 // mpkInit relies on domains and packages, they must be initialized before the call
 func mpkInit() {
-	n := len(packages)
-	pkgAppearsIn := make(map[int][]SandId, n)
+	mpk.WritePKRU(mpk.AllRightsPKRU)
+	n := len(g.Packages)
+	pkgAppearsIn := make(map[int][]c.SandId, n)
 
 	fmt.Println("Initilizing GOSB with MPK backend")
 	fmt.Printf("Nb of packages:%d\n", n)
-	fmt.Println(mpk.ReadPKRU())
 
-	for sbID, sb := range domains {
+	for sbID, sb := range g.Domains {
+		fmt.Printf("//// Sandbox %s ////\n", sbID)
 		for _, pkg := range sb.SPkgs {
 			pkgID := pkg.Id
 
-			if pkgID == 0 { // Runtime
+			if pkgID == 0 { // TODO(CharlyCst) handle runtime
 				continue
 			}
 
+			// fmt.Printf("%02d - %s\n", pkg.Id, pkg.Name)
+
 			sbGroup, ok := pkgAppearsIn[pkgID]
 			if !ok {
-				sbGroup = make([]SandId, 0)
+				sbGroup = make([]c.SandId, 0)
 			}
 			id, err := strconv.Unquote(sbID)
 			if err == nil {
@@ -229,7 +241,7 @@ func mpkInit() {
 		}
 	}
 
-	sbKeys := make(map[SandId][]int)
+	sbKeys := make(map[c.SandId][]int)
 	for i := range sbKeys {
 		sbKeys[i] = make([]int, 0)
 	}
@@ -269,18 +281,16 @@ func mpkInit() {
 	fmt.Println("Sandbox keys:", sbKeys)
 	fmt.Println("Package groups:", pkgGroups)
 	fmt.Println("Keys:", keys)
-	fmt.Println(sbPKRU)
-	fmt.Println(sbPKRU["\"3:0\""])
 	fmt.Println("///// Done /////")
 
 	// Pre-allocate free list for mpkTransfer and mpkRegister
-	sectionFreeList = make([]*Section, 1000)
+	sectionFreeList = make([]*c.Section, 1000)
 	for i := 0; i < 1000; i++ {
-		sectionFreeList[i] = &Section{}
+		sectionFreeList[i] = &c.Section{}
 	}
 }
 
-func groupEqual(a, b []SandId) bool {
+func groupEqual(a, b []c.SandId) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -292,7 +302,7 @@ func groupEqual(a, b []SandId) bool {
 	return true
 }
 
-func popMap(m map[int][]SandId) (int, []SandId) {
+func popMap(m map[int][]c.SandId) (int, []c.SandId) {
 	for id, group := range m {
 		return id, group
 	}

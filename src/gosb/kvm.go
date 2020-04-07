@@ -7,6 +7,7 @@ package gosb
 **/
 
 import (
+	c "gosb/commons"
 	"log"
 	"sync"
 	sc "syscall"
@@ -53,7 +54,7 @@ func kvmInit() {
 		if err != nil || kvmFd == -1 {
 			log.Fatalf(err.Error())
 		}
-		r1, errno := ioctl(kvmFd, KVM_GET_API_VERSION, 0)
+		r1, errno := c.Ioctl(kvmFd, KVM_GET_API_VERSION, 0)
 		if errno != 0 {
 			log.Fatalf(errno.Error())
 		}
@@ -70,7 +71,7 @@ func (v *VM) init() {
 
 	var err sc.Errno
 	v.sysFd = kvmFd
-	v.fd, err = ioctl(v.sysFd, KVM_CREATE_VM, 0)
+	v.fd, err = c.Ioctl(v.sysFd, KVM_CREATE_VM, 0)
 	if err != 0 {
 		log.Fatalf("Error KVM_CREATE %d\n", err)
 	}
