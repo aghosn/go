@@ -73,7 +73,7 @@ func (s *VMAreas) Finalize(output bool) {
 	s.GeneratePhys()
 	if output {
 		for v := ToVMA(s.First); v != nil; v = ToVMA(v.Next) {
-			log.Printf("%x-%x %x\n", v.Addr, v.Addr+v.Size, v.Prot)
+			log.Printf("%x-%x %x[%x-%x]\n", v.Addr, v.Addr+v.Size, v.Prot, v.PhysicalAddr, uint64(v.PhysicalAddr)+v.Size)
 		}
 	}
 }
@@ -133,8 +133,7 @@ func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
 			continue
 		}
 		area.Prot &= replace
-		//TODO(aghosn) for the moment make everything user
-		area.Prot |= commons.D_VAL //commons.USER_VAL
+		area.Prot |= commons.USER_VAL
 		acc = append(acc, area)
 	}
 
@@ -145,8 +144,7 @@ func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
 			log.Fatalf("error, dynamic section should no be empty")
 		}
 		area.Prot &= replace
-		//TODO(aghosn) for the moment make everything user
-		area.Prot |= commons.D_VAL //USER_VAL
+		area.Prot |= commons.USER_VAL
 		acc = append(acc, area)
 	}
 	return acc
