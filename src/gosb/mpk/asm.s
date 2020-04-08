@@ -8,5 +8,5 @@ TEXT ·WritePKRU(SB),$0
 TEXT ·ReadPKRU(SB),$0
 	XORQ CX, CX
 	RDPKRU
-	MOVQ AX, ret+8(FP)
+	MOVQ AX, ret+0(FP)
 	RET

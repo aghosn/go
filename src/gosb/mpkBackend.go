@@ -31,22 +31,22 @@ func getSectionWithoutAlloc() *c.Section {
 
 // mpkExecute turns on sandbox isolation
 func mpkExecute(id c.SandId) {
-	pkru, ok := sbPKRU[id]
-	println(id)
-	if !ok {
-		println("Could not find pkru")
+	if id == "" {
+		mpk.WritePKRU(mpk.AllRightsPKRU)
 		return
 	}
-	println("execute")
-	println(pkru)
+	pkru, ok := sbPKRU[id]
+	if !ok {
+		println("[MPK BACKEND]: Could not find pkru")
+		return
+	}
 	mpk.WritePKRU(pkru)
 }
 
 // mpkPark remove sandbox isolation
 //go:nosplit
 func mpkPark(id c.SandId) {
-	println("park")
-	mpk.WritePKRU(mpk.AllRightsPKRU)
+	// mpk.WritePKRU(mpk.AllRightsPKRU)
 }
 
 // mpkProlog initialize isolation of the sandbox
@@ -57,13 +57,11 @@ func mpkProlog(id c.SandId) {
 		return
 	}
 	mpk.WritePKRU(pkru)
-	fmt.Println(mpk.ReadPKRU())
 }
 
 // mpkEpilog is called at the end of the execution of a given sandbox
 func mpkEpilog(id c.SandId) {
 	// Clean PKRU
-	fmt.Println(mpk.ReadPKRU())
 	mpk.WritePKRU(mpk.AllRightsPKRU)
 }
 
