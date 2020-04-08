@@ -65,7 +65,7 @@ func ParseProcessAddressSpace(defProt uint8) []*vmas.VMArea {
 		if strings.Contains(rstr, "w") {
 			rights |= commons.W_VAL
 		}
-		if !strings.Contains(rstr, "x") {
+		if strings.Contains(rstr, "x") {
 			rights |= commons.X_VAL
 		}
 
