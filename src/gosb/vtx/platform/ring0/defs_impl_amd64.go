@@ -87,6 +87,10 @@ type descriptorTable [32]SegmentDescriptor
 // SegmentDescriptorFlags are typed flags within a descriptor.
 type SegmentDescriptorFlags uint32
 
+var (
+	KernelStartAddress = uintptr(0)
+)
+
 // Segment indices and Selectors.
 const (
 	// Index into GDT array.

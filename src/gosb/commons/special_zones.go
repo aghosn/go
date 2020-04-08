@@ -6,3 +6,8 @@ const (
 	// so we just call the whole thing off.
 	ReservedMemory = 0x100000000
 )
+
+// Extra symbols we need to locate
+var (
+	ExtraSymbols = map[string]uint8{"runtime.types": R_VAL}
+)

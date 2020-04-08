@@ -1,3 +1,19 @@
+// Copyright 2018 The gVisor Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// +build amd64
+
 package ring0
 
 import (
@@ -45,6 +61,30 @@ func wrgsbase(addr uintptr)
 // wrgsmsr writes to the GS_BASE MSR.
 func wrgsmsr(addr uintptr)
 
+// writeCR3 writes the CR3 value.
+func writeCR3(phys uintptr)
+
+// readCR3 reads the current CR3 value.
+func readCR3() uintptr
+
+// readCR2 reads the current CR2 value.
+func readCR2() uintptr
+
+// jumpToKernel jumps to the kernel version of the current RIP.
+func jumpToKernel()
+
+// jumpToUser jumps to the user version of the current RIP.
+func jumpToUser()
+
+// fninit initializes the floating point unit.
+func fninit()
+
+// xsetbv writes to an extended control register.
+func xsetbv(reg, value uintptr)
+
+// xgetbv reads an extended control register.
+func xgetbv(reg uintptr) uintptr
+
 // wrmsr reads to the given MSR.
 func wrmsr(reg, value uintptr)
 
@@ -65,7 +105,8 @@ var (
 //
 // This must be called prior to using ring0.
 func Init(featureSet *cpuid.FeatureSet) {
-	hasSMEP = featureSet.HasFeature(cpuid.X86FeatureSMEP)
+	/*TODO(aghosn) this is a security feature. I need to look into it.*/
+	hasSMEP = false //featureSet.HasFeature(cpuid.X86FeatureSMEP)
 	hasPCID = featureSet.HasFeature(cpuid.X86FeaturePCID)
 	hasXSAVEOPT = featureSet.UseXsaveopt()
 	hasXSAVE = featureSet.UseXsave()

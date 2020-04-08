@@ -27,7 +27,7 @@ const (
 // But we still need to remember which domains are using it.
 // TODO(aghosn) also need to mark the areas that are supposed to be supervisor.
 // TODO(aghosn) mmap TSS as well?
-func ToVMAreas(dom *commons.Domain) *VMAreas {
+func ToVMAreas(dom *commons.Domain, full *VMAreas) *VMAreas {
 	acc := make([]*VMArea, 0)
 	//TODO should probably lock the package
 	for _, p := range dom.SPkgs {
@@ -38,8 +38,20 @@ func ToVMAreas(dom *commons.Domain) *VMAreas {
 		acc = append(acc, PackageToVMAreas(p, replace)...)
 	}
 	// Add special sections: TSS, gosbs as supervisor.
-	acc = append(acc, specialVMAreas()...)
-	return Convert(acc)
+	//acc = append(acc, specialVMAreas()...)
+	sbs := Convert(acc)
+	for s := ToVMA(sbs.First); s != nil; s = ToVMA(s.Next) {
+		full.Unmap(s)
+	}
+	for s := ToVMA(sbs.First); s != nil; {
+		v := s
+		s = ToVMA(s.Next)
+		sbs.Remove(v.ToElem())
+		full.Map(v)
+	}
+	full.Coalesce()
+	full.Finalize(false)
+	return full
 }
 
 func Convert(acc []*VMArea) *VMAreas {
@@ -53,9 +65,17 @@ func Convert(acc []*VMArea) *VMAreas {
 		space.List.AddBack(s.ToElem())
 	}
 	space.Coalesce()
-	space.InitPhys()
-	space.GeneratePhys()
 	return space
+}
+
+func (s *VMAreas) Finalize(output bool) {
+	s.InitPhys()
+	s.GeneratePhys()
+	if output {
+		for v := ToVMA(s.First); v != nil; v = ToVMA(v.Next) {
+			log.Printf("%x-%x %x\n", v.Addr, v.Addr+v.Size, v.Prot)
+		}
+	}
 }
 
 // InitPhys mirros the Address space to find free areas.
@@ -113,6 +133,8 @@ func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
 			continue
 		}
 		area.Prot &= replace
+		//TODO(aghosn) for the moment make everything user
+		area.Prot |= commons.D_VAL //commons.USER_VAL
 		acc = append(acc, area)
 	}
 
@@ -123,6 +145,8 @@ func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
 			log.Fatalf("error, dynamic section should no be empty")
 		}
 		area.Prot &= replace
+		//TODO(aghosn) for the moment make everything user
+		area.Prot |= commons.D_VAL //USER_VAL
 		acc = append(acc, area)
 	}
 	return acc

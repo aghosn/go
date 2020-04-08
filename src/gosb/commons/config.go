@@ -46,12 +46,10 @@ const (
 	W_VAL = uint8(1 << 1)
 	R_VAL = uint8(1 << 2)
 	// Extra definitions that we require for seggregating pages.
-	USER_VAL  = uint8(1 << 3)
+	USER_VAL  = uint8(3 << 4)
 	SUPER_VAL = uint8(1 << 4)
-	// Our own definition to say that we break HVA == GPA == GVA
-	FAKE_VAL = uint8(1 << 5)
-	P_VAL    = uint8(1 << 6)
-	D_VAL    = R_VAL | W_VAL | X_VAL | USER_VAL // default set
+	P_VAL     = uint8(1 << 6)
+	D_VAL     = R_VAL | W_VAL | X_VAL | USER_VAL // default set
 )
 
 func ParseMemoryView(memc string) ([]Entry, error) {

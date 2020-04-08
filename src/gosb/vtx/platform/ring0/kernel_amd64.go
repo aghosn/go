@@ -4,26 +4,24 @@ import (
 	"encoding/binary"
 )
 
-//TODO(aghosn) implement
 // init initializes architecture-specific state.
 func (k *Kernel) init(opts KernelOpts) {
 	// Save the root page tables.
 	k.PageTables = opts.PageTables
 	k.VMareas = opts.VMareas
 
-	// TODO(aghosn) setup the idt !!!
 	// Setup the IDT, which is uniform.
-	//	for v, handler := range handlers {
-	//		// Allow Breakpoint and Overflow to be called from all
-	//		// privilege levels.
-	//		dpl := 0
-	//		if v == Breakpoint || v == Overflow {
-	//			dpl = 3
-	//		}
-	//		// Note that we set all traps to use the interrupt stack, this
-	//		// is defined below when setting up the TSS.
-	//		k.globalIDT[v].setInterrupt(Kcode, uint64(kernelFunc(handler)), dpl, 1 /* ist */)
-	//	}
+	for v, handler := range handlers {
+		// Allow Breakpoint and Overflow to be called from all
+		// privilege levels.
+		dpl := 0
+		if v == Breakpoint || v == Overflow {
+			dpl = 3
+		}
+		// Note that we set all traps to use the interrupt stack, this
+		// is defined below when setting up the TSS.
+		k.globalIDT[v].setInterrupt(Kcode, uint64(kernelFunc(handler)), dpl, 1 /* ist */)
+	}
 }
 
 // init initializes architecture-specific state.
@@ -117,7 +115,7 @@ func (c *CPU) CR0() uint64 {
 //go:nosplit
 func (c *CPU) CR4() uint64 {
 	cr4 := uint64(_CR4_PAE | _CR4_PSE | _CR4_OSFXSR | _CR4_OSXMMEXCPT)
-	/*if hasPCID {
+	if hasPCID {
 		cr4 |= _CR4_PCIDE
 	}
 	if hasXSAVE {
@@ -128,7 +126,7 @@ func (c *CPU) CR4() uint64 {
 	}
 	if hasFSGSBASE {
 		cr4 |= _CR4_FSGSBASE
-	}*/
+	}
 	return cr4
 }
 
@@ -158,4 +156,45 @@ func SetCPUIDFaulting(on bool) bool {
 		return true // Setting successful.
 	}
 	return false
+}
+
+// start is the CPU entrypoint.
+//
+// This is called from the Start asm stub (see entry_amd64.go); on return the
+// registers in c.registers will be restored (not segments).
+//
+//go:nosplit
+func start(c *CPU) {
+	// Save per-cpu & FS segment.
+	WriteGS(kernelAddr(c))
+	WriteFS(uintptr(c.registers.Fs_base))
+
+	// Initialize floating point.
+	//
+	// Note that on skylake, the valid XCR0 mask reported seems to be 0xff.
+	// This breaks down as:
+	//
+	//	bit0   - x87
+	//	bit1   - SSE
+	//	bit2   - AVX
+	//	bit3-4 - MPX
+	//	bit5-7 - AVX512
+	//
+	// For some reason, enabled MPX & AVX512 on platforms that report them
+	// seems to be cause a general protection fault. (Maybe there are some
+	// virtualization issues and these aren't exported to the guest cpuid.)
+	// This needs further investigation, but we can limit the floating
+	// point operations to x87, SSE & AVX for now.
+	fninit()
+	xsetbv(0, validXCR0Mask&0x7)
+
+	// Set the syscall target.
+	wrmsr(_MSR_LSTAR, kernelFunc(sysenter))
+	wrmsr(_MSR_SYSCALL_MASK, KernelFlagsClear|_RFLAGS_DF)
+
+	// NOTE: This depends on having the 64-bit segments immediately
+	// following the 32-bit user segments. This is simply the way the
+	// sysret instruction is designed to work (it assumes they follow).
+	wrmsr(_MSR_STAR, uintptr(uint64(Kcode)<<32|uint64(Ucode32)<<48))
+	wrmsr(_MSR_CSTAR, kernelFunc(sysenter))
 }

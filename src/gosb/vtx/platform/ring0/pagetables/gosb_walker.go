@@ -84,10 +84,9 @@ func ConvertOpts(prot uint8) uintptr {
 	if prot&gc.R_VAL == 0 {
 		panic("Missing read val")
 	}
-	if prot&gc.USER_VAL != 0 {
+	if prot&gc.USER_VAL == gc.USER_VAL {
 		val |= user
-	}
-	if prot&gc.SUPER_VAL != 0 {
+	} else {
 		val &= ^uintptr(user)
 	}
 	return uintptr(val)

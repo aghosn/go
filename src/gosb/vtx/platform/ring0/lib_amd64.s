@@ -1,3 +1,17 @@
+// Copyright 2018 The gVisor Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "funcdata.h"
 #include "textflag.h"
 
@@ -113,6 +127,99 @@ TEXT ·wrgsmsr(SB),NOSPLIT,$0-8
 	BYTE $0x0f; BYTE $0x30;  // WRMSR
 	RET
 
+// jumpToUser changes execution to the user address.
+//
+// This works by changing the return value to the user version.
+TEXT ·jumpToUser(SB),NOSPLIT,$0
+	MOVQ 0(SP), AX
+	MOVQ ·KernelStartAddress(SB), BX
+	NOTQ BX
+	ANDQ BX, SP // Switch the stack.
+	ANDQ BX, BP // Switch the frame pointer.
+	ANDQ BX, AX // Future return value.
+	MOVQ AX, 0(SP)
+	RET
+
+// jumpToKernel changes execution to the kernel address space.
+//
+// This works by changing the return value to the kernel version.
+TEXT ·jumpToKernel(SB),NOSPLIT,$0
+	MOVQ 0(SP), AX
+	MOVQ ·KernelStartAddress(SB), BX
+	ORQ BX, SP // Switch the stack.
+	ORQ BX, BP // Switch the frame pointer.
+	ORQ BX, AX // Future return value.
+	MOVQ AX, 0(SP)
+	RET
+
+// writeCR3 writes the given CR3 value.
+//
+// The code corresponds to:
+//
+// 	mov %rax, %cr3
+//
+TEXT ·writeCR3(SB),NOSPLIT,$0-8
+	MOVQ cr3+0(FP), AX
+	BYTE $0x0f; BYTE $0x22; BYTE $0xd8;
+	RET
+
+// readCR3 reads the current CR3 value.
+//
+// The code corresponds to:
+//
+// 	mov %cr3, %rax
+//
+TEXT ·readCR3(SB),NOSPLIT,$0-8
+	BYTE $0x0f; BYTE $0x20; BYTE $0xd8;
+	MOVQ AX, ret+0(FP)
+	RET
+
+// readCR2 reads the current CR2 value.
+//
+// The code corresponds to:
+//
+// 	mov %cr2, %rax
+//
+TEXT ·readCR2(SB),NOSPLIT,$0-8
+	BYTE $0x0f; BYTE $0x20; BYTE $0xd0;
+	MOVQ AX, ret+0(FP)
+	RET
+
+// fninit initializes the floating point unit.
+//
+// The code corresponds to:
+//
+// 	fninit
+TEXT ·fninit(SB),NOSPLIT,$0
+	BYTE $0xdb; BYTE $0xe3;
+	RET
+
+// xsetbv writes to an extended control register.
+//
+// The code corresponds to:
+//
+// 	xsetbv
+//
+TEXT ·xsetbv(SB),NOSPLIT,$0-16
+	MOVL reg+0(FP), CX
+	MOVL value+8(FP), AX
+	MOVL value+12(FP), DX
+	BYTE $0x0f; BYTE $0x01; BYTE $0xd1;
+	RET
+
+// xgetbv reads an extended control register.
+//
+// The code corresponds to:
+//
+// 	xgetbv
+//
+TEXT ·xgetbv(SB),NOSPLIT,$0-16
+	MOVL reg+0(FP), CX
+	BYTE $0x0f; BYTE $0x01; BYTE $0xd0;
+	MOVL AX, ret+8(FP)
+	MOVL DX, ret+12(FP)
+	RET
+
 // wrmsr writes to a control register.
 //
 // The code corresponds to:
@@ -125,7 +232,6 @@ TEXT ·wrmsr(SB),NOSPLIT,$0-16
 	MOVL value+12(FP), DX
 	BYTE $0x0f; BYTE $0x30;
 	RET
-
 
 // rdmsr reads a control register.
 //

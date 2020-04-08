@@ -20,7 +20,7 @@ var (
 		commons.Section{
 			Addr: uint64(commons.ReservedMemory - 3*PageSize),
 			Size: uint64(3 * PageSize),
-			Prot: commons.D_VAL | commons.FAKE_VAL,
+			Prot: commons.D_VAL,
 		},
 		0,
 		^uint32(0),
@@ -45,10 +45,4 @@ func specialVMAreas() []*VMArea {
 		}
 	}
 	return res
-}
-
-// init looks at the map for heap space.
-// @aghosn I parse everything just in case we need it later on.
-func init() {
-
 }

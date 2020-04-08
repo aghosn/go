@@ -10,7 +10,7 @@ func (k *Kernel) Init(opts KernelOpts) {
 }
 
 // Halt halts execution.
-func Halt() {}
+func Halt()
 
 // defaultHooks implements hooks.
 type defaultHooks struct{}

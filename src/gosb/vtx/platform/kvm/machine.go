@@ -9,6 +9,7 @@ import (
 	"gosb/vtx/platform/vmas"
 	"gosb/vtx/sync"
 	"log"
+	"reflect"
 	"runtime"
 	"sync/atomic"
 )
@@ -149,17 +150,21 @@ func (m *Machine) newVCPU() *vCPU {
 }
 
 func newMachine(vm int, d *commons.Domain) (*Machine, error) {
-	panic("Enable once it is fixed")
+	// TODO(aghosn) change the restrictions here afterwards.
+	fvmas := ParseProcessAddressSpace(commons.D_VAL)
+	full := vmas.Convert(fvmas)
+	space := vmas.ToVMAreas(d, full)
 	// Create the machine.
 	m := &Machine{
 		fd:        vm,
-		allocator: newAllocator(nil),
+		allocator: newAllocator(&space.Phys),
 		vCPUs:     make(map[uint64]*vCPU),
 		vCPUsByID: make(map[int]*vCPU),
 	}
+	m.Start = reflect.ValueOf(ring0.Start).Pointer()
 	m.available.L = &m.mu
 	m.kernel.Init(ring0.KernelOpts{
-		VMareas:    vmas.ToVMAreas(d),
+		VMareas:    space,
 		PageTables: pagetables.New(m.allocator),
 	})
 	// Apply the mappings to the page tables.
@@ -175,13 +180,12 @@ func newMachine(vm int, d *commons.Domain) (*Machine, error) {
 
 	// Register the memory address range.
 	// @aghosn, for the moment let's try to map the entire memory space.
-	m.setFullMemoryRegion()
+	m.setAllMemoryRegions()
 
 	// Initialize architecture state.
-	//TODO(aghosn) uncomment once it works.
-	/*	if err := m.initArchState(); err != nil {
+	if err := m.initArchState(); err != nil {
 		log.Fatalf("Error initializing machine %v\n", err)
-	}*/
+	}
 
 	//TODO(aghosn) should we set the finalizer?
 	//runtime.SetFinalizer(m, (*machine).Destroy)

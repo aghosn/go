@@ -77,9 +77,34 @@ func loadPackages() {
 		}
 		g.PkgMap[v.Name] = v
 	}
+	// Parse extra symbols
+	extraPkg := &c.Package{"extras-bloated", -2, make([]c.Section, 0), make([]c.Section, 0)}
+	syms, err := p.Symbols()
+	if err != nil {
+		panic("Unable to get symbols")
+	}
+	found := 0
+	for _, v := range syms {
+		if prot, ok := c.ExtraSymbols[v.Name]; ok {
+			if v.Value%0x1000 != 0 {
+				panic("The symbol is not aligned :(")
+			}
+			sec := c.Section{v.Value, v.Size, prot}
+			extraPkg.Sects = append(extraPkg.Sects, sec)
+			found++
+			continue
+		}
+	}
+	if found != len(c.ExtraSymbols) {
+		panic("Some special symbols were not found")
+	}
+	g.PkgMap[extraPkg.Name] = extraPkg
+	g.Packages = append(g.Packages, extraPkg)
+
 	if i, j := len(g.PkgMap), len(g.Packages); i != j {
 		log.Fatalf("Different size %v %v\n", i, j)
 	}
+
 }
 
 func loadSandboxes() {
