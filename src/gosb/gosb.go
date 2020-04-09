@@ -38,7 +38,6 @@ func initRuntime() {
 		backend.transfer,
 		backend.register,
 		backend.execute,
-		backend.park,
 		backend.prolog,
 		backend.epilog,
 	)

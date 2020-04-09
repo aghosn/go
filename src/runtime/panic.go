@@ -708,7 +708,7 @@ func gopanic(e interface{}) {
 			// Pass information about recovering frame to recovery.
 			gp.sigcode0 = uintptr(sp)
 			gp.sigcode1 = pc
-			gosbmcall(recovery)
+			mcall(recovery)
 			throw("recovery failed") // mcall should not return
 		}
 	}

@@ -41,7 +41,6 @@ func LitterboxHooks(
 	t func(int, int, uintptr, uintptr),
 	r func(int, uintptr, uintptr),
 	e func(string),
-	p func(string),
 	prolog func(string),
 	epilog func(string),
 ) {
@@ -55,17 +54,7 @@ func LitterboxHooks(
 	transferSection = t
 	registerSection = r
 	executeSandbox = e
-	parkSandbox = p
 	prologHook = prolog
 	epilogHook = epilog
 	bloatInitDone = true
-}
-
-//go:nosplit
-func gosbmcall(fn func(*g)) {
-	_g_ := getg()
-	if parkSandbox != nil && _g_ == _g_.m.curg {
-		parkSandbox(_g_.sbid)
-	}
-	mcall(fn)
 }

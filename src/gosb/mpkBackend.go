@@ -43,12 +43,6 @@ func mpkExecute(id c.SandId) {
 	mpk.WritePKRU(pkru)
 }
 
-// mpkPark remove sandbox isolation
-//go:nosplit
-func mpkPark(id c.SandId) {
-	// mpk.WritePKRU(mpk.AllRightsPKRU)
-}
-
 // mpkProlog initialize isolation of the sandbox
 func mpkProlog(id c.SandId) {
 	pkru, ok := sbPKRU[id]
