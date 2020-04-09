@@ -154,7 +154,12 @@ func mpkTransfer(oldid, newid int, start, size uintptr) {
 	newPkg.Dynamic[len(newPkg.Dynamic)] = section
 
 	// TODO(CharlyCst) retag section with key
-
+	key, ok := pkgKeys[newid]
+	if !ok {
+		println("[MPK BACKEND]: Register key not found for transfer")
+		return
+	}
+	mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
 }
 
 // allocateKey allocates MPK keys and tag sections with those keys
