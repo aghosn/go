@@ -87,7 +87,7 @@ func mpkRegister(id int, start, size uintptr) {
 	section := getSectionWithoutAlloc()
 	section.Addr = uint64(start)
 	section.Size = uint64(size)
-	// TODO(CharlyCst): Add Prot
+	section.Prot = c.R_VAL | c.W_VAL
 
 	pkg.Dynamic = append(pkg.Dynamic, *section)
 
@@ -101,7 +101,7 @@ func mpkRegister(id int, start, size uintptr) {
 		println("[MPK BACKEND]: Register key not found")
 		return
 	}
-	mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
+	mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRW, key)
 }
 
 //TODO(charlyCst) implement this one.
@@ -153,13 +153,12 @@ func mpkTransfer(oldid, newid int, start, size uintptr) {
 	// Add to new mapping
 	newPkg.Dynamic[len(newPkg.Dynamic)] = section
 
-	// TODO(CharlyCst) retag section with key
 	key, ok := pkgKeys[newid]
 	if !ok {
 		println("[MPK BACKEND]: Register key not found for transfer")
 		return
 	}
-	mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
+	mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRW, key)
 }
 
 // allocateKey allocates MPK keys and tag sections with those keys
@@ -187,9 +186,21 @@ func tagPackage(id int, key mpk.Pkey) {
 	for _, section := range pkg.Sects {
 		if section.Size > 0 {
 			// fmt.Printf("section %06x + %06x -- pkg %02d\n", section.Addr, section.Size, id)
-			mpk.PkeyMprotect(uintptr(section.Addr), section.Size, mpk.SysProtRWX, key) // TODO(CharlyCst) handle prot
+			sysProt := getSectionProt(section)
+			mpk.PkeyMprotect(uintptr(section.Addr), section.Size, sysProt, key)
 		}
 	}
+}
+
+func getSectionProt(section c.Section) mpk.SysProt {
+	prot := mpk.SysProtR
+	if section.Prot&c.W_VAL > 0 {
+		prot = prot | mpk.SysProtRW
+	}
+	if section.Prot&c.X_VAL > 0 {
+		prot = prot | mpk.SysProtRX
+	}
+	return prot
 }
 
 // computePKRU initializes `sbPKRU` with corresponding PKRUs
@@ -215,11 +226,11 @@ func mpkInit() {
 	fmt.Printf("Nb of packages:%d\n", n)
 
 	for sbID, sb := range g.Domains {
-		fmt.Printf("//// Sandbox %s ////\n", sbID)
+		// fmt.Printf("//// Sandbox %s ////\n", sbID)
 		for _, pkg := range sb.SPkgs {
 			pkgID := pkg.Id
 
-			if pkgID == 0 { // TODO(CharlyCst) handle runtime
+			if pkgID == 0 { // Runtime
 				continue
 			}
 
