@@ -1,6 +1,7 @@
 package kvm
 
 import (
+	//	"gosb/vtx/platform/arch"
 	"gosb/vtx/platform/ring0"
 	"log"
 	"reflect"
@@ -32,9 +33,7 @@ func (m *Machine) initArchState() error {
 		recover()
 		debug.SetPanicOnFault(old)
 	}()
-	//TODO(aghosn) Doesn't work yet.
 	m.retryInGuest(func() {
-		MyFlag = 10
 		ring0.SetCPUIDFaulting(true)
 	})
 
@@ -42,6 +41,9 @@ func (m *Machine) initArchState() error {
 }
 
 type vCPUArchState struct {
+	// floatingPointState is the floating point state buffer used in guest
+	// to host transitions. See usage in bluepill_amd64.go.
+	//floatingPointState *arch.FloatingPointData
 }
 
 // initArchState initializes architecture-specific state.
@@ -129,12 +131,11 @@ func (m *Machine) retryInGuest(fn func()) {
 	defer m.Put(c)
 	for {
 		c.ClearErrorCode() // See below.
-		MyFlag = 1
-		bluepill(c) // Force guest mode.
-		MyFlag = 2
-		fn() // Execute the given function.
+		bluepill(c)        // Force guest mode.
+		fn()               // Execute the given function.
 		_, user := c.ErrorCode()
 		if user {
+			MyFlag |= 0x330
 			// If user is set, then we haven't bailed back to host
 			// mode via a kernel exception or system call. We
 			// consider the full function to have executed in guest
