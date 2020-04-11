@@ -14,4 +14,5 @@ var (
 	Packages []*c.Package
 	PkgMap   map[string]*c.Package
 	Domains  map[string]*c.Domain
+	IdToPkg  map[int]*c.Package
 )

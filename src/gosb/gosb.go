@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -31,7 +32,15 @@ func initRuntime() {
 	for k, d := range g.PkgMap {
 		pkgToId[k] = d.Id
 	}
-	runtime.LitterboxHooks(pkgToId, getPkgName, backend.transfer, backend.register)
+	runtime.LitterboxHooks(
+		pkgToId,
+		getPkgName,
+		backend.transfer,
+		backend.register,
+		backend.execute,
+		backend.prolog,
+		backend.epilog,
+	)
 }
 
 // getPkgName is called by the runtime.
@@ -69,42 +78,48 @@ func loadPackages() {
 	g.Packages = make([]*c.Package, 0)
 	err = json.Unmarshal(bloatBytes, &g.Packages)
 	check(err)
+
+	// Find the type section address
+	syms, err := p.Symbols()
+	var typeSectionAddr uint64
+	sort.Slice(syms, func(i, j int) bool { return syms[i].Value < syms[j].Value })
+	for i, v := range syms {
+		if _, ok := c.ExtraSymbols[v.Name]; ok && i < len(syms) {
+			if v.Value%0x1000 != 0 {
+				panic("The symbol is not aligned :(")
+			}
+			typeSectionAddr = v.Value
+			break
+		}
+	}
+
 	// Generate the map for later TODO(aghosn) we might want to change that to int
 	g.PkgMap = make(map[string]*c.Package)
+	g.IdToPkg = make(map[int]*c.Package)
 	for _, v := range g.Packages {
 		if _, ok := g.PkgMap[v.Name]; ok {
 			log.Fatalf("Duplicated package %v\n", v.Name)
 		}
-		g.PkgMap[v.Name] = v
-	}
-	// Parse extra symbols
-	extraPkg := &c.Package{"extras-bloated", -2, make([]c.Section, 0), make([]c.Section, 0)}
-	syms, err := p.Symbols()
-	if err != nil {
-		panic("Unable to get symbols")
-	}
-	found := 0
-	for _, v := range syms {
-		if prot, ok := c.ExtraSymbols[v.Name]; ok {
-			if v.Value%0x1000 != 0 {
-				panic("The symbol is not aligned :(")
+
+		// Remove type section
+		idx := 0
+		for i, section := range v.Sects {
+			if section.Addr == typeSectionAddr { // && section.Size == typeSection.Size
+				idx = i
+				break
 			}
-			sec := c.Section{v.Value, v.Size, prot}
-			extraPkg.Sects = append(extraPkg.Sects, sec)
-			found++
-			continue
 		}
-	}
-	if found != len(c.ExtraSymbols) {
-		panic("Some special symbols were not found")
-	}
-	g.PkgMap[extraPkg.Name] = extraPkg
-	g.Packages = append(g.Packages, extraPkg)
+		v.Sects[idx] = v.Sects[len(v.Sects)-1]
+		v.Sects = v.Sects[:len(v.Sects)-1]
 
-	if i, j := len(g.PkgMap), len(g.Packages); i != j {
-		log.Fatalf("Different size %v %v\n", i, j)
+		g.PkgMap[v.Name] = v
+		g.IdToPkg[v.Id] = v
 	}
 
+	// TODO(CharlyCst) handle memory allocation in `mpkRegister` (mpk.go)
+	for _, pkg := range g.Packages {
+		pkg.Dynamic = make([]c.Section, 0, 1000)
+	}
 }
 
 func loadSandboxes() {
