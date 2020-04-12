@@ -19,7 +19,6 @@ var (
 	unregisterSection func(old int, start, size uintptr)          = nil
 	transferSection   func(oldid, newid int, start, size uintptr) = nil
 	executeSandbox    func(id string)                             = nil
-	parkSandbox       func(id string)                             = nil
 	prologHook        func(id string)                             = nil
 	epilogHook        func(id string)                             = nil
 )
