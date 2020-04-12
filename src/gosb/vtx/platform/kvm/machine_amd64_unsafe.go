@@ -3,7 +3,7 @@ package kvm
 import (
 	"fmt"
 	"gosb/commons"
-	"gosb/vtx/platform/linux"
+	"gosb/vtx/linux"
 	"sync/atomic"
 	"syscall"
 	"unsafe"

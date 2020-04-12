@@ -192,6 +192,8 @@ func (s *VMAreas) Map(vma *VMArea) {
 }
 
 // Unmap removes a VMArea from the address space.
+//
+//go:nosplit
 func (s *VMAreas) Unmap(vma *VMArea) {
 	for v := ToVMA(s.First); v != nil; v = ToVMA(v.Next) {
 	begin:
@@ -266,4 +268,27 @@ func (v *VMAreas) Apply(tables *pg.PageTables) {
 		}
 		tables.Map(uintptr(v.Addr), uintptr(v.Size), &visitor)
 	}
+}
+
+// Mprotect changes access permissions on a given set of pages.
+//
+//go:nosplit
+func (vs *VMAreas) Mprotect(start, size uintptr, prot uint8, tables *pg.PageTables) {
+	//TODO(aghosn) for the moment ignore the vmas, just update the page tables.
+	flags := pg.ConvertOpts(prot)
+	alloc := func(addr uintptr, lvl int) uintptr {
+		panic("mprotect cannot allocate")
+	}
+	visit := func(pte *pg.PTE, lvl int) {
+		if lvl == 0 {
+			pte.SetFlags(flags)
+		}
+	}
+	visitor := pg.Visitor{
+		Applies: [4]bool{false, false, false, true},
+		Create:  false,
+		Alloc:   alloc,
+		Visit:   visit,
+	}
+	tables.Map(start, size, &visitor)
 }

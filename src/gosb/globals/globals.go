@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	Packages []*c.Package
-	PkgMap   map[string]*c.Package
-	Domains  map[string]*c.Domain
+	Packages   []*c.Package
+	PkgMap     map[string]*c.Package
+	Domains    map[string]*c.Domain
+	PkgIdToSid map[int][]c.SandId
 )

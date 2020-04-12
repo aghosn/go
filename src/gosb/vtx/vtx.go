@@ -49,13 +49,35 @@ func VtxInit() {
 }
 
 func VtxTransfer(oldid, newid int, start, size uintptr) {
-	// TODO(aghosn) implement.
-	// Probably a syscall -1, and this needs to be mapped too.
-	// So probably needs to be bloated too.
+	lunmap, ok := globals.PkgIdToSid[oldid]
+	lmap, ok1 := globals.PkgIdToSid[newid]
+
+	// Unmap the pages. TODO(aghosn) probably need a lock.
+	if ok {
+		for _, u := range lunmap {
+			if vm, ok2 := machines[u]; ok2 {
+				vm.Unmap(start, size)
+			}
+		}
+	}
+	// Map the pages. Also probably need a lock.
+	if ok1 {
+		for _, m := range lmap {
+			if vm, ok2 := machines[m]; ok2 {
+				vm.Map(start, size, commons.HEAP_VAL)
+			}
+		}
+	}
 }
 
 func VtxRegister(id int, start, size uintptr) {
-	// TODO(aghosn) implement
-	// Probably a syscall -1, and this needs to be mapped in the user space too.
-	// So probably needs to be bloated.
+	lmap, ok := globals.PkgIdToSid[id]
+	// TODO probably lock.
+	if ok {
+		for _, m := range lmap {
+			if vm, ok1 := machines[m]; ok1 {
+				vm.Map(start, size, commons.HEAP_VAL)
+			}
+		}
+	}
 }

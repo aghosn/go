@@ -1,6 +1,7 @@
 package kvm
 
 import (
+	"fmt"
 	"gosb/commons"
 	"gosb/vtx/atomicbitops"
 	"gosb/vtx/platform/procid"
@@ -12,6 +13,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync/atomic"
+	"syscall"
 )
 
 type Machine struct {
@@ -334,4 +336,83 @@ func (c *vCPU) unlock() {
 	default:
 		panic("invalid state")
 	}
+}
+
+// NotifyInterrupt implements interrupt.Receiver.NotifyInterrupt.
+//
+//go:nosplit
+func (c *vCPU) NotifyInterrupt() {
+	c.BounceToKernel()
+}
+
+// pid is used below in bounce.
+var pid = syscall.Getpid()
+
+// bounce forces a return to the kernel or to host mode.
+//
+// This effectively unwinds the state machine.
+func (c *vCPU) bounce(forceGuestExit bool) {
+	for {
+		switch state := atomic.LoadUint32(&c.state); state {
+		case vCPUReady, vCPUWaiter:
+			// There is nothing to be done, we're already in the
+			// kernel pre-acquisition. The Bounce criteria have
+			// been satisfied.
+			return
+		case vCPUUser:
+			// We need to register a waiter for the actual guest
+			// transition. When the transition takes place, then we
+			// can inject an interrupt to ensure a return to host
+			// mode.
+			atomic.CompareAndSwapUint32(&c.state, state, state|vCPUWaiter)
+		case vCPUUser | vCPUWaiter:
+			// Wait for the transition to guest mode. This should
+			// come from the bluepill handler.
+			c.waitUntilNot(state)
+		case vCPUGuest, vCPUUser | vCPUGuest:
+			if state == vCPUGuest && !forceGuestExit {
+				// The vCPU is already not acquired, so there's
+				// no need to do a fresh injection here.
+				return
+			}
+			// The vCPU is in user or kernel mode. Attempt to
+			// register a notification on change.
+			if !atomic.CompareAndSwapUint32(&c.state, state, state|vCPUWaiter) {
+				break // Retry.
+			}
+			for {
+				// We need to spin here until the signal is
+				// delivered, because Tgkill can return EAGAIN
+				// under memory pressure. Since we already
+				// marked ourselves as a waiter, we need to
+				// ensure that a signal is actually delivered.
+				if err := syscall.Tgkill(pid, int(atomic.LoadUint64(&c.tid)), bounceSignal); err == nil {
+					break
+				} else if err.(syscall.Errno) == syscall.EAGAIN {
+					continue
+				} else {
+					// Nothing else should be returned by tgkill.
+					panic(fmt.Sprintf("unexpected tgkill error: %v", err))
+				}
+			}
+		case vCPUGuest | vCPUWaiter, vCPUUser | vCPUGuest | vCPUWaiter:
+			if state == vCPUGuest|vCPUWaiter && !forceGuestExit {
+				// See above.
+				return
+			}
+			// Wait for the transition. This again should happen
+			// from the bluepill handler, but on the way out.
+			c.waitUntilNot(state)
+		default:
+			// Should not happen: the above is exhaustive.
+			panic("invalid state")
+		}
+	}
+}
+
+// BounceToKernel ensures that the vCPU bounces back to the kernel.
+//
+//go:nosplit
+func (c *vCPU) BounceToKernel() {
+	c.bounce(false)
 }

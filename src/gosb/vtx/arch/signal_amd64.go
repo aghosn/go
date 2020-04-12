@@ -1,7 +1,7 @@
 package arch
 
 import (
-	"gosb/vtx/platform/linux"
+	"gosb/vtx/linux"
 )
 
 // SignalContext64 is equivalent to struct sigcontext, the type passed as the
