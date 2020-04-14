@@ -48,6 +48,17 @@ func Init() {
 	})
 }
 
+//go:nosplit
+func Prolog(id commons.SandId) {
+	//TODO(aghosn) implement
+}
+
+//go:nosplit
+func Epilog(id commons.SandId) {
+	//TODO(aghosn) implement
+}
+
+//go:nosplit
 func Transfer(oldid, newid int, start, size uintptr) {
 	lunmap, ok := globals.PkgIdToSid[oldid]
 	lmap, ok1 := globals.PkgIdToSid[newid]
@@ -70,6 +81,7 @@ func Transfer(oldid, newid int, start, size uintptr) {
 	}
 }
 
+//go:nosplit
 func Register(id int, start, size uintptr) {
 	lmap, ok := globals.PkgIdToSid[id]
 	// TODO probably lock.
@@ -80,4 +92,9 @@ func Register(id int, start, size uintptr) {
 			}
 		}
 	}
+}
+
+//go:nosplit
+func Execute(id commons.SandId) {
+	//TODO(aghosn) implement
 }

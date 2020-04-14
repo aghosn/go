@@ -34,7 +34,7 @@ var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
 		backendConfig{SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute},
 		backendConfig{OLD_BACKEND, old.Init, nil, nil, old.Transfer, old.Register, nil},
-		backendConfig{VTX_BACKEND, vtx.Init, nil, nil, vtx.Transfer, vtx.Register, nil},
+		backendConfig{VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute},
 		backendConfig{MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute},
 	}
 )
