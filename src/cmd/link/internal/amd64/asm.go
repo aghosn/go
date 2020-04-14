@@ -705,7 +705,7 @@ func asmb(ctxt *ld.Link) {
 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
-	if len(ld.Bloats) > 0 {
+	if /*len(ld.Bloats)*/ ld.Segbloat.Filelen > 0 {
 		ctxt.Out.SeekSet(int64(ld.Segbloat.Fileoff))
 		ld.Sandfblk(ctxt, int64(ld.Segbloat.Vaddr), int64(ld.Segbloat.Filelen))
 	}
@@ -765,7 +765,7 @@ func asmb2(ctxt *ld.Link) {
 			objabi.Hsolaris:
 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 			symo = ld.Rnd(symo, int64(*ld.FlagRound))
-			if len(ld.Bloats) > 0 {
+			if /*len(ld.Bloats)*/ ld.Segbloat.Filelen > 0 {
 				symo = int64(ld.Segbloat.Fileoff + ld.Segbloat.Filelen)
 				symo = ld.Rnd(symo, int64(*ld.FlagRound))
 			}

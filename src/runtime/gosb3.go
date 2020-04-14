@@ -33,11 +33,20 @@ type spanExtras struct {
 // tagging.
 // TODO(aghosn) can we have race conditions on the id?
 func (e *mspan) setId(id int, move bool) {
+	mp := acquirem()
+	old := mp.mallocing
+	if mp.mallocing != 0 {
+		mp.mallocing = -1
+	}
 	if move && transferSection != nil {
 		transferSection(e.id, id, e.startAddr, e.limit-e.startAddr)
 	} else if !move && registerSection != nil {
 		registerSection(id, e.startAddr, e.limit-e.startAddr)
 	}
+	if mp.mallocing == -1 {
+		mp.mallocing = old
+	}
+	releasem(mp)
 	e.id = id
 }
 

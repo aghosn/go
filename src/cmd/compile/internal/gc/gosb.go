@@ -72,7 +72,7 @@ func gatherPackages1(n *Node, aggreg map[*Node]*Pkg) {
 	}
 	if p := getPackage(n); p != nil {
 		// @aghosn we ignore empty path which just means local package.
-		if p.Path != "" {
+		if p.Path != "" && p.Path != "go.itab" && p.Path != "go.runtime" {
 			aggreg[n] = p
 		}
 

@@ -208,7 +208,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.loadlib()
 
 	//@aghosn initialize the bloated packages entries.
-	//ctxt.initPkgsBloat()
 	ctxt.gosb_InitBloat()
 
 	ctxt.dostrdata()
@@ -247,9 +246,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	dwarfcompress(ctxt)
 	filesize := ctxt.layout(order)
-	/*if len(PkgsBloat) > 0 {
-		filesize = ctxt.initBloat(order)
-	}*/
 	if len(Bloats) > 0 {
 		filesize = ctxt.initBloat(order)
 	}

@@ -929,13 +929,16 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
-	if mp.mallocing != 0 {
+	//TODO(aghosn) special case to allow nested malloc in gosb.
+	if mp.mallocing != 0 && mp.mallocing != int32(id) {
 		throw("malloc deadlock")
 	}
 	if mp.gsignal == getg() {
 		throw("malloc during signal")
 	}
-	mp.mallocing = 1
+	if mp.mallocing == 0 {
+		mp.mallocing = 1
+	}
 
 	shouldhelpgc := false
 	dataSize := size
@@ -1024,7 +1027,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 					x = unsafe.Pointer(span.tiny + off)
 					span.tinyoffset = off + size
 					c.local_tinyallocs++
-					mp.mallocing = 0
+					if mp.mallocing == 1 {
+						mp.mallocing = 0
+					}
 					releasem(mp)
 					return x
 				}
@@ -1123,8 +1128,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 	if msanenabled {
 		msanmalloc(x, size)
 	}
-
-	mp.mallocing = 0
+	if mp.mallocing == 1 {
+		mp.mallocing = 0
+	}
 	releasem(mp)
 
 	if debug.allocfreetrace != 0 {

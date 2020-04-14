@@ -1,7 +1,7 @@
 package objfile
 
 import (
-	"gosb"
+	gosb "gosb/commons"
 	"io/ioutil"
 	"strconv"
 	"strings"

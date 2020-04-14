@@ -4,19 +4,19 @@ import (
 	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"encoding/json"
-	"gosb"
-	lb "gosb"
+	lb "gosb/commons"
 	"log"
 	"sort"
 	"strings"
 )
 
 var (
-	nonbloat *lb.Package
-	Bloats   map[string]*lb.Package
-	toSym    map[*lb.Section][]*sym.Symbol
-	lookup   map[int]string
-	domains  []*lb.SandboxDomain
+	nonbloat  *lb.Package
+	Bloats    map[string]*lb.Package
+	toSym     map[*lb.Section][]*sym.Symbol
+	lookup    map[int]string
+	domains   []*lb.SandboxDomain
+	sectNames = []string{".fake", ".bloated", ".sandboxes"}
 )
 
 // gosb_InitBloat initializes global state and computes all dependencies for each
@@ -44,18 +44,34 @@ func (ctxt *Link) gosb_InitBloat() {
 			log.Fatalf("No name for id %v\n", id)
 		}
 		pkgInfo := &lb.Package{Name: pkg, Id: id, Sects: make([]lb.Section, sym.SABIALIAS)}
+		// Initialize protections
+		for i := range pkgInfo.Sects {
+			pkgInfo.Sects[i].Prot = symKindtoProt(sym.SymKind(i))
+		}
 		Bloats[pkg] = pkgInfo
 	}
 
 	// Get the transitive dependencies for each package
+	registerExtraPackages()
 	for k := range objfile.SegregatedPkgs {
 		ctxt.gosb_walkTransDeps(k, create, check)
 	}
 	// Add an entry for non-bloated packages.
 	nonbloat = &lb.Package{"non-bloat", -1, make([]lb.Section, sym.SABIALIAS), nil}
+	for i := range nonbloat.Sects {
+		nonbloat.Sects[i].Prot = symKindtoProt(sym.SymKind(i))
+	}
 	// For all the sandboxes, we get the transitive dependencies & generate
 	// the sandboxes informations.
 	ctxt.gosb_generateDomains()
+}
+
+// addExtraPackages registers packages that are not sandbox dependencies
+// but that we still want to bloat.
+func registerExtraPackages() {
+	if objfile.SegregatedPkgs != nil {
+		objfile.SegregatedPkgs["gosb"] = true
+	}
 }
 
 func (ctxt *Link) gosb_generateDomains() {
@@ -79,7 +95,7 @@ func (ctxt *Link) gosb_generateDomains() {
 			}
 			pack, ok := Bloats[s]
 			if !ok && (s == "go.runtime" || s == "go.itab") {
-				pack, ok = Bloats["runtime"]
+				panic("We said we ignored go.runtime and go.itab")
 			}
 			if !ok {
 				log.Fatalf("Error %v should have a package by now.\n", s)
@@ -89,6 +105,9 @@ func (ctxt *Link) gosb_generateDomains() {
 		}
 		// Maybe I should parse these things and refactor them.
 		for _, p := range v.Packages {
+			if p == "go.itab" || p == "go.runtime" {
+				panic("go.itab and go.runtime should not be here")
+			}
 			ctxt.gosb_walkTransDeps(p, f, c)
 		}
 		// Handle the extras and their permissions!
@@ -124,13 +143,6 @@ func (ctxt *Link) gosb_generateDomains() {
 			sb.Pkgs = append(sb.Pkgs, pack.Name)
 		}
 		sb.View = memView
-		/*for k, prot := range memView {
-			pack, ok := bloats[k]
-			if !ok {
-				log.Fatalf("We forgot to bloat %v\n", k)
-			}
-			sb.View[pack] = prot
-		}*/
 		domains = append(domains, sb)
 	}
 	// Create a fake sandbox for the nonbloated domain
@@ -181,7 +193,7 @@ func (ctxt *Link) gosb_walkTransDeps(top string, f func(ctxt *Link, id int, deps
 // TODO(aghosn) Maybe I should update dependencies in the initialization.
 func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	// Fast exit if we do not have sandboxes or if it is a section we don't care about
-	if len(objfile.Sandboxes) == 0 || ignoreSection(sel) {
+	if len(objfile.Sandboxes) == 0 || ignoreSection(sel) || len(syms) == 0 {
 		return syms
 	}
 	// We divide symbols into bloated per package, unbloated lists, and sandbox
@@ -190,6 +202,10 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	bloated := make(map[string][]*sym.Symbol)
 	sandSyms := make([]*sym.Symbol, 0)
 	for _, s := range syms {
+		// Safety check to avoid go.itab and go.runtime
+		if s.File == "go.runtime" || s.File == "go.itab" {
+			panic("We have a symbol that belongs to go.[itab|runtime]")
+		}
 		// Sandbox symbol itself needs to be seggragated
 		if _, ok := objfile.SBMap[s.Name]; ok {
 			sandSyms = append(sandSyms, s)
@@ -210,9 +226,9 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		if v == nil {
 			continue
 		}
-		sort.Slice(v, func(i, j int) bool {
+		/*sort.Slice(v, func(i, j int) bool {
 			return strings.Compare(v[i].Name, v[j].Name) == -1
-		})
+		})*/
 		// We register the package here cause we'll need the symbol later.
 		if b, ok := Bloats[k]; ok {
 			toSym[&b.Sects[sel]] = v
@@ -226,9 +242,9 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		return strings.Compare(fmap[i][0].File, fmap[j][0].File) == -1
 	})
 	// We sort the non-bloated packages
-	sort.Slice(regSyms, func(i, j int) bool {
+	/*sort.Slice(regSyms, func(i, j int) bool {
 		return strings.Compare(regSyms[i].File, regSyms[j].File) == -1
-	})
+	})*/
 	// We register the regsyms as well for the nonbloated.
 	toSym[&nonbloat.Sects[sel]] = regSyms
 	// Align symbols
@@ -282,7 +298,7 @@ func gosb_dumpPackages() []byte {
 		gosb_verifySymbols(v, ok)
 		k.Addr = uint64(first.Value)
 		k.Size = uint64(last.Value-first.Value) + uint64(last.Size)
-		k.Prot = gosb.W_VAL | gosb.R_VAL
+		k.Prot = lb.W_VAL | lb.R_VAL
 		if first.Sect != nil {
 			k.Prot = first.Sect.Rwx
 		}
@@ -312,7 +328,7 @@ func gosb_verifySymbols(syms []*sym.Symbol, aligned bool) {
 			continue
 		}
 		prev := syms[i-1]
-		if prev.Value+prev.Size > syms[i].Value {
+		if prev.Value+prev.Size > syms[i].Value && syms[i].Outer != prev {
 			log.Fatalf("Not ordered properly %v -- %v [%v]\n", prev.Value+prev.Size, syms[i].Value, prev.File)
 		}
 		if aligned && prev.File != syms[i].File {
@@ -327,4 +343,26 @@ func gosb_dumpSandboxes() []byte {
 		log.Fatalf("Error mashalling sandboxes %v\n", err.Error())
 	}
 	return res
+}
+
+// Translate a section's idx into protection
+func symKindtoProt(s sym.SymKind) uint8 {
+	prot := lb.R_VAL
+	// executable
+	if s == sym.STEXT || s == sym.SELFRXSECT {
+		prot |= lb.X_VAL
+		return prot
+	}
+	// read-only
+	if s >= sym.STYPE && s <= sym.SPCLNTAB {
+		// nothing to do
+		return prot
+	}
+	// writable
+	if s >= sym.SFirstWritable && s <= sym.SHOSTOBJ {
+		prot |= lb.W_VAL
+		return prot
+	}
+	// Debugging, TODO(aghosn) what should we do?
+	return prot
 }

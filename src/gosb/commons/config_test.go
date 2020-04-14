@@ -1,4 +1,4 @@
-package gosb
+package commons
 
 import (
 	"testing"
