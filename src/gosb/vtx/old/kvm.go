@@ -44,7 +44,7 @@ var (
 	pointer *int
 )
 
-func KvmRegister(id int, start, size uintptr) {
+func Register(id int, start, size uintptr) {
 	//TODO(aghosn)
 	//Trying to debug dynamic allocation.
 	a := new(int)
@@ -52,7 +52,7 @@ func KvmRegister(id int, start, size uintptr) {
 	pointer = a
 }
 
-func KvmTransfer(oldid, newid int, start, size uintptr) {
+func Transfer(oldid, newid int, start, size uintptr) {
 	//TODO(aghosn)
 	//Trying to debug dynamic allocation
 	a := new(int)
@@ -61,7 +61,7 @@ func KvmTransfer(oldid, newid int, start, size uintptr) {
 }
 
 // kvmInit should be called once to open the kvm file and get its fd.
-func KvmInit() {
+func Init() {
 	kvmOnce.Do(func() {
 		var err error
 		kvmFd, err = sc.Open(kvmDriver, sc.O_RDWR|sc.O_CLOEXEC, 0)

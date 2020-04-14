@@ -1,11 +1,11 @@
 package gosb
 
 import (
+	c "gosb/commons"
 	"gosb/mpk"
+	"gosb/sim"
 	"gosb/vtx"
 	"gosb/vtx/old"
-
-	c "gosb/commons"
 )
 
 type Backend = int
@@ -13,18 +13,17 @@ type Backend = int
 type backendConfig struct {
 	tpe Backend
 	//Functions for hooks in the runtime
+	init     func()
+	prolog   func(id c.SandId)
+	epilog   func(id c.SandId)
 	transfer func(oldid, newid int, start, size uintptr)
 	register func(id int, start, size uintptr)
 	execute  func(id c.SandId)
-	prolog   func(id c.SandId)
-	epilog   func(id c.SandId)
-
-	init func()
 }
 
 const (
 	SIM_BACKEND    Backend = iota
-	KVM_BACKEND    Backend = iota
+	OLD_BACKEND    Backend = iota
 	VTX_BACKEND    Backend = iota
 	MPK_BACKEND    Backend = iota
 	__BACKEND_SIZE Backend = iota
@@ -33,10 +32,10 @@ const (
 // Configurations
 var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
-		backendConfig{SIM_BACKEND, nil, nil, nil, nil, nil, nil},
-		backendConfig{KVM_BACKEND, old.KvmTransfer, old.KvmRegister, nil, nil, nil, old.KvmInit},
-		backendConfig{VTX_BACKEND, vtx.VtxTransfer, vtx.VtxRegister, nil, nil, nil, vtx.VtxInit},
-		backendConfig{MPK_BACKEND, mpk.Transfer, mpk.Register, mpk.Execute, mpk.Prolog, mpk.Epilog, mpk.Init},
+		backendConfig{SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute},
+		backendConfig{OLD_BACKEND, old.Init, nil, nil, old.Transfer, old.Register, nil},
+		backendConfig{VTX_BACKEND, vtx.Init, nil, nil, vtx.Transfer, vtx.Register, nil},
+		backendConfig{MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute},
 	}
 )
 

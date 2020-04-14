@@ -24,13 +24,11 @@ var (
 )
 
 func sandbox_prolog(id, mem, syscalls string) {
-	println("SB: prolog", id, mem, syscalls)
 	getg().m.curg.sbid = id
 	prologHook(id)
 }
 
 func sandbox_epilog(id, mem, syscalls string) {
-	println("SB: epilog", id, mem, syscalls)
 	epilogHook(id)
 }
 

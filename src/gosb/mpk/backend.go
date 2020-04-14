@@ -10,7 +10,6 @@ import (
 	"fmt"
 	c "gosb/commons"
 	g "gosb/globals"
-	"strconv"
 )
 
 var (
@@ -241,12 +240,7 @@ func Init() {
 			if !ok {
 				sbGroup = make([]c.SandId, 0)
 			}
-			id, err := strconv.Unquote(sbID)
-			if err == nil {
-				pkgAppearsIn[pkgID] = append(sbGroup, id)
-			} else {
-				pkgAppearsIn[pkgID] = append(sbGroup, sbID)
-			}
+			pkgAppearsIn[pkgID] = append(sbGroup, sbID)
 		}
 	}
 

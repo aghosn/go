@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -143,6 +144,10 @@ func loadSandboxes() {
 	for _, d := range sbDomains {
 		if _, ok := g.Domains[d.Id]; ok {
 			log.Fatalf("Duplicated sandbox id %v\n", d.Id)
+		}
+		// Unquote sandbox ids.
+		if ns, err := strconv.Unquote(d.Id); err == nil {
+			d.Id = ns
 		}
 		sb := &c.Domain{d, make(map[*c.Package]uint8), make([]*c.Package, 0)}
 		// Initialize the view

@@ -19,7 +19,7 @@ var (
 	machines map[commons.SandId]*kvm.KVM
 )
 
-func VtxInit() {
+func Init() {
 	kvmOnce.Do(func() {
 		kvmFd, err := os.OpenFile(_KVM_DRIVER_PATH, syscall.O_RDWR, 0)
 		if err != nil {
@@ -48,7 +48,7 @@ func VtxInit() {
 	})
 }
 
-func VtxTransfer(oldid, newid int, start, size uintptr) {
+func Transfer(oldid, newid int, start, size uintptr) {
 	lunmap, ok := globals.PkgIdToSid[oldid]
 	lmap, ok1 := globals.PkgIdToSid[newid]
 
@@ -70,7 +70,7 @@ func VtxTransfer(oldid, newid int, start, size uintptr) {
 	}
 }
 
-func VtxRegister(id int, start, size uintptr) {
+func Register(id int, start, size uintptr) {
 	lmap, ok := globals.PkgIdToSid[id]
 	// TODO probably lock.
 	if ok {
