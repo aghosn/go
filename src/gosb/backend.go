@@ -4,6 +4,8 @@ import (
 	"gosb/mpk"
 	"gosb/vtx"
 	"gosb/vtx/old"
+
+	c "gosb/commons"
 )
 
 type Backend = int
@@ -13,6 +15,9 @@ type backendConfig struct {
 	//Functions for hooks in the runtime
 	transfer func(oldid, newid int, start, size uintptr)
 	register func(id int, start, size uintptr)
+	execute  func(id c.SandId)
+	prolog   func(id c.SandId)
+	epilog   func(id c.SandId)
 
 	init func()
 }
@@ -28,10 +33,10 @@ const (
 // Configurations
 var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
-		backendConfig{SIM_BACKEND, nil, nil, nil},
-		backendConfig{KVM_BACKEND, old.KvmTransfer, old.KvmRegister, old.KvmInit},
-		backendConfig{VTX_BACKEND, vtx.VtxTransfer, vtx.VtxRegister, vtx.VtxInit},
-		backendConfig{MPK_BACKEND, mpk.MpkTransfer, mpk.MpkRegister, mpk.MpkInit},
+		backendConfig{SIM_BACKEND, nil, nil, nil, nil, nil, nil},
+		backendConfig{KVM_BACKEND, old.KvmTransfer, old.KvmRegister, nil, nil, nil, old.KvmInit},
+		backendConfig{VTX_BACKEND, vtx.VtxTransfer, vtx.VtxRegister, nil, nil, nil, vtx.VtxInit},
+		backendConfig{MPK_BACKEND, mpk.Transfer, mpk.Register, mpk.Execute, mpk.Prolog, mpk.Epilog, mpk.Init},
 	}
 )
 
