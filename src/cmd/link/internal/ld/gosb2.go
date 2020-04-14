@@ -11,11 +11,12 @@ import (
 )
 
 var (
-	nonbloat *lb.Package
-	Bloats   map[string]*lb.Package
-	toSym    map[*lb.Section][]*sym.Symbol
-	lookup   map[int]string
-	domains  []*lb.SandboxDomain
+	nonbloat  *lb.Package
+	Bloats    map[string]*lb.Package
+	toSym     map[*lb.Section][]*sym.Symbol
+	lookup    map[int]string
+	domains   []*lb.SandboxDomain
+	sectNames = []string{".fake", ".bloated", ".sandboxes"}
 )
 
 // gosb_InitBloat initializes global state and computes all dependencies for each
@@ -192,7 +193,7 @@ func (ctxt *Link) gosb_walkTransDeps(top string, f func(ctxt *Link, id int, deps
 // TODO(aghosn) Maybe I should update dependencies in the initialization.
 func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	// Fast exit if we do not have sandboxes or if it is a section we don't care about
-	if len(objfile.Sandboxes) == 0 || ignoreSection(sel) {
+	if len(objfile.Sandboxes) == 0 || ignoreSection(sel) || len(syms) == 0 {
 		return syms
 	}
 	// We divide symbols into bloated per package, unbloated lists, and sandbox
@@ -225,9 +226,9 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		if v == nil {
 			continue
 		}
-		sort.Slice(v, func(i, j int) bool {
+		/*sort.Slice(v, func(i, j int) bool {
 			return strings.Compare(v[i].Name, v[j].Name) == -1
-		})
+		})*/
 		// We register the package here cause we'll need the symbol later.
 		if b, ok := Bloats[k]; ok {
 			toSym[&b.Sects[sel]] = v
@@ -241,9 +242,9 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		return strings.Compare(fmap[i][0].File, fmap[j][0].File) == -1
 	})
 	// We sort the non-bloated packages
-	sort.Slice(regSyms, func(i, j int) bool {
+	/*sort.Slice(regSyms, func(i, j int) bool {
 		return strings.Compare(regSyms[i].File, regSyms[j].File) == -1
-	})
+	})*/
 	// We register the regsyms as well for the nonbloated.
 	toSym[&nonbloat.Sects[sel]] = regSyms
 	// Align symbols
@@ -327,7 +328,7 @@ func gosb_verifySymbols(syms []*sym.Symbol, aligned bool) {
 			continue
 		}
 		prev := syms[i-1]
-		if prev.Value+prev.Size > syms[i].Value {
+		if prev.Value+prev.Size > syms[i].Value && syms[i].Outer != prev {
 			log.Fatalf("Not ordered properly %v -- %v [%v]\n", prev.Value+prev.Size, syms[i].Value, prev.File)
 		}
 		if aligned && prev.File != syms[i].File {

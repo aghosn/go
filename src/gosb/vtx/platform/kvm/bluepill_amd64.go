@@ -1,7 +1,7 @@
 package kvm
 
 import (
-	"gosb/vtx/platform/arch"
+	"gosb/vtx/arch"
 	"gosb/vtx/platform/ring0"
 	"syscall"
 )

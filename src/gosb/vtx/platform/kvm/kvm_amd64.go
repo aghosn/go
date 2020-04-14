@@ -1,7 +1,7 @@
 package kvm
 
 import (
-	"gosb/vtx/platform/cpuid"
+	"gosb/vtx/cpuid"
 	"gosb/vtx/platform/ring0"
 )
 

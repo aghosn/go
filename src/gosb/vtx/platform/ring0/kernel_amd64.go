@@ -158,6 +158,63 @@ func SetCPUIDFaulting(on bool) bool {
 	return false
 }
 
+// IsCanonical indicates whether addr is canonical per the amd64 spec.
+//
+//go:nosplit
+func IsCanonical(addr uint64) bool {
+	return addr <= 0x00007fffffffffff || addr > 0xffff800000000000
+}
+
+// SwitchToUser performs either a sysret or an iret.
+//
+// The return value is the vector that interrupted execution.
+//
+// This function will not split the stack. Callers will probably want to call
+// runtime.entersyscall (and pair with a call to runtime.exitsyscall) prior to
+// calling this function.
+//
+// When this is done, this region is quite sensitive to things like system
+// calls. After calling entersyscall, any memory used must have been allocated
+// and no function calls without go:nosplit are permitted. Any calls made here
+// are protected appropriately (e.g. IsCanonical and CR3).
+//
+// Also note that this function transitively depends on the compiler generating
+// code that uses IP-relative addressing inside of absolute addresses. That's
+// the case for amd64, but may not be the case for other architectures.
+//
+// Precondition: the Rip, Rsp, Fs and Gs registers must be canonical.
+//
+//go:nosplit
+func (c *CPU) SwitchToUser(switchOpts SwitchOpts) (vector Vector) {
+	userCR3 := switchOpts.PageTables.CR3(!switchOpts.Flush, switchOpts.UserPCID)
+	kernelCR3 := c.kernel.PageTables.CR3(true, switchOpts.KernelPCID)
+
+	// Sanitize registers.
+	regs := switchOpts.Registers
+	regs.Eflags &= ^uint64(UserFlagsClear)
+	regs.Eflags |= UserFlagsSet
+	regs.Cs = uint64(Ucode64) // Required for iret.
+	regs.Ss = uint64(Udata)   // Ditto.
+
+	// Perform the switch.
+	swapgs()                                         // GS will be swapped on return.
+	WriteFS(uintptr(regs.Fs_base))                   // Set application FS.
+	WriteGS(uintptr(regs.Gs_base))                   // Set application GS.
+	LoadFloatingPoint(switchOpts.FloatingPointState) // Copy in floating point.
+	jumpToKernel()                                   // Switch to upper half.
+	writeCR3(uintptr(userCR3))                       // Change to user address space.
+	if switchOpts.FullRestore {
+		vector = iret(c, regs)
+	} else {
+		vector = sysret(c, regs)
+	}
+	writeCR3(uintptr(kernelCR3))                     // Return to kernel address space.
+	jumpToUser()                                     // Return to lower half.
+	SaveFloatingPoint(switchOpts.FloatingPointState) // Copy out floating point.
+	WriteFS(uintptr(c.registers.Fs_base))            // Restore kernel FS.
+	return
+}
+
 // start is the CPU entrypoint.
 //
 // This is called from the Start asm stub (see entry_amd64.go); on return the
@@ -197,4 +254,11 @@ func start(c *CPU) {
 	// sysret instruction is designed to work (it assumes they follow).
 	wrmsr(_MSR_STAR, uintptr(uint64(Kcode)<<32|uint64(Ucode32)<<48))
 	wrmsr(_MSR_CSTAR, kernelFunc(sysenter))
+}
+
+// ReadCR2 reads the current CR2 value.
+//
+//go:nosplit
+func ReadCR2() uintptr {
+	return readCR2()
 }

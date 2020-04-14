@@ -51,10 +51,9 @@ func (ctxt *Link) initBloat(order []*sym.Segment) uint64 {
 	// Create our segment
 	Segbloat.Rwx = 04
 	Segbloat.Vaddr = va
-	shstrtab := ctxt.Syms.Lookup(".shstrtab", 0)
-	sectNames := []string{".fake", ".bloated", ".sandboxes"}
+	//shstrtab := ctxt.Syms.Lookup(".shstrtab", 0)
 	for i, sn := range sectNames {
-		Addstring(shstrtab, sn)
+		//Addstring(shstrtab, sn)
 		addsection(ctxt.Arch, &Segbloat, sn, 04)
 		s := ctxt.Syms.Lookup(sn, 0)
 		s.P = gosb_generateContent(sn) //genbloat(sn)

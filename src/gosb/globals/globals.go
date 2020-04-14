@@ -15,4 +15,5 @@ var (
 	PkgMap   map[string]*c.Package
 	Domains  map[string]*c.Domain
 	IdToPkg  map[int]*c.Package
+	PkgIdToSid map[int][]c.SandId
 )

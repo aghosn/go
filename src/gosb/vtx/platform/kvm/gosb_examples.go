@@ -27,6 +27,11 @@ var (
 	}
 )
 
+//go:nosplit
+func Mine() {
+	MyFlag |= 0x10000
+}
+
 func SinglePageMapTest(kvmfd int) {
 	var (
 		vm    int
@@ -109,7 +114,7 @@ func FullMapTest(kvmfd int) {
 		break
 	}
 
-	vmareas := ParseProcessAddressSpace(commons.USER_VAL)
+	vmareas := ParseProcessAddressSpace(commons.SUPER_VAL)
 	// We have the entire address space.
 	// now convertSlice into list.
 	space := vmas.Convert(vmareas)

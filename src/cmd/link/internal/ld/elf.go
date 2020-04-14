@@ -1441,6 +1441,13 @@ func (ctxt *Link) doelf() {
 	Addstring(shstrtab, ".noptrbss")
 	Addstring(shstrtab, ".go.buildinfo")
 
+	//TODO(aghosn) Maybe here.
+	if len(Bloats) > 0 {
+		for _, sn := range sectNames {
+			Addstring(shstrtab, sn)
+		}
+	}
+
 	// generate .tbss section for dynamic internal linker or external
 	// linking, so that various binutils could correctly calculate
 	// PT_TLS size. See https://golang.org/issue/5200.

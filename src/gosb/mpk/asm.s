@@ -1,3 +1,5 @@
+#include "textflag.h"
+
 TEXT ·WritePKRU(SB),$0
 	MOVQ prot+0(FP), AX
 	XORQ CX, CX

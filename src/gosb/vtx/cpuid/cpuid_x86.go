@@ -145,6 +145,42 @@ const (
 	// EAX[31:4] are reserved.
 )
 
+// Block 5 constants are the extended feature bits in
+// CPUID.(EAX=0x80000001):ECX.
+const (
+	X86FeatureLAHF64 Feature = 5*32 + iota
+	X86FeatureCMP_LEGACY
+	X86FeatureSVM
+	X86FeatureEXTAPIC
+	X86FeatureCR8_LEGACY
+	X86FeatureLZCNT
+	X86FeatureSSE4A
+	X86FeatureMISALIGNSSE
+	X86FeaturePREFETCHW
+	X86FeatureOSVW
+	X86FeatureIBS
+	X86FeatureXOP
+	X86FeatureSKINIT
+	X86FeatureWDT
+	_ // ecx bit 14 is reserved.
+	X86FeatureLWP
+	X86FeatureFMA4
+	X86FeatureTCE
+	_ // ecx bit 18 is reserved.
+	_ // ecx bit 19 is reserved.
+	_ // ecx bit 20 is reserved.
+	X86FeatureTBM
+	X86FeatureTOPOLOGY
+	X86FeaturePERFCTR_CORE
+	X86FeaturePERFCTR_NB
+	_ // ecx bit 25 is reserved.
+	X86FeatureBPEXT
+	X86FeaturePERFCTR_TSC
+	X86FeaturePERFCTR_LLC
+	X86FeatureMWAITX
+	// ECX[31:30] are reserved.
+)
+
 // CacheType describes the type of a cache, as returned in eax[4:0] for eax=4.
 type CacheType uint8
 
@@ -451,6 +487,37 @@ func (fs *FeatureSet) HasFeature(feature Feature) bool {
 	return fs.Set[feature]
 }
 
+var maxXsaveSize = func() uint32 {
+	// Leaf 0 of xsaveinfo function returns the size for currently
+	// enabled xsave features in ebx, the maximum size if all valid
+	// features are saved with xsave in ecx, and valid XCR0 bits in
+	// edx:eax.
+	//
+	// If xSaveInfo isn't supported, cpuid will not fault but will
+	// return bogus values.
+	_, _, maxXsaveSize, _ := HostID(uint32(xSaveInfo), 0)
+	return maxXsaveSize
+}()
+
+// ExtendedStateSize returns the number of bytes needed to save the "extended
+// state" for this processor and the boundary it must be aligned to. Extended
+// state includes floating point registers, and other cpu state that's not
+// associated with the normal task context.
+//
+// Note: We can save some space here with an optimization where we use a
+// smaller chunk of memory depending on features that are actually enabled.
+// Currently we just use the largest possible size for simplicity (which is
+// about 2.5K worst case, with avx512).
+func (fs *FeatureSet) ExtendedStateSize() (size, align uint) {
+	if fs.UseXsave() {
+		return uint(maxXsaveSize), 64
+	}
+
+	// If we don't support xsave, we fall back to fxsave, which requires
+	// 512 bytes aligned to 16 bytes.
+	return 512, 16
+}
+
 // ValidXCR0Mask returns the bits that may be set to 1 in control register
 // XCR0.
 func (fs *FeatureSet) ValidXCR0Mask() uint64 {
@@ -460,3 +527,17 @@ func (fs *FeatureSet) ValidXCR0Mask() uint64 {
 	eax, _, _, edx := HostID(uint32(xSaveInfo), 0)
 	return uint64(edx)<<32 | uint64(eax)
 }
+
+// These are the extended floating point state features. They are used to
+// enumerate floating point features in XCR0, XSTATE_BV, etc.
+const (
+	XSAVEFeatureX87         = 1 << 0
+	XSAVEFeatureSSE         = 1 << 1
+	XSAVEFeatureAVX         = 1 << 2
+	XSAVEFeatureBNDREGS     = 1 << 3
+	XSAVEFeatureBNDCSR      = 1 << 4
+	XSAVEFeatureAVX512op    = 1 << 5
+	XSAVEFeatureAVX512zmm0  = 1 << 6
+	XSAVEFeatureAVX512zmm16 = 1 << 7
+	XSAVEFeaturePKRU        = 1 << 9
+)

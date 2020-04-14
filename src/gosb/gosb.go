@@ -123,6 +123,7 @@ func loadPackages() {
 }
 
 func loadSandboxes() {
+	g.PkgIdToSid = make(map[int][]c.SandId)
 	p, err := elf.Open(os.Args[0])
 	check(err)
 	sbSec := p.Section(".sandboxes")
@@ -159,6 +160,8 @@ func loadSandboxes() {
 				log.Fatalf("Unable to dinf package %v\n", k)
 			}
 			sb.SPkgs = append(sb.SPkgs, pkg)
+			l, _ := g.PkgIdToSid[pkg.Id]
+			g.PkgIdToSid[pkg.Id] = append(l, sb.Config.Id)
 		}
 		// Add the domain to the global list
 		g.Domains[sb.Config.Id] = sb

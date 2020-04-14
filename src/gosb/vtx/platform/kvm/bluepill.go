@@ -2,7 +2,7 @@ package kvm
 
 import (
 	"gosb/commons"
-	"gosb/vtx/platform/arch"
+	"gosb/vtx/arch"
 	"gosb/vtx/platform/ring0"
 	"log"
 	"reflect"

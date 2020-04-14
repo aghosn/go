@@ -3,12 +3,18 @@ package kvm
 import (
 	"fmt"
 	"gosb/commons"
-	"gosb/vtx/platform/linux"
+	"gosb/vtx/linux"
 	"math"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
+
+//go:linkname entersyscall runtime.entersyscall
+func entersyscall()
+
+//go:linkname exitsyscall runtime.exitsyscall
+func exitsyscall()
 
 // setMemoryRegion initializes a region.
 //

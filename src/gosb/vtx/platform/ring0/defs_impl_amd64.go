@@ -91,6 +91,28 @@ var (
 	KernelStartAddress = uintptr(0)
 )
 
+// SwitchOpts are passed to the Switch function.
+type SwitchOpts struct {
+	// Registers are the user register state.
+	Registers *syscall.PtraceRegs
+
+	// FloatingPointState is a byte pointer where floating point state is
+	// saved and restored.
+	FloatingPointState *byte
+
+	// PageTables are the application page tables.
+	PageTables *pagetables.PageTables
+
+	// Flush indicates that a TLB flush should be forced on switch.
+	Flush bool
+
+	// FullRestore indicates that an iret-based restore should be used.
+	FullRestore bool
+
+	// SwitchArchOpts are architecture-specific options.
+	SwitchArchOpts
+}
+
 // Segment indices and Selectors.
 const (
 	// Index into GDT array.
@@ -410,4 +432,19 @@ func (c *CPU) ErrorCode() (value uintptr, user bool) {
 func (c *CPU) ClearErrorCode() {
 	c.errorCode = 0
 	c.errorType = 1
+}
+
+// SwitchArchOpts are embedded in SwitchOpts.
+type SwitchArchOpts struct {
+	// UserPCID indicates that the application PCID to be used on switch,
+	// assuming that PCIDs are supported.
+	//
+	// Per pagetables_x86.go, a zero PCID implies a flush.
+	UserPCID uint16
+
+	// KernelPCID indicates that the kernel PCID to be used on return,
+	// assuming that PCIDs are supported.
+	//
+	// Per pagetables_x86.go, a zero PCID implies a flush.
+	KernelPCID uint16
 }

@@ -17,7 +17,7 @@
 package ring0
 
 import (
-	"gosb/vtx/platform/cpuid"
+	"gosb/vtx/cpuid"
 )
 
 // LoadFloatingPoint loads floating point state by the most efficient mechanism

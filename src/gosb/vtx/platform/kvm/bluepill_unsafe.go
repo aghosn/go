@@ -2,7 +2,7 @@ package kvm
 
 import (
 	"gosb/commons"
-	"gosb/vtx/platform/arch"
+	"gosb/vtx/arch"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
