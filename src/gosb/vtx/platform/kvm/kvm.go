@@ -2,11 +2,18 @@ package kvm
 
 import (
 	"gosb/commons"
+	"gosb/vtx/platform/ring0"
 	pt "gosb/vtx/platform/ring0/pagetables"
 	"gosb/vtx/platform/vmas"
 	"log"
+	"reflect"
 	"syscall"
 )
+
+// Bluepillret does a simple return to avoid doing a CLI again.
+//
+//go:nosplit
+func Bluepillret()
 
 type AddressSpace struct {
 	Vmas   *vmas.VMAreas
@@ -19,6 +26,9 @@ type KVM struct {
 	Machine *Machine
 
 	AddrSpace AddressSpace
+
+	// uregs is used to switch to user space.
+	uregs syscall.PtraceRegs
 }
 
 // New creates a VM with KVM, and initializes its machine and pagetables.
@@ -55,4 +65,20 @@ func (k *KVM) Map(start, size uintptr, prot uint8) {
 //go:nosplit
 func (k *KVM) Unmap(start, size uintptr) {
 	k.AddrSpace.Vmas.Mprotect(start, size, commons.UNMAP_VAL, k.AddrSpace.Tables)
+}
+
+//go:nosplit
+func (k *KVM) SwitchToUser() {
+	//TODO(aghosn) implement
+	c := k.Machine.Get()
+	opts := ring0.SwitchOpts{
+		Registers:   &k.uregs,
+		PageTables:  k.AddrSpace.Tables,
+		Flush:       false,
+		FullRestore: true,
+	}
+	ring0.MKernelFlag += 1
+	opts.Registers.Rip = uint64(reflect.ValueOf(Bluepillret).Pointer())
+	c.SwitchToUser(opts, nil)
+	MyFlag += 1000
 }

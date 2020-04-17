@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime/debug"
 	"syscall"
+	"unsafe"
 )
 
 // initArchState initializes architecture-specific state.
@@ -184,6 +185,11 @@ func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts, info *arch.SignalInfo) 
 	// allocations occur.
 	entersyscall()
 	bluepill(c)
+	rip := switchOpts.Registers.Rip
+	*switchOpts.Registers = *c.CPU.Registers()
+	switchOpts.Registers.Rip = rip
+	switchOpts.Registers.Rsp = switchOpts.Registers.Rbp + 8
+	switchOpts.Registers.Rbp = *((*uint64)(unsafe.Pointer(uintptr(switchOpts.Registers.Rbp))))
 	vector = c.CPU.SwitchToUser(switchOpts)
 	exitsyscall()
 
@@ -297,7 +303,7 @@ func (m *Machine) retryInGuest(fn func()) {
 		fn()               // Execute the given function.
 		_, user := c.ErrorCode()
 		if user {
-			MyFlag |= 0x330
+			//MyFlag |= 0x330
 			// If user is set, then we haven't bailed back to host
 			// mode via a kernel exception or system call. We
 			// consider the full function to have executed in guest

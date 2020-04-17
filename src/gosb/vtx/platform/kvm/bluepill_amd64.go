@@ -60,6 +60,10 @@ func (c *vCPU) KernelSyscall() {
 	ring0.WriteFS(uintptr(regs.Fs_base)) // Reload host segment.
 }
 
+var (
+	InternalVector = 0
+)
+
 // KernelException handles kernel exceptions.
 //
 //go:nosplit
@@ -71,6 +75,7 @@ func (c *vCPU) KernelException(vector ring0.Vector) {
 		// attempt to return and a full stack trace.
 		regs.Rip = 0
 	}
+	InternalVector = int(vector)
 	// See above.
 	//ring0.SaveFloatingPoint((*byte)(c.floatingPointState))
 	ring0.Halt()

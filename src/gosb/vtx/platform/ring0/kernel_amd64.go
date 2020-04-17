@@ -186,9 +186,8 @@ func IsCanonical(addr uint64) bool {
 //
 //go:nosplit
 func (c *CPU) SwitchToUser(switchOpts SwitchOpts) (vector Vector) {
-	userCR3 := switchOpts.PageTables.CR3(!switchOpts.Flush, switchOpts.UserPCID)
-	kernelCR3 := c.kernel.PageTables.CR3(true, switchOpts.KernelPCID)
-
+	//userCR3 := switchOpts.PageTables.CR3(!switchOpts.Flush, switchOpts.UserPCID)
+	//kernelCR3 := c.kernel.PageTables.CR3(true, switchOpts.KernelPCID)
 	// Sanitize registers.
 	regs := switchOpts.Registers
 	regs.Eflags &= ^uint64(UserFlagsClear)
@@ -196,24 +195,33 @@ func (c *CPU) SwitchToUser(switchOpts SwitchOpts) (vector Vector) {
 	regs.Cs = uint64(Ucode64) // Required for iret.
 	regs.Ss = uint64(Udata)   // Ditto.
 
+	// TODO(aghosn) added this
+	regs.Fs = uint64(Udata)
+	regs.Gs = uint64(Udata)
+
 	// Perform the switch.
-	swapgs()                                         // GS will be swapped on return.
-	WriteFS(uintptr(regs.Fs_base))                   // Set application FS.
-	WriteGS(uintptr(regs.Gs_base))                   // Set application GS.
-	LoadFloatingPoint(switchOpts.FloatingPointState) // Copy in floating point.
-	jumpToKernel()                                   // Switch to upper half.
-	writeCR3(uintptr(userCR3))                       // Change to user address space.
+	swapgs()                       // GS will be swapped on return.
+	WriteFS(uintptr(regs.Fs_base)) // Set application FS.
+	WriteGS(uintptr(regs.Gs_base)) // Set application GS.
+	//LoadFloatingPoint(switchOpts.FloatingPointState) // Copy in floating point.
+	//jumpToKernel() // Switch to upper half.
+	//writeCR3(uintptr(userCR3)) // Change to user address space.
 	if switchOpts.FullRestore {
 		vector = iret(c, regs)
 	} else {
+		MKernelFlag += 100
 		vector = sysret(c, regs)
 	}
-	writeCR3(uintptr(kernelCR3))                     // Return to kernel address space.
-	jumpToUser()                                     // Return to lower half.
-	SaveFloatingPoint(switchOpts.FloatingPointState) // Copy out floating point.
-	WriteFS(uintptr(c.registers.Fs_base))            // Restore kernel FS.
+	//writeCR3(uintptr(kernelCR3)) // Return to kernel address space.
+	//jumpToUser() // Return to lower half.
+	//SaveFloatingPoint(switchOpts.FloatingPointState) // Copy out floating point.
+	WriteFS(uintptr(c.registers.Fs_base)) // Restore kernel FS.
 	return
 }
+
+var (
+	MKernelFlag int = 0
+)
 
 // start is the CPU entrypoint.
 //

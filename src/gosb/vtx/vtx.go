@@ -46,11 +46,18 @@ func Init() {
 		// We should be done with it now.
 		kvmFd.Close()
 	})
+
+	//kvm.Mine2()
 }
 
 //go:nosplit
 func Prolog(id commons.SandId) {
-	//TODO(aghosn) implement
+	if sb, ok := machines[id]; ok {
+		sb.SwitchToUser()
+		// From here, we made the switch to the VM
+		return
+	}
+	throw("error finding sandbox vtx machine.")
 }
 
 //go:nosplit

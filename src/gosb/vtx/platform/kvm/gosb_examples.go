@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	MyFlag int = 0
+	MyFlag int64   = 0
+	MyPtr  uintptr = 0
 )
 
 var (
@@ -28,8 +29,11 @@ var (
 )
 
 //go:nosplit
-func Mine() {
-	MyFlag |= 0x10000
+func Mine2()
+
+//go:nosplit
+func Mine(a int64) {
+	MyFlag = a
 }
 
 func SinglePageMapTest(kvmfd int) {
