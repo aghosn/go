@@ -1,7 +1,6 @@
 package kvm
 
 import (
-	"fmt"
 	"gosb/vtx/arch"
 	"gosb/vtx/platform/ring0"
 	platform "gosb/vtx/plt"
@@ -9,7 +8,6 @@ import (
 	"log"
 	"reflect"
 	"runtime/debug"
-	"syscall"
 	"unsafe"
 )
 
@@ -156,29 +154,7 @@ func (c *vCPU) fault(signal int32, info *arch.SignalInfo) (usermem.AccessType, e
 }
 
 // SwitchToUser unpacks architectural-details.
-func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts, info *arch.SignalInfo) (usermem.AccessType, error) {
-	// Check for canonical addresses.
-	//	if regs := switchOpts.Registers; !ring0.IsCanonical(regs.Rip) {
-	//		return nonCanonical(regs.Rip, int32(syscall.SIGSEGV), info)
-	//	} else if !ring0.IsCanonical(regs.Rsp) {
-	//		return nonCanonical(regs.Rsp, int32(syscall.SIGBUS), info)
-	//	} else if !ring0.IsCanonical(regs.Fs_base) {
-	//		return nonCanonical(regs.Fs_base, int32(syscall.SIGBUS), info)
-	//	} else if !ring0.IsCanonical(regs.Gs_base) {
-	//		return nonCanonical(regs.Gs_base, int32(syscall.SIGBUS), info)
-	//	}
-
-	// Assign PCIDs.
-	//	if c.PCIDs != nil {
-	//		var requireFlushPCID bool // Force a flush?
-	//		switchOpts.UserPCID, requireFlushPCID = c.PCIDs.Assign(switchOpts.PageTables)
-	//		switchOpts.KernelPCID = fixedKernelPCID
-	//		switchOpts.Flush = switchOpts.Flush || requireFlushPCID
-	//	}
-
-	// See below.
-	var vector ring0.Vector
-
+func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts, info *arch.SignalInfo) {
 	// Past this point, stack growth can cause system calls (and a break
 	// from guest mode). So we need to ensure that between the bluepill
 	// call here and the switch call immediately below, no additional
@@ -190,103 +166,7 @@ func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts, info *arch.SignalInfo) 
 	switchOpts.Registers.Rip = rip
 	switchOpts.Registers.Rsp = switchOpts.Registers.Rbp + 8
 	switchOpts.Registers.Rbp = *((*uint64)(unsafe.Pointer(uintptr(switchOpts.Registers.Rbp))))
-	vector = c.CPU.SwitchToUser(switchOpts)
-	exitsyscall()
-
-	switch vector {
-	case ring0.Syscall, ring0.SyscallInt80:
-		// Fast path: system call executed.
-		return usermem.NoAccess, nil
-
-	case ring0.PageFault:
-		return c.fault(int32(syscall.SIGSEGV), info)
-
-	case ring0.Debug, ring0.Breakpoint:
-		*info = arch.SignalInfo{
-			Signo: int32(syscall.SIGTRAP),
-			Code:  1, // TRAP_BRKPT (breakpoint).
-		}
-		info.SetAddr(switchOpts.Registers.Rip) // Include address.
-		return usermem.AccessType{}, platform.ErrContextSignal
-
-	case ring0.GeneralProtectionFault,
-		ring0.SegmentNotPresent,
-		ring0.BoundRangeExceeded,
-		ring0.InvalidTSS,
-		ring0.StackSegmentFault:
-		*info = arch.SignalInfo{
-			Signo: int32(syscall.SIGSEGV),
-			Code:  arch.SignalInfoKernel,
-		}
-		info.SetAddr(switchOpts.Registers.Rip) // Include address.
-		if vector == ring0.GeneralProtectionFault {
-			// When CPUID faulting is enabled, we will generate a #GP(0) when
-			// userspace executes a CPUID instruction. This is handled above,
-			// because we need to be able to map and read user memory.
-			return usermem.AccessType{}, platform.ErrContextSignalCPUID
-		}
-		return usermem.AccessType{}, platform.ErrContextSignal
-
-	case ring0.InvalidOpcode:
-		*info = arch.SignalInfo{
-			Signo: int32(syscall.SIGILL),
-			Code:  1, // ILL_ILLOPC (illegal opcode).
-		}
-		info.SetAddr(switchOpts.Registers.Rip) // Include address.
-		return usermem.AccessType{}, platform.ErrContextSignal
-
-	case ring0.DivideByZero:
-		*info = arch.SignalInfo{
-			Signo: int32(syscall.SIGFPE),
-			Code:  1, // FPE_INTDIV (divide by zero).
-		}
-		info.SetAddr(switchOpts.Registers.Rip) // Include address.
-		return usermem.AccessType{}, platform.ErrContextSignal
-
-	case ring0.Overflow:
-		*info = arch.SignalInfo{
-			Signo: int32(syscall.SIGFPE),
-			Code:  2, // FPE_INTOVF (integer overflow).
-		}
-		info.SetAddr(switchOpts.Registers.Rip) // Include address.
-		return usermem.AccessType{}, platform.ErrContextSignal
-
-	case ring0.X87FloatingPointException,
-		ring0.SIMDFloatingPointException:
-		*info = arch.SignalInfo{
-			Signo: int32(syscall.SIGFPE),
-			Code:  7, // FPE_FLTINV (invalid operation).
-		}
-		info.SetAddr(switchOpts.Registers.Rip) // Include address.
-		return usermem.AccessType{}, platform.ErrContextSignal
-
-	case ring0.Vector(bounce): // ring0.VirtualizationException
-		return usermem.NoAccess, platform.ErrContextInterrupt
-
-	case ring0.AlignmentCheck:
-		*info = arch.SignalInfo{
-			Signo: int32(syscall.SIGBUS),
-			Code:  2, // BUS_ADRERR (physical address does not exist).
-		}
-		return usermem.NoAccess, platform.ErrContextSignal
-
-	case ring0.NMI:
-		// An NMI is generated only when a fault is not servicable by
-		// KVM itself, so we think some mapping is writeable but it's
-		// really not. This could happen, e.g. if some file is
-		// truncated (and would generate a SIGBUS) and we map it
-		// directly into the instance.
-		return c.fault(int32(syscall.SIGBUS), info)
-
-	case ring0.DeviceNotAvailable,
-		ring0.DoubleFault,
-		ring0.CoprocessorSegmentOverrun,
-		ring0.MachineCheck,
-		ring0.SecurityException:
-		fallthrough
-	default:
-		panic(fmt.Sprintf("unexpected vector: 0x%x", vector))
-	}
+	c.CPU.SwitchToUser(switchOpts)
 }
 
 // retryInGuest runs the given function in guest mode.
@@ -303,7 +183,6 @@ func (m *Machine) retryInGuest(fn func()) {
 		fn()               // Execute the given function.
 		_, user := c.ErrorCode()
 		if user {
-			//MyFlag |= 0x330
 			// If user is set, then we haven't bailed back to host
 			// mode via a kernel exception or system call. We
 			// consider the full function to have executed in guest

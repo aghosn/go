@@ -69,7 +69,6 @@ func (k *KVM) Unmap(start, size uintptr) {
 
 //go:nosplit
 func (k *KVM) SwitchToUser() {
-	//TODO(aghosn) implement
 	c := k.Machine.Get()
 	opts := ring0.SwitchOpts{
 		Registers:   &k.uregs,
@@ -81,4 +80,5 @@ func (k *KVM) SwitchToUser() {
 	opts.Registers.Rip = uint64(reflect.ValueOf(Bluepillret).Pointer())
 	c.SwitchToUser(opts, nil)
 	MyFlag += 1000
+	exitsyscall()
 }

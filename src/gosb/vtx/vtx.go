@@ -54,6 +54,7 @@ func Init() {
 func Prolog(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
 		sb.SwitchToUser()
+		kvm.MyFlag += 100
 		// From here, we made the switch to the VM
 		return
 	}
