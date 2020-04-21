@@ -12,6 +12,11 @@ import (
 	g "gosb/globals"
 )
 
+const (
+	_RUNTIME_ID = 0
+	_CGO_ID     = -2
+)
+
 var (
 	sbPKRU  map[c.SandId]PKRU
 	pkgKeys map[int]Pkey
@@ -64,7 +69,7 @@ func Epilog(id c.SandId) {
 //If the section did not exist, it must be a dynamic library and hence should
 //be added to the package as such.
 func Register(id int, start, size uintptr) {
-	if id == 0 || id == -1 { // Runtime
+	if id == _RUNTIME_ID || id == _CGO_ID { // Runtime
 		return
 	}
 
@@ -108,7 +113,10 @@ func Register(id int, start, size uintptr) {
 //The same should apply for the previous function.
 func Transfer(oldid, newid int, start, size uintptr) {
 	// Sanity check
-	if newid == 0 || oldid == 0 {
+	if newid == _RUNTIME_ID || newid == _CGO_ID {
+		return
+	}
+	if oldid == _RUNTIME_ID || oldid == _CGO_ID {
 		return
 	}
 	if oldid == newid {
@@ -225,12 +233,25 @@ func Init() {
 	fmt.Println("Initilizing GOSB with MPK backend")
 	fmt.Printf("Nb of packages:%d\n", n)
 
+	for _, p := range g.Packages {
+		fmt.Printf("%02d - %s\n", p.Id, p.Name)
+	}
+
 	for sbID, sb := range g.Domains {
 		// fmt.Printf("//// Sandbox %s ////\n", sbID)
 		for _, pkg := range sb.SPkgs {
 			pkgID := pkg.Id
 
-			if pkgID == 0 { // Runtime
+			// if pkgID == _CGO_ID {
+			// 	fmt.Printf("%02d - %s\n", pkg.Id, pkg.Name)
+			// 	for _, section := range pkg.Sects {
+			// 		if section.Addr > 0 {
+			// 			fmt.Printf("section %06x + %06x \n", section.Addr, section.Size)
+			// 		}
+			// 	}
+			// }
+
+			if pkgID == _RUNTIME_ID || pkgID == _CGO_ID {
 				continue
 			}
 
