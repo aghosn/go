@@ -19,6 +19,11 @@ var (
 	sectNames = []string{".fake", ".bloated", ".sandboxes"}
 )
 
+const (
+	CGO_PKG = "runtime/cgo"
+	CGO_ID  = -2
+)
+
 // gosb_InitBloat initializes global state and computes all dependencies for each
 // package that requires to be bloated.
 func (ctxt *Link) gosb_InitBloat() {
@@ -33,6 +38,23 @@ func (ctxt *Link) gosb_InitBloat() {
 	for k, v := range ctxt.PackageDecl {
 		lookup[v] = k
 	}
+
+	// Add an entry for cgo
+	cgoId, ok := ctxt.PackageDecl[CGO_PKG]
+	if ok {
+		// Update cgo package ID
+		delete(lookup, cgoId)
+	}
+	if ctxt.PackageDecl != nil {
+		ctxt.PackageDecl[CGO_PKG] = CGO_ID
+		lookup[CGO_ID] = CGO_PKG
+	}
+	cgoPkg := &lb.Package{CGO_PKG, CGO_ID, make([]lb.Section, sym.SABIALIAS), nil}
+	for i := range cgoPkg.Sects {
+		cgoPkg.Sects[i].Prot = symKindtoProt(sym.SymKind(i))
+	}
+	Bloats[CGO_PKG] = cgoPkg
+
 	// Define the function for transitive dependencies
 	check := func(s string) bool {
 		_, ok := Bloats[s]
@@ -153,7 +175,16 @@ func (ctxt *Link) gosb_generateDomains() {
 	nonbloatDomain.Sys = 0
 	nonbloatDomain.View = nil
 	nonbloatDomain.Pkgs = []string{nonbloat.Name}
+
+	cgoDomain := &lb.SandboxDomain{}
+	cgoDomain.Id = "-2"
+	cgoDomain.Func = "-2"
+	cgoDomain.Sys = 0
+	cgoDomain.View = nil
+	cgoDomain.Pkgs = []string{CGO_PKG}
+
 	domains = append(domains, nonbloatDomain)
+	domains = append(domains, cgoDomain)
 }
 
 // gosb_walkTransDeps allows to follow transitive dependencies applying the given f method.\
@@ -217,6 +248,12 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 				e = make([]*sym.Symbol, 0)
 			}
 			bloated[s.File] = append(e, s)
+		} else if strings.Contains(s.Name, "runtime/cgo(.rodata") {
+			e, ok1 := bloated[CGO_PKG]
+			if !ok1 {
+				e = make([]*sym.Symbol, 0)
+			}
+			bloated[CGO_PKG] = append(e, s)
 		} else {
 			regSyms = append(regSyms, s)
 		}
