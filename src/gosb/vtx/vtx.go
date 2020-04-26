@@ -46,15 +46,12 @@ func Init() {
 		// We should be done with it now.
 		kvmFd.Close()
 	})
-
-	//kvm.Mine2()
 }
 
 //go:nosplit
 func Prolog(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
 		sb.SwitchToUser()
-		kvm.MyFlag += 100
 		// From here, we made the switch to the VM
 		return
 	}
@@ -63,7 +60,7 @@ func Prolog(id commons.SandId) {
 
 //go:nosplit
 func Epilog(id commons.SandId) {
-	//TODO(aghosn) implement
+	kvm.Redpill()
 }
 
 //go:nosplit

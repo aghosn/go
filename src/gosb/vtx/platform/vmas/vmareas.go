@@ -292,3 +292,21 @@ func (vs *VMAreas) Mprotect(start, size uintptr, prot uint8, tables *pg.PageTabl
 	}
 	tables.Map(start, size, &visitor)
 }
+
+// ValidAddress checks whether the given address is mapped and has the provided
+// access rights.
+// TODO(aghosn) could be optimized by check first and last.
+//
+//go:nosplit
+func (vs *VMAreas) ValidAddress(addr uint64, prot uint8) bool {
+	for v := ToVMA(vs.First); v != nil; v = ToVMA(v.Next) {
+		if v.Addr <= addr && addr < v.Addr+v.Size {
+			return ((v.Prot & prot) == prot)
+		}
+		if addr < v.Addr {
+			// Fast escape, vmareas are supposedly sorted.
+			return false
+		}
+	}
+	return false
+}

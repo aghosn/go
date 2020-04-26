@@ -28,6 +28,17 @@ import (
 // executed from kernel mode or not and the appropriate stub is called.
 func sysenter()
 
+// This is an assembly function.
+//
+// The sysenter function is invoked in two situations:
+//
+// (1) The guest kernel executed a syscall.
+// (2) The guest application executed a syscall.
+//
+// In both cases, we save the current state inside vcpu, switch to kernel stack
+// push vcpu and exit. Upon return we pop and iret to the vcpu.
+func sysenter2()
+
 // swapgs swaps the current GS value.
 //
 // This must be called prior to sysret/iret.

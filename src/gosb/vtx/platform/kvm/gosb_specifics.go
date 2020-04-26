@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+//go:nosplit
+func GetFs(addr *uint64)
+
 // We need to be smart about allocations, try to stick to the vm as close as possible.
 // Maybe we can change the allocation too.
 

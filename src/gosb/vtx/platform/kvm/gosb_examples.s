@@ -1,4 +1,3 @@
-
 #include "textflag.h"
 
 TEXT ·Mine2(SB),NOSPLIT,$0
@@ -12,8 +11,6 @@ TEXT ·Bluepillret(SB),NOSPLIT,$0
 	//BYTE $0x9C
 	//CALL ·Mine(SB)
 	RET
-
-
 
 //TEXT ·Mine(SB),NOSPLIT,$0
 //	PUSHQ $555

@@ -192,7 +192,7 @@ func (c *CPU) SwitchToUser(switchOpts SwitchOpts) (vector Vector) {
 	regs.Cs = uint64(Ucode64) // Required for iret.
 	regs.Ss = uint64(Udata)   // Ditto.
 
-	regs.Fs = uint64(Udata)
+	//regs.Fs = uint64(Udata)
 	regs.Gs = uint64(Udata)
 
 	// Perform the switch.
@@ -209,10 +209,6 @@ func (c *CPU) SwitchToUser(switchOpts SwitchOpts) (vector Vector) {
 	//WriteFS(uintptr(c.registers.Fs_base)) // Restore kernel FS.
 	return
 }
-
-var (
-	MKernelFlag int = 0
-)
 
 // start is the CPU entrypoint.
 //
@@ -245,14 +241,14 @@ func start(c *CPU) {
 	xsetbv(0, validXCR0Mask&0x7)
 
 	// Set the syscall target.
-	wrmsr(_MSR_LSTAR, kernelFunc(sysenter))
+	wrmsr(_MSR_LSTAR, kernelFunc(sysenter2))
 	wrmsr(_MSR_SYSCALL_MASK, KernelFlagsClear|_RFLAGS_DF)
 
 	// NOTE: This depends on having the 64-bit segments immediately
 	// following the 32-bit user segments. This is simply the way the
 	// sysret instruction is designed to work (it assumes they follow).
 	wrmsr(_MSR_STAR, uintptr(uint64(Kcode)<<32|uint64(Ucode32)<<48))
-	wrmsr(_MSR_CSTAR, kernelFunc(sysenter))
+	wrmsr(_MSR_CSTAR, kernelFunc(sysenter2))
 }
 
 // ReadCR2 reads the current CR2 value.

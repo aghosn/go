@@ -145,16 +145,23 @@ func bluepillHandler(context unsafe.Pointer) {
 			// Copy out registers.
 			bluepillArchExit(c, bluepillArchContext(context))
 
-			// Return to the vCPUReady state; notify any waiters.
-			user := atomic.LoadUint32(&c.state) & vCPUUser
-			switch atomic.SwapUint32(&c.state, user) {
-			case user | vCPUGuest: // Expected case.
-			case user | vCPUGuest | vCPUWaiter:
-				panic("TODO implement") //c.notify()
+			switch kvmSyscallHandler(c) {
+			case syshandlerValid:
+				// Nothing to do, we'll go back to the VM.
+			case syshandlerBail:
+				// We bailed
+				user := atomic.LoadUint32(&c.state) & vCPUUser
+				switch atomic.SwapUint32(&c.state, user) {
+				case user | vCPUGuest: // Expected case.
+				case user | vCPUGuest | vCPUWaiter:
+					panic("TODO implement") //c.notify()
+				default:
+					throw("invalid state")
+				}
+				return
 			default:
-				throw("invalid state")
+				throw("Something went wrong with the exit")
 			}
-			return
 		case _KVM_EXIT_MMIO:
 			// Increment the fault count.
 			//atomic.AddUint32(&c.faults, 1)

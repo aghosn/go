@@ -76,9 +76,9 @@ func (k *KVM) SwitchToUser() {
 		Flush:       false,
 		FullRestore: true,
 	}
-	ring0.MKernelFlag += 1
 	opts.Registers.Rip = uint64(reflect.ValueOf(Bluepillret).Pointer())
+	entersyscall()
+	GetFs(&opts.Registers.Fs) // making sure we get the correct FS value.
 	c.SwitchToUser(opts, nil)
-	MyFlag += 1000
 	exitsyscall()
 }

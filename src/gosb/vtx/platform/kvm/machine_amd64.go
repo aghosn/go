@@ -154,16 +154,18 @@ func (c *vCPU) fault(signal int32, info *arch.SignalInfo) (usermem.AccessType, e
 }
 
 // SwitchToUser unpacks architectural-details.
+//go:nosplit
 func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts, info *arch.SignalInfo) {
 	// Past this point, stack growth can cause system calls (and a break
 	// from guest mode). So we need to ensure that between the bluepill
 	// call here and the switch call immediately below, no additional
 	// allocations occur.
-	entersyscall()
 	bluepill(c)
 	rip := switchOpts.Registers.Rip
+	fs := switchOpts.Registers.Fs
 	*switchOpts.Registers = *c.CPU.Registers()
 	switchOpts.Registers.Rip = rip
+	switchOpts.Registers.Fs = fs
 	switchOpts.Registers.Rsp = switchOpts.Registers.Rbp + 8
 	switchOpts.Registers.Rbp = *((*uint64)(unsafe.Pointer(uintptr(switchOpts.Registers.Rbp))))
 	c.CPU.SwitchToUser(switchOpts)
@@ -190,4 +192,6 @@ func (m *Machine) retryInGuest(fn func()) {
 			break
 		}
 	}
+	//TODO(aghosn) this or halt?
+	redpill()
 }

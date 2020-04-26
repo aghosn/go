@@ -49,9 +49,6 @@ func bluepillArchEnter(context *arch.SignalContext64) *vCPU {
 //go:nosplit
 func (c *vCPU) KernelSyscall() {
 	regs := c.Registers()
-	if regs.Rax != ^uint64(0) {
-		regs.Rip -= 2 // Rewind.
-	}
 	// We only trigger a bluepill entry in the bluepill function, and can
 	// therefore be guaranteed that there is no floating point state to be
 	// loaded on resuming from halt. We only worry about saving on exit.

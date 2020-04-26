@@ -271,6 +271,58 @@ kernel:
 	POPQ AX                 // Pop vCPU.
 	JMP ·resume(SB)
 
+// See entry_amd64.go.
+TEXT ·sysenter2(SB),NOSPLIT,$0
+	// Interrupts are always disabled while we're executing in kernel mode
+	// and always enabled while executing in user mode. Therefore, we can
+	// reliably look at the flags in R11 to determine where this syscall
+	// was from.
+	TESTL $_RFLAGS_IF, R11
+	JZ kernel
+
+user:
+	SWAP_GS()
+	MOVQ AX,  CPU_REGISTERS+PTRACE_ORIGRAX(GS)
+	MOVQ AX,  CPU_REGISTERS+PTRACE_RAX(GS)
+	REGISTERS_SAVE(GS, CPU_REGISTERS)
+	MOVQ CX,  CPU_REGISTERS+PTRACE_RIP(GS)
+	MOVQ R11, CPU_REGISTERS+PTRACE_FLAGS(GS)
+	MOVQ SP,  CPU_REGISTERS+PTRACE_RSP(GS)
+	MOVQ $0, CPU_ERROR_CODE(GS) // Clear error code.
+	MOVQ $1, CPU_ERROR_TYPE(GS) // Set error type to user.
+
+	// Call the syscall trampoline.
+	LOAD_KERNEL_STACK(GS)
+	MOVQ CPU_SELF(GS), AX   // Load vCPU.
+	PUSHQ AX                // First argument (vCPU).
+	CALL ·kernelSyscall(SB) // Call the trampoline.
+	MOVQ $0x711020, R14
+	MOVQ 0(R14), R13
+	ADDQ $1, R13
+	MOVQ R13, 0(R14)
+	POPQ AX                 // Pop vCPU.
+	JMP ·resume(SB)
+kernel:
+	// We can't restore the original stack, but we can access the registers
+	// in the CPU state directly. No need for temporary juggling.
+	MOVQ AX,  CPU_REGISTERS+PTRACE_ORIGRAX(GS)
+	MOVQ AX,  CPU_REGISTERS+PTRACE_RAX(GS)
+	REGISTERS_SAVE(GS, CPU_REGISTERS)
+	MOVQ CX,  CPU_REGISTERS+PTRACE_RIP(GS)
+	MOVQ R11, CPU_REGISTERS+PTRACE_FLAGS(GS)
+	MOVQ SP,  CPU_REGISTERS+PTRACE_RSP(GS)
+	MOVQ $0, CPU_ERROR_CODE(GS) // Clear error code.
+	MOVQ $0, CPU_ERROR_TYPE(GS) // Set error type to kernel.
+
+	// Call the syscall trampoline.
+	LOAD_KERNEL_STACK(GS)
+	MOVQ CPU_SELF(GS), AX   // Load vCPU.
+	PUSHQ AX                // First argument (vCPU).
+	CALL ·kernelSyscall(SB) // Call the trampoline.
+	POPQ AX                 // Pop vCPU.
+	JMP ·resume(SB)
+
+
 // exception is a generic exception handler.
 //
 // There are two cases handled:
