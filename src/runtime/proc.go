@@ -3126,10 +3126,6 @@ func entersyscallblock_handoff() {
 	handoffp(releasep())
 }
 
-var (
-	MRTFlag int = 0
-)
-
 // The goroutine g exited its system call.
 // Arrange for it to run on a cpu again.
 // This is called only from the go syscall library, not
@@ -3147,7 +3143,6 @@ func exitsyscall() {
 
 	_g_.m.locks++ // see comment in entersyscall
 	if getcallersp() > _g_.syscallsp {
-		MRTFlag = 1
 		throw("exitsyscall: syscall frame is no longer valid")
 	}
 
@@ -3209,7 +3204,6 @@ func exitsyscall() {
 	mcall(exitsyscall0)
 
 	if _g_.m.mcache == nil {
-		MRTFlag = 2
 		throw("lost mcache")
 	}
 

@@ -70,6 +70,11 @@ func exception()
 // This is used when processing kernel exceptions and syscalls.
 func resume()
 
+// resume is a stub that restores the CPU user registers.
+//
+// This is used when processing kernel exceptions and syscalls.
+func resumeUser()
+
 // Start is the CPU entrypoint.
 //
 // The following start conditions must be satisfied:

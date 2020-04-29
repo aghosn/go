@@ -209,6 +209,19 @@ TEXT ·resume(SB),NOSPLIT,$0
 	IRET()
 
 // See entry_amd64.go.
+TEXT ·resumeUser(SB),NOSPLIT,$0
+	// See iret, above.
+	MOVQ CPU_REGISTERS+PTRACE_SS(GS), BX;    PUSHQ BX
+	MOVQ CPU_REGISTERS+PTRACE_RSP(GS), CX;   PUSHQ CX
+	MOVQ CPU_REGISTERS+PTRACE_FLAGS(GS), DX; PUSHQ DX
+	MOVQ CPU_REGISTERS+PTRACE_CS(GS), DI;    PUSHQ DI
+	MOVQ CPU_REGISTERS+PTRACE_RIP(GS), SI;   PUSHQ SI
+	REGISTERS_LOAD(GS, CPU_REGISTERS)
+	MOVQ CPU_REGISTERS+PTRACE_RAX(GS), AX
+	SWAP_GS()
+	IRET()
+
+// See entry_amd64.go.
 TEXT ·Start(SB),NOSPLIT,$0
 	LOAD_KERNEL_STACK(AX) // Set the stack.
 	PUSHQ $0x8            // Previous frame pointer.
@@ -296,12 +309,8 @@ user:
 	MOVQ CPU_SELF(GS), AX   // Load vCPU.
 	PUSHQ AX                // First argument (vCPU).
 	CALL ·kernelSyscall(SB) // Call the trampoline.
-	MOVQ $0x711020, R14
-	MOVQ 0(R14), R13
-	ADDQ $1, R13
-	MOVQ R13, 0(R14)
 	POPQ AX                 // Pop vCPU.
-	JMP ·resume(SB)
+	JMP ·resumeUser(SB)
 kernel:
 	// We can't restore the original stack, but we can access the registers
 	// in the CPU state directly. No need for temporary juggling.

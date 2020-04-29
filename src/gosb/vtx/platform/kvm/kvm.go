@@ -2,11 +2,13 @@ package kvm
 
 import (
 	"gosb/commons"
+	//"gosb/debug"
 	"gosb/vtx/platform/ring0"
 	pt "gosb/vtx/platform/ring0/pagetables"
 	"gosb/vtx/platform/vmas"
 	"log"
 	"reflect"
+	"runtime"
 	"syscall"
 )
 
@@ -77,8 +79,14 @@ func (k *KVM) SwitchToUser() {
 		FullRestore: true,
 	}
 	opts.Registers.Rip = uint64(reflect.ValueOf(Bluepillret).Pointer())
-	entersyscall()
+	//debug.TakeValue(2)
+	runtime.LockOSThread()
+	//entersyscall()
 	GetFs(&opts.Registers.Fs) // making sure we get the correct FS value.
+	//debug.TakeValue(3)
 	c.SwitchToUser(opts, nil)
-	exitsyscall()
+	//debug.TakeValue(10)
+	runtime.UnlockOSThread()
+	//exitsyscall()
+	//debug.TakeValue(11)
 }

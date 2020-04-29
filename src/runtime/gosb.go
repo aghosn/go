@@ -1,7 +1,12 @@
 package runtime
 
-// These types are the ones found in cmd/link/internal/ld/gosb.go
-// And inside the objfile of the linker.
+// TODO(aghosn) For debugging, remove afterwards.
+var (
+	MRTRuntimeVals [30]int
+	MRTRuntimeIdx  int   = 0
+	MRTId          int64 = -1
+	MRTBaddy       int   = 0
+)
 
 var (
 	bloatInitDone bool = false
@@ -23,11 +28,13 @@ var (
 	epilogHook        func(id string)                             = nil
 )
 
+//go:nosplit
 func sandbox_prolog(id, mem, syscalls string) {
 	getg().m.curg.sbid = id
 	prologHook(id)
 }
 
+//go:nosplit
 func sandbox_epilog(id, mem, syscalls string) {
 	epilogHook(id)
 }
@@ -54,4 +61,37 @@ func LitterboxHooks(
 	prologHook = prolog
 	epilogHook = epilog
 	bloatInitDone = true
+}
+
+// TODO(aghosn) debugging functions. Remove afterwards
+//
+//go:nosplit
+func TakeValue(a int) {
+	if MRTRuntimeIdx < len(MRTRuntimeVals) {
+		MRTRuntimeVals[MRTRuntimeIdx] = a
+		MRTRuntimeIdx++
+	}
+}
+
+//go:nosplit
+func Reset() {
+	MRTBaddy = 0
+}
+
+//go:nosplit
+func StartCapture() {
+	_g_ := getg()
+	MRTId = _g_.goid
+	Reset()
+}
+
+//go:nosplit
+func TakeValueTrace(a int) {
+	_g_ := getg()
+	if _g_ == nil {
+		return
+	}
+	if _g_.goid == MRTId {
+		TakeValue(a)
+	}
 }
