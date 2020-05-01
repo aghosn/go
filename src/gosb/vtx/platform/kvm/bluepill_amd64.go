@@ -34,13 +34,18 @@ func bluepillArchEnter(context *arch.SignalContext64) *vCPU {
 	regs.Rcx = context.Rcx
 	regs.Rsp = context.Rsp
 	regs.Rip = context.Rip
-	regs.Eflags = context.Eflags
-	regs.Eflags &^= uint64(ring0.KernelFlagsClear)
-	regs.Eflags |= ring0.KernelFlagsSet
-	regs.Cs = uint64(ring0.Kcode)
-	regs.Ds = uint64(ring0.Udata)
-	regs.Es = uint64(ring0.Udata)
-	regs.Ss = uint64(ring0.Kdata)
+	if !c.entered {
+		regs.Eflags = context.Eflags
+		regs.Eflags &^= uint64(ring0.KernelFlagsClear)
+		regs.Eflags |= ring0.KernelFlagsSet
+		regs.Cs = uint64(ring0.Kcode)
+		regs.Ds = uint64(ring0.Udata)
+		regs.Es = uint64(ring0.Udata)
+		regs.Ss = uint64(ring0.Kdata)
+	}
+	if c.entered {
+		regs.Rip = bluepillretaddr
+	}
 	return c
 }
 
@@ -58,7 +63,8 @@ func (c *vCPU) KernelSyscall() {
 }
 
 var (
-	InternalVector = 0
+	InternalVector     = 0
+	MRTExceptions  int = 0
 )
 
 // KernelException handles kernel exceptions.
@@ -66,6 +72,7 @@ var (
 //go:nosplit
 func (c *vCPU) KernelException(vector ring0.Vector) {
 	regs := c.Registers()
+	MRTExceptions++
 	if vector == ring0.Vector(bounce) {
 		// These should not interrupt kernel execution; point the Rip
 		// to zero to ensure that we get a reasonable panic when we

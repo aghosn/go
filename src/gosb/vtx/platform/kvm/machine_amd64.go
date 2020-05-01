@@ -161,6 +161,11 @@ func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts, info *arch.SignalInfo) 
 	// call here and the switch call immediately below, no additional
 	// allocations occur.
 	bluepill(c)
+	// This whole part should be executed only once.
+	if c.entered {
+		panic("Executing entry twice.")
+	}
+	c.entered = true
 	rip := switchOpts.Registers.Rip
 	fs := switchOpts.Registers.Fs
 	*switchOpts.Registers = *c.CPU.Registers()

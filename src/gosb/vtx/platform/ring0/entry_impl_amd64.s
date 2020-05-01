@@ -219,6 +219,8 @@ TEXT ·resumeUser(SB),NOSPLIT,$0
 	REGISTERS_LOAD(GS, CPU_REGISTERS)
 	MOVQ CPU_REGISTERS+PTRACE_RAX(GS), AX
 	SWAP_GS()
+//	MOVQ $0x785000, R14
+//	ADDQ $10000, 0(R14)
 	IRET()
 
 // See entry_amd64.go.
@@ -343,7 +345,92 @@ kernel:
 // the vector & error codes are pushed as return values.
 //
 // See below for the stubs that call exception.
-TEXT ·exception(SB),NOSPLIT,$0
+//TEXT ·exception(SB),NOSPLIT,$0
+//	// Determine whether the exception occurred in kernel mode or user
+//	// mode, based on the flags. We expect the following stack:
+//	//
+//	//	SS          (sp+48)
+//	//	SP          (sp+40)
+//	//	FLAGS       (sp+32)
+//	//	CS          (sp+24)
+//	//	IP          (sp+16)
+//	//	ERROR_CODE  (sp+8)
+//	//	VECTOR      (sp+0)
+//	//
+//	TESTL $_RFLAGS_IF, 32(SP)
+//	JZ kernel
+//
+//user:
+//	SWAP_GS()
+//	MOVQ 0x785000, R14
+//	ADDQ $1, 0(R14)
+//	ADDQ $-8, SP                            // Adjust for flags.
+//	MOVQ $_KERNEL_FLAGS, 0(SP); BYTE $0x9d; // Reset flags (POPFQ).
+//	XCHGQ CPU_REGISTERS+PTRACE_RAX(GS), AX  // Swap for user regs.
+//	REGISTERS_SAVE(AX, 0)                   // Save all except IP, FLAGS, SP, AX.
+//	MOVQ CPU_REGISTERS+PTRACE_RAX(GS), BX   // Restore original AX.
+//	MOVQ BX, PTRACE_RAX(AX)                 // Save it.
+//	MOVQ BX, PTRACE_ORIGRAX(AX)
+//	MOVQ 16(SP), BX; MOVQ BX, PTRACE_RIP(AX)
+//	MOVQ 24(SP), CX; MOVQ CX, PTRACE_CS(AX)
+//	MOVQ 32(SP), DX; MOVQ DX, PTRACE_FLAGS(AX)
+//	MOVQ 40(SP), DI; MOVQ DI, PTRACE_RSP(AX)
+//	MOVQ 48(SP), SI; MOVQ SI, PTRACE_SS(AX)
+//	MOVQ 0x785000, R14
+//	ADDQ $10, 0(R14)
+//
+//	// Copy out and return.
+//	MOVQ 0(SP), BX                        // Load vector.
+//	MOVQ 8(SP), CX                        // Load error code.
+//	MOVQ CPU_REGISTERS+PTRACE_RSP(GS), SP // Original stack (kernel version).
+//	MOVQ CPU_REGISTERS+PTRACE_RBP(GS), BP // Original base pointer.
+//	MOVQ CX, CPU_ERROR_CODE(GS)           // Set error code.
+//	MOVQ $1, CPU_ERROR_TYPE(GS)           // Set error type to user.
+//	MOVQ BX, 24(SP)                       // Output vector.
+//	RET
+//
+//kernel:
+//	MOVQ 0x785000, R14
+//	ADDQ $100, 0(R14)
+//	// As per above, we can save directly.
+//	MOVQ AX, CPU_REGISTERS+PTRACE_RAX(GS)
+//	MOVQ AX, CPU_REGISTERS+PTRACE_ORIGRAX(GS)
+//	REGISTERS_SAVE(GS, CPU_REGISTERS)
+//	MOVQ 16(SP), AX; MOVQ AX, CPU_REGISTERS+PTRACE_RIP(GS)
+//	MOVQ 32(SP), BX; MOVQ BX, CPU_REGISTERS+PTRACE_FLAGS(GS)
+//	MOVQ 40(SP), CX; MOVQ CX, CPU_REGISTERS+PTRACE_RSP(GS)
+//
+//	// Set the error code and adjust the stack.
+//	MOVQ 8(SP), AX              // Load the error code.
+//	MOVQ AX, CPU_ERROR_CODE(GS) // Copy out to the CPU.
+//	MOVQ $0, CPU_ERROR_TYPE(GS) // Set error type to kernel.
+//	MOVQ 0(SP), BX              // BX contains the vector.
+//	ADDQ $48, SP                // Drop the exception frame.
+//
+//	// Call the exception trampoline.
+//	LOAD_KERNEL_STACK(GS)
+//	MOVQ CPU_SELF(GS), AX     // Load vCPU.
+//	PUSHQ BX                  // Second argument (vector).
+//	PUSHQ AX                  // First argument (vCPU).
+//	MOVQ 0x785000, R14
+//	ADDQ $1000, 0(R14)
+//	CALL ·kernelException(SB) // Call the trampoline.
+//	POPQ BX                   // Pop vector.
+//	POPQ AX                   // Pop vCPU.
+//	JMP ·resume(SB)
+
+// exception is a generic exception handler.
+//
+// There are two cases handled:
+//
+// 1) An exception in kernel mode: this results in saving the state at the time
+// of the exception and calling the defined hook.
+//
+// 2) An exception in guest mode: the original kernel frame is restored, and
+// the vector & error codes are pushed as return values.
+//
+// See below for the stubs that call exception.
+TEXT ·exception2(SB),NOSPLIT,$0
 	// Determine whether the exception occurred in kernel mode or user
 	// mode, based on the flags. We expect the following stack:
 	//
@@ -359,29 +446,31 @@ TEXT ·exception(SB),NOSPLIT,$0
 	JZ kernel
 
 user:
+//TODO(aghosn) maybe flags
 	SWAP_GS()
-	ADDQ $-8, SP                            // Adjust for flags.
-	MOVQ $_KERNEL_FLAGS, 0(SP); BYTE $0x9d; // Reset flags (POPFQ).
-	XCHGQ CPU_REGISTERS+PTRACE_RAX(GS), AX  // Swap for user regs.
-	REGISTERS_SAVE(AX, 0)                   // Save all except IP, FLAGS, SP, AX.
-	MOVQ CPU_REGISTERS+PTRACE_RAX(GS), BX   // Restore original AX.
-	MOVQ BX, PTRACE_RAX(AX)                 // Save it.
-	MOVQ BX, PTRACE_ORIGRAX(AX)
-	MOVQ 16(SP), BX; MOVQ BX, PTRACE_RIP(AX)
-	MOVQ 24(SP), CX; MOVQ CX, PTRACE_CS(AX)
-	MOVQ 32(SP), DX; MOVQ DX, PTRACE_FLAGS(AX)
-	MOVQ 40(SP), DI; MOVQ DI, PTRACE_RSP(AX)
-	MOVQ 48(SP), SI; MOVQ SI, PTRACE_SS(AX)
+	MOVQ AX, CPU_REGISTERS+PTRACE_RAX(GS)
+	MOVQ AX, CPU_REGISTERS+PTRACE_ORIGRAX(GS)
+	REGISTERS_SAVE(GS, CPU_REGISTERS)
+	MOVQ 16(SP), AX; MOVQ AX, CPU_REGISTERS+PTRACE_RIP(GS)
+	MOVQ 32(SP), BX; MOVQ BX, CPU_REGISTERS+PTRACE_FLAGS(GS)
+	MOVQ 40(SP), CX; MOVQ CX, CPU_REGISTERS+PTRACE_RSP(GS)
 
-	// Copy out and return.
-	MOVQ 0(SP), BX                        // Load vector.
-	MOVQ 8(SP), CX                        // Load error code.
-	MOVQ CPU_REGISTERS+PTRACE_RSP(GS), SP // Original stack (kernel version).
-	MOVQ CPU_REGISTERS+PTRACE_RBP(GS), BP // Original base pointer.
-	MOVQ CX, CPU_ERROR_CODE(GS)           // Set error code.
-	MOVQ $1, CPU_ERROR_TYPE(GS)           // Set error type to user.
-	MOVQ BX, 24(SP)                       // Output vector.
-	RET
+	// Set the error code and adjust the stack.
+	MOVQ 8(SP), AX              // Load the error code.
+	MOVQ AX, CPU_ERROR_CODE(GS) // Copy out to the CPU.
+	MOVQ $0, CPU_ERROR_TYPE(GS) // Set error type to kernel.
+	MOVQ 0(SP), BX              // BX contains the vector.
+	ADDQ $48, SP                // Drop the exception frame.
+
+	// Call the exception trampoline.
+	LOAD_KERNEL_STACK(GS)
+	MOVQ CPU_SELF(GS), AX     // Load vCPU.
+	PUSHQ BX                  // Second argument (vector).
+	PUSHQ AX                  // First argument (vCPU).
+	CALL ·kernelException(SB) // Call the trampoline.
+	POPQ BX                   // Pop vector.
+	POPQ AX                   // Pop vCPU.
+	JMP ·resumeUser(SB)
 
 kernel:
 	// As per above, we can save directly.
@@ -412,13 +501,13 @@ kernel:
 #define EXCEPTION_WITH_ERROR(value, symbol) \
 TEXT symbol,NOSPLIT,$0; \
 	PUSHQ $value; \
-	JMP ·exception(SB);
+	JMP ·exception2(SB);
 
 #define EXCEPTION_WITHOUT_ERROR(value, symbol) \
 TEXT symbol,NOSPLIT,$0; \
 	PUSHQ $0x0; \
 	PUSHQ $value; \
-	JMP ·exception(SB);
+	JMP ·exception2(SB);
 
 EXCEPTION_WITHOUT_ERROR(DivideByZero, ·divideByZero(SB))
 EXCEPTION_WITHOUT_ERROR(Debug, ·debug(SB))

@@ -40,7 +40,7 @@ type Machine struct {
 
 	// vCPUs are the machine vCPUs
 	//
-	// Thses are populated dynamically.
+	// These are populated dynamically.
 	vCPUs map[uint64]*vCPU
 
 	// vCPUsByID are the machine vCPUs, can be indexed by the vCPU's ID.
@@ -104,6 +104,9 @@ type vCPU struct {
 	vCPUArchState
 
 	dieState dieState
+
+	// let's us decide whether the vcpu should be changed.
+	entered bool
 }
 
 type dieState struct {

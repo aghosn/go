@@ -6,6 +6,7 @@ import (
 	"gosb/vtx/platform/kvm"
 	"log"
 	"os"
+	"runtime"
 	"sync"
 	"syscall"
 )
@@ -51,8 +52,11 @@ func Init() {
 //go:nosplit
 func Prolog(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
+		runtime.LockOSThread()
+		runtime.AssignSbId(id)
 		sb.SwitchToUser()
 		// From here, we made the switch to the VM
+		runtime.UnlockOSThread()
 		return
 	}
 	throw("error finding sandbox vtx machine.")
@@ -60,11 +64,13 @@ func Prolog(id commons.SandId) {
 
 //go:nosplit
 func Epilog(id commons.SandId) {
+	//TODO(aghosn) probably need to lock the thread?
 	kvm.Redpill()
 }
 
 //go:nosplit
 func Transfer(oldid, newid int, start, size uintptr) {
+	do, sbid := ExitSB()
 	lunmap, ok := globals.PkgIdToSid[oldid]
 	lmap, ok1 := globals.PkgIdToSid[newid]
 
@@ -84,10 +90,12 @@ func Transfer(oldid, newid int, start, size uintptr) {
 			}
 		}
 	}
+	ReenterSB(do, sbid)
 }
 
 //go:nosplit
 func Register(id int, start, size uintptr) {
+	do, sbid := ExitSB()
 	lmap, ok := globals.PkgIdToSid[id]
 	// TODO probably lock.
 	if ok {
@@ -97,9 +105,59 @@ func Register(id int, start, size uintptr) {
 			}
 		}
 	}
+	ReenterSB(do, sbid)
 }
 
 //go:nosplit
 func Execute(id commons.SandId) {
 	//TODO(aghosn) implement
+	// What we need to do :
+	// 1. Are we executing inside the VM?
+	// 2. If so, should which one?
+	// 3. If not, switch to sandbox?
+	msbid := runtime.GetmSbIds()
+	if msbid == id {
+		// Already in the correct context, continue
+		return
+	}
+	// We are inside the VM, scheduling something else.
+	// Redpill out.
+	if id == "" {
+		runtime.LockOSThread()
+		kvm.Redpill()
+		runtime.AssignSbId(id)
+		runtime.UnlockOSThread()
+		return
+	}
+	// We are outside the VM, scheduling something outside.
+	if msbid == "" && id != "" {
+		Prolog(id)
+		return
+	}
+	// nested VMs? Or just the scheduler?
+	if msbid != "" && id != "" && msbid != id {
+		throw("Urf shit")
+	}
+}
+
+//go:nosplit
+func ExitSB() (bool, string) {
+	runtime.LockOSThread()
+	msbid := runtime.GetmSbIds()
+	if msbid == "" {
+		runtime.UnlockOSThread()
+		return false, msbid
+	}
+	kvm.Redpill()
+	runtime.AssignSbId("")
+	runtime.UnlockOSThread()
+	return true, msbid
+}
+
+//go:nosplit
+func ReenterSB(do bool, id string) {
+	if !do {
+		return
+	}
+	Prolog(id)
 }

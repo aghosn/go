@@ -63,6 +63,31 @@ func LitterboxHooks(
 	bloatInitDone = true
 }
 
+// AssignSbId acquires assigns g.sbid == m.sbid == id
+// This might change g0? Should we make it explicit?
+//
+//go:nosplit
+func AssignSbId(id string) {
+	_g_ := getg()
+	if _g_ == nil || _g_.m == nil || _g_.m.g0 == nil {
+		throw("g, m, or g0 is nil")
+	}
+	_g_.sbid = id
+	_g_.m.sbid = id
+	_g_.m.g0.sbid = id
+}
+
+// GetmSbIds returns the m ids
+//
+//go:nosplit
+func GetmSbIds() string {
+	_g_ := getg()
+	if _g_.sbid != _g_.m.sbid || _g_.sbid != _g_.m.g0.sbid {
+		throw("sbids do not match.")
+	}
+	return _g_.m.sbid
+}
+
 // TODO(aghosn) debugging functions. Remove afterwards
 //
 //go:nosplit

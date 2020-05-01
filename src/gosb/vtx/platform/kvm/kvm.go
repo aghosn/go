@@ -2,14 +2,16 @@ package kvm
 
 import (
 	"gosb/commons"
-	//"gosb/debug"
 	"gosb/vtx/platform/ring0"
 	pt "gosb/vtx/platform/ring0/pagetables"
 	"gosb/vtx/platform/vmas"
 	"log"
 	"reflect"
-	"runtime"
 	"syscall"
+)
+
+var (
+	bluepillretaddr = uint64(reflect.ValueOf(Bluepillret).Pointer())
 )
 
 // Bluepillret does a simple return to avoid doing a CLI again.
@@ -78,15 +80,12 @@ func (k *KVM) SwitchToUser() {
 		Flush:       false,
 		FullRestore: true,
 	}
-	opts.Registers.Rip = uint64(reflect.ValueOf(Bluepillret).Pointer())
-	//debug.TakeValue(2)
-	runtime.LockOSThread()
-	//entersyscall()
-	GetFs(&opts.Registers.Fs) // making sure we get the correct FS value.
-	//debug.TakeValue(3)
-	c.SwitchToUser(opts, nil)
-	//debug.TakeValue(10)
-	runtime.UnlockOSThread()
-	//exitsyscall()
-	//debug.TakeValue(11)
+	opts.Registers.Rip = bluepillretaddr //uint64(reflect.ValueOf(Bluepillret).Pointer())
+	GetFs(&opts.Registers.Fs)            // making sure we get the correct FS value.
+	if !c.entered {
+		c.SwitchToUser(opts, nil)
+		return
+	}
+	// The vcpu was already entered, we just return to it.
+	bluepill(c)
 }

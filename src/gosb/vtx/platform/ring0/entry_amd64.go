@@ -63,7 +63,7 @@ func iret(*CPU, *syscall.PtraceRegs) Vector
 // exception is the generic exception entry.
 //
 // This is called by the individual stub definitions.
-func exception()
+func exception2()
 
 // resume is a stub that restores the CPU kernel registers.
 //
