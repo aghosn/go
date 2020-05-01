@@ -79,6 +79,7 @@ func (c *vCPU) KernelException(vector ring0.Vector) {
 		// attempt to return and a full stack trace.
 		regs.Rip = 0
 	}
+	c.exceptionCode = int(vector)
 	InternalVector = int(vector)
 	// See above.
 	//ring0.SaveFloatingPoint((*byte)(c.floatingPointState))

@@ -463,7 +463,7 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0
 	SYSCALL
 	INT $3	// not reached
 
-TEXT runtime·sysMmap(SB),NOSPLIT,$0
+TEXT runtime·sysMmap2(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI
 	MOVQ	n+8(FP), SI
 	MOVL	prot+16(FP), DX

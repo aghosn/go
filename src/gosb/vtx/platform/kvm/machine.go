@@ -107,6 +107,9 @@ type vCPU struct {
 
 	// let's us decide whether the vcpu should be changed.
 	entered bool
+
+	// marking the exception error.
+	exceptionCode int
 }
 
 type dieState struct {

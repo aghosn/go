@@ -159,8 +159,14 @@ func bluepillHandler(context unsafe.Pointer) {
 					throw("invalid state")
 				}
 				return
+			case syshandlerErr1:
+				throw("Something wrong err 1")
+			case syshandlerErr2:
+				throw("Something wrong err 2")
+			case syshandlerException:
+				throw("Died with an exception")
 			default:
-				throw("Something went wrong with the exit")
+				throw("Something went wrong not identified")
 			}
 		case _KVM_EXIT_MMIO:
 			throw("Implement support for MMIO")

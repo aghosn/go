@@ -13,10 +13,12 @@ const (
 type sysHType = uint8
 
 const (
-	syshandlerErr     sysHType = iota // something was wrong
-	syshandlerValid   sysHType = iota // valid system call
-	syshandlerInvalid sysHType = iota // unallowed system call
-	syshandlerBail    sysHType = iota // redpill
+	syshandlerErr1      sysHType = iota // something was wrong
+	syshandlerErr2      sysHType = iota // something was wrong
+	syshandlerException sysHType = iota
+	syshandlerValid     sysHType = iota // valid system call
+	syshandlerInvalid   sysHType = iota // unallowed system call
+	syshandlerBail      sysHType = iota // redpill
 )
 
 //go:nosplit
@@ -31,12 +33,19 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 	regs := vcpu.Registers()
 	// 1. Check that the Rip is valid, @later use seccomp too to disambiguate kern/user.
 	if !vcpu.machine.ValidAddress(regs.Rip, c.X_VAL) {
-		return syshandlerErr
+		return syshandlerErr1
 	}
 	// 2. Check that Rip is a syscall.
 	instr := (*uint16)(unsafe.Pointer(uintptr(regs.Rip - 2)))
 	if *instr != _SYSCALL_INSTR {
-		return syshandlerErr
+		if vcpu.exceptionCode == 14 && vcpu.machine.ValidAddress(regs.Rax, c.W_VAL|c.R_VAL) {
+			vcpu.exceptionCode = -1
+			return syshandlerValid
+		}
+		if vcpu.exceptionCode != 0 {
+			return syshandlerException
+		}
+		return syshandlerErr2
 	}
 
 	// 2.1 TODO(aghosn) filter the syscalls.

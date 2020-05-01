@@ -8,8 +8,11 @@ import (
 // time stamps to see where the code goes. Voila voila.
 
 var (
-	MRTValues [30]int
-	MRTIndex  int
+	MRTValues  [30]int
+	MRTIndex   int
+	MRTMarkers [15]int
+	MRTUpdates [50]uintptr
+	MRTUIdx    int = 0
 )
 
 // Reset the debugging tags
@@ -28,8 +31,24 @@ func TakeValue(a int) {
 	}
 }
 
+//go:nosplit
+func DoneAdding(a uintptr) {
+	if MRTUIdx < len(MRTUpdates) {
+		MRTUpdates[MRTUIdx] = a
+		MRTUIdx++
+	}
+}
+
+//go:nosplit
+func TakeInc(a int) {
+	if a >= len(MRTMarkers) {
+		return
+	}
+	MRTMarkers[a]++
+}
+
 func DumpValues() {
-	fmt.Printf("Dumping values: (%v) -- (%v)\n", MRTIndex)
+	fmt.Printf("Dumping values: (%v)\n", MRTIndex)
 	for i := 0; i < MRTIndex; i++ {
 		fmt.Printf("%v: %v\n", i, MRTValues[i])
 	}

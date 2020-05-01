@@ -2,6 +2,7 @@ package vtx
 
 import (
 	"gosb/commons"
+	"gosb/debug"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
 	"log"
@@ -42,9 +43,6 @@ func Init() {
 			}
 			machines[d.Config.Id] = kvm.New(int(kvmFd.Fd()), d)
 		}
-		//TODO(aghosn) remove once we are done testing.
-		//kvm.FullMapTest(int(kvmFd.Fd()))
-		// We should be done with it now.
 		kvmFd.Close()
 	})
 }
@@ -52,6 +50,7 @@ func Init() {
 //go:nosplit
 func Prolog(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
+		debug.TakeInc(0)
 		runtime.LockOSThread()
 		runtime.AssignSbId(id)
 		sb.SwitchToUser()
@@ -59,53 +58,51 @@ func Prolog(id commons.SandId) {
 		runtime.UnlockOSThread()
 		return
 	}
-	throw("error finding sandbox vtx machine.")
+	throw("error finding sandbox vtx machine: '" + id + "'")
 }
 
 //go:nosplit
 func Epilog(id commons.SandId) {
-	//TODO(aghosn) probably need to lock the thread?
 	kvm.Redpill()
 }
 
 //go:nosplit
 func Transfer(oldid, newid int, start, size uintptr) {
-	do, sbid := ExitSB()
-	lunmap, ok := globals.PkgIdToSid[oldid]
-	lmap, ok1 := globals.PkgIdToSid[newid]
-
-	// Unmap the pages. TODO(aghosn) probably need a lock.
-	if ok {
-		for _, u := range lunmap {
-			if vm, ok2 := machines[u]; ok2 {
-				vm.Unmap(start, size)
+	tryInHost(func() {
+		lunmap, ok := globals.PkgIdToSid[oldid]
+		lmap, ok1 := globals.PkgIdToSid[newid]
+		if ok {
+			for _, u := range lunmap {
+				if vm, ok2 := machines[u]; ok2 {
+					vm.Unmap(start, size)
+				}
 			}
 		}
-	}
-	// Map the pages. Also probably need a lock.
-	if ok1 {
-		for _, m := range lmap {
-			if vm, ok2 := machines[m]; ok2 {
-				vm.Map(start, size, commons.HEAP_VAL)
+		// Map the pages. Also probably need a lock.
+		if ok1 {
+			for _, m := range lmap {
+				if vm, ok2 := machines[m]; ok2 {
+					vm.Map(start, size, commons.HEAP_VAL)
+				}
 			}
 		}
-	}
-	ReenterSB(do, sbid)
+	})
 }
 
 //go:nosplit
 func Register(id int, start, size uintptr) {
-	do, sbid := ExitSB()
-	lmap, ok := globals.PkgIdToSid[id]
-	// TODO probably lock.
-	if ok {
-		for _, m := range lmap {
-			if vm, ok1 := machines[m]; ok1 {
-				vm.Map(start, size, commons.HEAP_VAL)
+	tryInHost(func() {
+		lmap, ok := globals.PkgIdToSid[id]
+		// TODO probably lock.
+		if ok {
+			for _, m := range lmap {
+				if vm, ok1 := machines[m]; ok1 {
+					vm.Map(start, size, commons.HEAP_VAL)
+				}
 			}
 		}
-	}
-	ReenterSB(do, sbid)
+		debug.DoneAdding(start)
+	})
 }
 
 //go:nosplit
@@ -140,24 +137,38 @@ func Execute(id commons.SandId) {
 	}
 }
 
+// tryRedpill exits the VM iff we are in a VM.
+// It returns true if we were in a VM, and the current sbid.
+//
 //go:nosplit
-func ExitSB() (bool, string) {
+func tryRedpill() (bool, string) {
 	runtime.LockOSThread()
 	msbid := runtime.GetmSbIds()
 	if msbid == "" {
 		runtime.UnlockOSThread()
 		return false, msbid
 	}
+	debug.TakeInc(1)
 	kvm.Redpill()
 	runtime.AssignSbId("")
 	runtime.UnlockOSThread()
 	return true, msbid
 }
 
+// tryBluepill tries to return to the provided sandbox if do is true
+// and id is not empty.
+//
 //go:nosplit
-func ReenterSB(do bool, id string) {
-	if !do {
+func tryBluepill(do bool, id string) {
+	if !do || id == "" {
 		return
 	}
 	Prolog(id)
+}
+
+//go:nosplit
+func tryInHost(f func()) {
+	do, msbid := tryRedpill()
+	f()
+	tryBluepill(do, msbid)
 }

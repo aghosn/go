@@ -2,7 +2,7 @@ package runtime
 
 // TODO(aghosn) For debugging, remove afterwards.
 var (
-	MRTRuntimeVals [30]int
+	MRTRuntimeVals [60]uintptr
 	MRTRuntimeIdx  int   = 0
 	MRTId          int64 = -1
 	MRTBaddy       int   = 0
@@ -91,7 +91,7 @@ func GetmSbIds() string {
 // TODO(aghosn) debugging functions. Remove afterwards
 //
 //go:nosplit
-func TakeValue(a int) {
+func TakeValue(a uintptr) {
 	if MRTRuntimeIdx < len(MRTRuntimeVals) {
 		MRTRuntimeVals[MRTRuntimeIdx] = a
 		MRTRuntimeIdx++
@@ -111,7 +111,7 @@ func StartCapture() {
 }
 
 //go:nosplit
-func TakeValueTrace(a int) {
+func TakeValueTrace(a uintptr) {
 	_g_ := getg()
 	if _g_ == nil {
 		return
