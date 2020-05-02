@@ -236,6 +236,36 @@ func (s *VMAreas) Unmap(vma *VMArea) {
 	}
 }
 
+func (s *VMAreas) Mirror() *VMAreas {
+	mirror := &VMAreas{}
+	a := &VMArea{
+		commons.ListElem{},
+		commons.Section{
+			Addr: 0x0,
+			Size: uint64(commons.Limit39bits),
+		},
+		0,
+		^uint32(0),
+	}
+	mirror.AddBack(a.ToElem())
+	for v := ToVMA(s.First); v != nil; v = ToVMA(v.Next) {
+		mirror.Unmap(v)
+	}
+	return mirror
+}
+
+func (vs *VMAreas) Copy() *VMAreas {
+	if vs == nil {
+		return nil
+	}
+	doppler := &VMAreas{}
+	for v := ToVMA(vs.First); v != nil; v = ToVMA(v.Next) {
+		cpy := v.Copy()
+		doppler.AddBack(cpy.ToElem())
+	}
+	return doppler
+}
+
 // Apply transforms these VMAreas into pages tables referenced by table.
 // It would have been better to implement this as part of the kernel,
 // but we want to avoid introducing our own code inside ring0.

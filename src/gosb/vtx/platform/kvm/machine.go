@@ -159,7 +159,7 @@ func (m *Machine) newVCPU() *vCPU {
 
 func newMachine(vm int, d *commons.Domain) (*Machine, error) {
 	// TODO(aghosn) change the restrictions here afterwards.
-	fvmas := ParseProcessAddressSpace(commons.USER_VAL)
+	fvmas := vmas.ParseProcessAddressSpace(commons.USER_VAL)
 	full := vmas.Convert(fvmas)
 	space := vmas.ToVMAreas(d, full)
 	// Create the machine.

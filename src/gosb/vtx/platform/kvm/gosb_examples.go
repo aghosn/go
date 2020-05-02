@@ -118,7 +118,7 @@ func FullMapTest(kvmfd int) {
 		break
 	}
 
-	vmareas := ParseProcessAddressSpace(commons.SUPER_VAL)
+	vmareas := vmas.ParseProcessAddressSpace(commons.SUPER_VAL)
 	// We have the entire address space.
 	// now convertSlice into list.
 	space := vmas.Convert(vmareas)

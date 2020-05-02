@@ -5,6 +5,7 @@ import (
 	"gosb/debug"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
+	"gosb/vtx/platform/vmas"
 	"log"
 	"os"
 	"runtime"
@@ -21,8 +22,15 @@ var (
 	machines map[commons.SandId]*kvm.KVM
 )
 
+func temporary() {
+	vmas.InitFullMemoryView()
+}
+
 func Init() {
 	kvmOnce.Do(func() {
+
+		temporary()
+
 		kvmFd, err := os.OpenFile(_KVM_DRIVER_PATH, syscall.O_RDWR, 0)
 		if err != nil {
 			log.Fatalf("error opening /dev/kvm: %v\n", err)

@@ -113,6 +113,12 @@ func (vm *VMArea) merge(o *VMArea) (*VMArea, bool) {
 	return vm, true
 }
 
+func (v *VMArea) Copy() *VMArea {
+	doppler := &VMArea{}
+	doppler.Addr, doppler.Size, doppler.Prot = v.Addr, v.Size, v.Prot
+	return doppler
+}
+
 // InvalidAddr return true if the address is above the guest physical limit.
 func (v *VMArea) InvalidAddr() bool {
 	return uintptr(v.Addr+v.Size) > commons.Limit39bits
