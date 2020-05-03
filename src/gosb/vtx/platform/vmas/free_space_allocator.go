@@ -69,11 +69,12 @@ func (f *FreeSpaceAllocator) Malloc(size uint64) uint64 {
 		f.Used.AddBack(candidate.ToElem())
 		return candidate.Addr
 	}
-	used := &VMArea{}
-	used.Addr, used.Size = candidate.Addr, size
-	f.Used.AddBack(used.ToElem())
+	//used := &VMArea{}
+	//used.Addr, used.Size = candidate.Addr, size
+	result := candidate.Addr
+	//f.Used.AddBack(used.ToElem())
 	candidate.Addr, candidate.Size = candidate.Addr+size, candidate.Size-size
-	return used.Addr
+	return result //used.Addr
 }
 
 func (f *FreeSpaceAllocator) Copy() *FreeSpaceAllocator {

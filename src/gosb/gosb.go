@@ -38,6 +38,7 @@ func initRuntime() {
 		getPkgName,
 		backend.transfer,
 		backend.register,
+		backend.runtimeGrowth,
 		backend.execute,
 		backend.prolog,
 		backend.epilog,

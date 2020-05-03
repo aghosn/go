@@ -162,13 +162,15 @@ func (a *AddressSpace) Toggle(on bool, start, size uintptr, prot uint8) {
 	}
 	// We did not have a match, check if we should add something.
 	if on {
-		a.Extend(uint64(start), uint64(size), prot)
+		a.Extend(nil, uint64(start), uint64(size), prot)
 	}
 }
 
 //go:nosplit
-func (a *AddressSpace) Extend(start, size uint64, prot uint8) {
-	m := &MemoryRegion{}
+func (a *AddressSpace) Extend(m *MemoryRegion, start, size uint64, prot uint8) {
+	if m == nil {
+		m = &MemoryRegion{}
+	}
 	m.Tpe = EXTENSIBLE_REG
 	m.Span.Start, m.Span.Size, m.Span.Prot = start, size, prot
 	m.Owner = a

@@ -12,12 +12,13 @@ type Backend = int
 type backendConfig struct {
 	tpe Backend
 	//Functions for hooks in the runtime
-	init     func()
-	prolog   func(id c.SandId)
-	epilog   func(id c.SandId)
-	transfer func(oldid, newid int, start, size uintptr)
-	register func(id int, start, size uintptr)
-	execute  func(id c.SandId)
+	init          func()
+	prolog        func(id c.SandId)
+	epilog        func(id c.SandId)
+	transfer      func(oldid, newid int, start, size uintptr)
+	register      func(id int, start, size uintptr)
+	execute       func(id c.SandId)
+	runtimeGrowth func(id int, start, size uintptr)
 }
 
 const (
@@ -30,9 +31,9 @@ const (
 // Configurations
 var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
-		backendConfig{SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute},
-		backendConfig{VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute},
-		backendConfig{MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute},
+		backendConfig{SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute, nil},
+		backendConfig{VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, vtx.RuntimeGrowth},
+		backendConfig{MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute, nil},
 	}
 )
 

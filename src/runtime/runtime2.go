@@ -523,7 +523,9 @@ type m struct {
 	mOS
 
 	// @aghosn marking the M as belonging to a sandbox.
-	sbid string
+	sbid    string
+	nester  int32
+	toclean *mspan
 }
 
 type p struct {

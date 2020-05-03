@@ -3,6 +3,7 @@ package kvm
 import (
 	"gosb/commons"
 	"gosb/vtx/platform/ring0"
+	"gosb/vtx/platform/vmas"
 	"log"
 	"reflect"
 	"syscall"
@@ -20,6 +21,9 @@ func Bluepillret()
 type KVM struct {
 	// TODO(aghosn) do we need extra info?
 	Machine *Machine
+
+	// Used for emergency runtime growth
+	EMR [10]*vmas.MemoryRegion
 
 	// uregs is used to switch to user space.
 	uregs syscall.PtraceRegs
@@ -46,12 +50,46 @@ func New(fd int, d *commons.Domain) *KVM {
 	if err != nil {
 		log.Fatalf("error creating the machine: %v\n", err)
 	}
-	return &KVM{Machine: machine}
+	kvm := &KVM{Machine: machine}
+	// Allocate special emergency regions. Need to see when we can reallocate some.
+	for i := range kvm.EMR {
+		kvm.EMR[i] = &vmas.MemoryRegion{}
+	}
+	return kvm
+}
+
+//go:nosplit
+func (k *KVM) AcquireEMR() *vmas.MemoryRegion {
+	//TODO(aghosn) probably need a lock
+	for i := range k.EMR {
+		if k.EMR[i] != nil {
+			result := k.EMR[i]
+			k.EMR[i] = nil
+			return result
+		}
+	}
+	panic("Unable to acquire a new memory region :(")
+	return nil
 }
 
 //go:nosplit
 func (k *KVM) Map(start, size uintptr, prot uint8) {
 	k.Machine.MemView.Toggle(true, start, size, prot)
+}
+
+// @warning cannot do dynamic allocation.
+//
+//go:nosplit
+func (k *KVM) ExtendRuntime(start, size uintptr, prot uint8) {
+	m := k.AcquireEMR()
+	k.Machine.MemView.Extend(m, uint64(start), uint64(size), prot)
+	err := k.Machine.setEPTRegion(
+		k.Machine.MemView.NextSlot, m.Span.GPA, m.Span.Size, m.Span.Start, 0)
+	if err != 0 {
+		panic("Error mapping slot")
+	}
+	m.Span.Slot = k.Machine.MemView.NextSlot
+	k.Machine.MemView.NextSlot++
 }
 
 //go:nosplit

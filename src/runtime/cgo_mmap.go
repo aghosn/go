@@ -50,8 +50,8 @@ func munmap(addr unsafe.Pointer, n uintptr) {
 // sysMmap calls the mmap system call. It is implemented in assembly.
 func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int) {
 	p, err = sysMmap2(addr, n, prot, flags, fd, off)
-	if registerSection != nil {
-		registerSection(0, uintptr(p), n)
+	if runtimeGrowth != nil {
+		runtimeGrowth(0, uintptr(p), n)
 		TakeValue(uintptr(p))
 		TakeValue(n)
 	}

@@ -108,6 +108,24 @@ func Register(id int, start, size uintptr) {
 	})
 }
 
+// @warning canno do dynamic allocation!
+//
+//go:nosplit
+func RuntimeGrowth(id int, start, size uintptr) {
+	tryInHost(
+		func() {
+			lmap, ok := globals.PkgIdToSid[id]
+			// TODO probably lock.
+			if ok {
+				for _, m := range lmap {
+					if vm, ok1 := machines[m]; ok1 {
+						vm.ExtendRuntime(start, size, commons.HEAP_VAL)
+					}
+				}
+			}
+		})
+}
+
 //go:nosplit
 func Execute(id commons.SandId) {
 	//TODO(aghosn) implement

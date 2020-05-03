@@ -23,6 +23,7 @@ var (
 	registerSection   func(id int, start, size uintptr)           = nil
 	unregisterSection func(old int, start, size uintptr)          = nil
 	transferSection   func(oldid, newid int, start, size uintptr) = nil
+	runtimeGrowth     func(id int, start, size uintptr)           = nil
 	executeSandbox    func(id string)                             = nil
 	prologHook        func(id string)                             = nil
 	epilogHook        func(id string)                             = nil
@@ -44,6 +45,7 @@ func LitterboxHooks(
 	f func(string) string,
 	t func(int, int, uintptr, uintptr),
 	r func(int, uintptr, uintptr),
+	g func(int, uintptr, uintptr),
 	e func(string),
 	prolog func(string),
 	epilog func(string),
@@ -57,6 +59,7 @@ func LitterboxHooks(
 	nameToPkg = f
 	transferSection = t
 	registerSection = r
+	runtimeGrowth = g
 	executeSandbox = e
 	prologHook = prolog
 	epilogHook = epilog
