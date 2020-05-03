@@ -46,6 +46,8 @@ type AddressSpace struct {
 
 	PTEAllocator *PageTableAllocator // relies on FreeAllocator.
 	Tables       *pg.PageTables      // Page table as in ring0
+
+	NextSlot uint32 // EPT mappings slots.
 }
 
 /*				AddressSpace methods				*/
@@ -84,7 +86,7 @@ func (a *AddressSpace) Initialize(procmap *VMAreas) {
 		// Update the loop.
 		v = tail
 	}
-	a.Print()
+	//a.Print()
 }
 
 // Translate the address space into page tables.
@@ -137,6 +139,50 @@ func (a *AddressSpace) CreateMemoryRegion(head *VMArea, tail *VMArea) *MemoryReg
 	return mem
 }
 
+//go:nosplit
+func (a *AddressSpace) ValidAddress(addr uint64, prot uint8) bool {
+	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
+		if addr >= m.Span.Start && addr < m.Span.Start+m.Span.Size {
+			if prot&m.Span.Prot != prot {
+				return false
+			}
+			return m.ValidAddress(addr)
+		}
+	}
+	return false
+}
+
+//go:nosplit
+func (a *AddressSpace) Toggle(on bool, start, size uintptr, prot uint8) {
+	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
+		if m.ContainsRegion(uint64(start), uint64(size)) {
+			m.Toggle(on, uint64(start), uint64(size), prot)
+			return
+		}
+	}
+	// We did not have a match, check if we should add something.
+	if on {
+		a.Extend(uint64(start), uint64(size), prot)
+	}
+}
+
+//go:nosplit
+func (a *AddressSpace) Extend(start, size uint64, prot uint8) {
+	m := &MemoryRegion{}
+	m.Tpe = EXTENSIBLE_REG
+	m.Span.Start, m.Span.Size, m.Span.Prot = start, size, prot
+	m.Owner = a
+	m.Span.Slot = a.NextSlot
+	a.NextSlot++
+	if m.Span.Start+m.Span.Size <= uint64(commons.Limit39bits) {
+		m.Span.GPA = m.Span.Start
+	} else {
+		m.Span.GPA = a.FreeAllocator.Malloc(m.Span.Size)
+	}
+	a.Regions.AddBack(m.ToElem())
+	m.ApplyRange(start, size, pg.ConvertOpts(commons.D_VAL))
+}
+
 /*				MemoryRegion methods				*/
 
 //go:nosplit
@@ -187,6 +233,7 @@ func (m *MemoryRegion) ApplyRange(start, size uint64, deflags uintptr) {
 			_, addr := m.Owner.PTEAllocator.NewPTEs2()
 			return uintptr(addr)
 		}
+
 		// This is a PTE entry, we map the physical page.
 		gpa := (addr - uintptr(m.Span.Start)) + uintptr(m.Span.GPA)
 		return gpa
@@ -215,7 +262,7 @@ func (m *MemoryRegion) Apply(deflags uintptr) {
 	// Bitmap case.
 	head := -1
 	tail := -1
-	start, end := 0, bitmapSize(len(m.Bitmap))
+	start, end := 0, bitmapSize(len(m.Bitmap))-1
 	for i := start; i <= end; i++ {
 		bit := m.Bitmap[idX(i)] & uint64(1<<idY(i))
 		// Bit is present.
@@ -224,8 +271,12 @@ func (m *MemoryRegion) Apply(deflags uintptr) {
 				head = i
 			}
 			tail = i
+			if i == end {
+				goto mapp
+			}
 			continue
 		}
+	mapp:
 		// Bit is 0, applyRange or do nothing.
 		if head != -1 {
 			check(tail != -1)
@@ -285,6 +336,66 @@ func (m *MemoryRegion) Copy() *MemoryRegion {
 		return doppler
 	}
 	return doppler
+}
+
+// ValidAddress
+//
+//go:nosplit
+func (m *MemoryRegion) ValidAddress(addr uint64) bool {
+	if addr < m.Span.Start || addr >= m.Span.Start+m.Span.Size {
+		return false
+	}
+	if m.Tpe == EXTENSIBLE_REG || len(m.Bitmap) == 0 {
+		return true
+	}
+	c := m.Coordinates(addr)
+	return (m.Bitmap[idX(c)]&uint64(1<<idY(c)) != 0)
+}
+
+//go:nosplit
+func (m *MemoryRegion) ContainsRegion(addr, size uint64) bool {
+	// Not completely correct but oh well right now.
+	return m.ValidAddress(addr) && m.ValidAddress(addr+size)
+}
+
+//go:nosplit
+func (m *MemoryRegion) Toggle(on bool, start, size uint64, prot uint8) {
+	if m.Tpe == EXTENSIBLE_REG {
+		// Should not happen
+		panic("You want to map something that is mapped?")
+	}
+	s := m.Coordinates(start)
+	e := m.Coordinates(start + size - 1)
+	for i := s; i <= e; i++ {
+		if on {
+			m.Bitmap[idX(i)] |= uint64(1 << idY(i))
+		} else {
+			m.Bitmap[idX(i)] &= ^uint64(1 << idY(i))
+		}
+	}
+	deflags := pg.ConvertOpts(prot)
+	// Now apply to pagetable.
+	visit := func(pte *pg.PTE, lvl int) {
+		if lvl != 0 {
+			return
+		}
+		if on {
+			check(prot == m.Span.Prot)
+			// Should have the same flags
+			pte.Map()
+			flags := pte.Flags()
+			check(flags == deflags)
+		} else {
+			pte.Unmap()
+		}
+	}
+	visitor := pg.Visitor{
+		Applies: [4]bool{false, false, false, true},
+		Create:  false,
+		Alloc:   nil,
+		Visit:   visit,
+	}
+	m.Owner.Tables.Map(uintptr(start), uintptr(size), &visitor)
 }
 
 /*				Span methods				*/

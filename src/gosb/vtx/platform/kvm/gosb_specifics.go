@@ -1,28 +1,34 @@
 package kvm
 
 import (
+	"gosb/commons"
 	"gosb/vtx/platform/vmas"
 )
 
 //go:nosplit
 func GetFs(addr *uint64)
 
-// We need to be smart about allocations, try to stick to the vm as close as possible.
-// Maybe we can change the allocation too.
+// SetAllEPTSlots registers the different regions with KVM for HVA -> GPA mappings.
+func (m *Machine) SetAllEPTSlots() {
+	// First, we register the pages used for page tables.
+	m.MemView.PTEAllocator.All.Foreach(func(e *commons.ListElem) {
+		arena := vmas.ToArena(e)
+		err := m.setEPTRegion(m.MemView.NextSlot, arena.GPA, uint64(vmas.ARENA_TOTAL_SIZE), arena.HVA, 0)
+		if err != 0 {
+			panic("Error mapping slot")
+		}
+		arena.Slot = m.MemView.NextSlot
+		m.MemView.NextSlot++
+	})
 
-func (m *Machine) setAllMemoryRegions() {
-	// Set the memory allocator space
-	for v := toArena(m.allocator.all.First); v != nil; v = toArena(v.Next) {
-		m.setMemoryRegion(int(m.nextSlot), v.gpstart, _arenaPageSize, v.hvstart, 0)
-		v.umemSlot = m.nextSlot
-		m.nextSlot++
-	}
-
-	// Set the regular areas.
-	areas := m.kernel.VMareas
-	for v := vmas.ToVMA(areas.First); v != nil; v = vmas.ToVMA(v.Next) {
-		m.setMemoryRegion(int(m.nextSlot), uintptr(v.PhysicalAddr), uintptr(v.Size), uintptr(v.Addr), 0)
-		v.UmemSlot = m.nextSlot
-		m.nextSlot++
-	}
+	// Second, map the memory regions.
+	m.MemView.Regions.Foreach(func(e *commons.ListElem) {
+		span := vmas.ToMemoryRegion(e).Span
+		err := m.setEPTRegion(m.MemView.NextSlot, span.GPA, span.Size, span.Start, 0)
+		if err != 0 {
+			panic("Error mapping slot")
+		}
+		span.Slot = m.MemView.NextSlot
+		m.MemView.NextSlot++
+	})
 }

@@ -2,7 +2,6 @@ package ring0
 
 import (
 	"gosb/vtx/platform/ring0/pagetables"
-	"gosb/vtx/platform/vmas"
 	"syscall"
 )
 
@@ -149,17 +148,8 @@ var (
 
 // KernelOpts has initialization options for the kernel.
 type KernelOpts struct {
-	// Vmas are the vmareas that correspond to the pagetables below.
-	VMareas *vmas.VMAreas
-
 	// PageTables are the kernel pagetables; this must be provided.
 	PageTables *pagetables.PageTables
-}
-
-// InitVMA2Root initially translate the VMAreas to page tables.
-// @aghosn introduced this.
-func (k *KernelOpts) InitVMA2Root() {
-	k.VMareas.Apply(k.PageTables)
 }
 
 // KernelArchState contains architecture-specific state.

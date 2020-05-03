@@ -69,5 +69,5 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 
 //go:nosplit
 func (m *Machine) ValidAddress(addr uint64, prots uint8) bool {
-	return m.kernel.VMareas.ValidAddress(addr, prots)
+	return m.MemView.ValidAddress(addr, prots)
 }

@@ -148,7 +148,6 @@ type cpuidEntries struct {
 }
 
 func UpdateGlobalOnce(fd int) error {
-	//	physicalInit()
 	err := updateSystemValues(int(fd))
 	ring0.Init(cpuid.HostFeatureSet())
 	return err

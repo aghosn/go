@@ -5,7 +5,6 @@ import (
 	"gosb/mpk"
 	"gosb/sim"
 	"gosb/vtx"
-	"gosb/vtx/old"
 )
 
 type Backend = int
@@ -23,7 +22,6 @@ type backendConfig struct {
 
 const (
 	SIM_BACKEND    Backend = iota
-	OLD_BACKEND    Backend = iota
 	VTX_BACKEND    Backend = iota
 	MPK_BACKEND    Backend = iota
 	__BACKEND_SIZE Backend = iota
@@ -33,7 +31,6 @@ const (
 var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
 		backendConfig{SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute},
-		backendConfig{OLD_BACKEND, old.Init, nil, nil, old.Transfer, old.Register, nil},
 		backendConfig{VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute},
 		backendConfig{MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute},
 	}

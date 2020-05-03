@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	_ARENA_SIZE       = 10
-	_ARENA_TOTAL_SIZE = uintptr(_ARENA_SIZE * _PageSize)
+	ARENA_SIZE       = 10
+	ARENA_TOTAL_SIZE = uintptr(ARENA_SIZE * _PageSize)
 
 	// Handy for mmap
 	_DEFAULT_PROTS = syscall.PROT_READ | syscall.PROT_WRITE
@@ -33,7 +33,7 @@ type Arena struct {
 	commons.ListElem
 	HVA  uint64 // Host virtual address, obtained via mmap.
 	GPA  uint64 // Guest physical address, obtained at alloc time.
-	PTEs [_ARENA_SIZE]*pg.PTEs
+	PTEs [ARENA_SIZE]*pg.PTEs
 	Idx  int
 	Full bool
 	Slot uint32
@@ -100,9 +100,9 @@ func (pga *PageTableAllocator) NewPTEs() *pg.PTEs {
 //go:nosplit
 func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 	if pga.Current == nil {
-		start, err := commons.Mmap(0, _ARENA_TOTAL_SIZE, _DEFAULT_PROTS, _DEFAULT_FALGS, -1, 0)
+		start, err := commons.Mmap(0, ARENA_TOTAL_SIZE, _DEFAULT_PROTS, _DEFAULT_FALGS, -1, 0)
 		check(err == 0 && (start >= commons.Limit39bits))
-		gpstart := pga.Allocator.Malloc(uint64(_ARENA_TOTAL_SIZE))
+		gpstart := pga.Allocator.Malloc(uint64(ARENA_TOTAL_SIZE))
 		current := &Arena{HVA: uint64(start), GPA: gpstart, Slot: ^uint32(0)}
 		pga.All.AddBack(current.ToElem())
 		pga.Current = current
@@ -163,7 +163,7 @@ func (a *Arena) Allocate() (*pg.PTEs, uint64) {
 	pte := (*pg.PTEs)(unsafe.Pointer(uintptr(addr)))
 	a.PTEs[a.Idx] = pte
 	a.Idx++
-	if a.Idx >= _ARENA_SIZE {
+	if a.Idx >= ARENA_SIZE {
 		a.Full = true
 	}
 	return pte, addr - a.HVA + a.GPA
@@ -171,7 +171,7 @@ func (a *Arena) Allocate() (*pg.PTEs, uint64) {
 
 //go:nosplit
 func (a *Arena) ContainsHVA(hva uint64) bool {
-	if hva >= a.HVA && hva < a.HVA+uint64(_ARENA_TOTAL_SIZE) {
+	if hva >= a.HVA && hva < a.HVA+uint64(ARENA_TOTAL_SIZE) {
 		return true
 	}
 	return false
@@ -179,7 +179,7 @@ func (a *Arena) ContainsHVA(hva uint64) bool {
 
 //go:nosplit
 func (a *Arena) ContainsGPA(gpa uint64) bool {
-	if gpa >= a.GPA && gpa < a.GPA+uint64(_ARENA_TOTAL_SIZE) {
+	if gpa >= a.GPA && gpa < a.GPA+uint64(ARENA_TOTAL_SIZE) {
 		return true
 	}
 	return false
@@ -197,7 +197,7 @@ func (a *Arena) HVA2GPA(hva uint64) uint64 {
 //go:nosplit
 func (a *Arena) GPA2HVA(gpa uint64) *pg.PTEs {
 	idx := (gpa - a.GPA) / _PageSize
-	if idx >= _ARENA_SIZE || a.PTEs[idx] == nil {
+	if idx >= ARENA_SIZE || a.PTEs[idx] == nil {
 		panic("Index is too damn high!")
 	}
 	return a.PTEs[idx]

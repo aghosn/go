@@ -169,6 +169,7 @@ func bluepillHandler(context unsafe.Pointer) {
 				throw("Something went wrong not identified")
 			}
 		case _KVM_EXIT_MMIO:
+			c.die(bluepillArchContext(context), "mmio")
 			throw("Implement support for MMIO")
 		case _KVM_EXIT_IRQ_WINDOW_OPEN:
 			// Interrupt: we must have requested an interrupt

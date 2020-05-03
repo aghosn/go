@@ -20,7 +20,6 @@ func InitFullMemoryView() {
 	// Generate the address space.
 	AddressSpaceTemplate = &AddressSpace{}
 	AddressSpaceTemplate.Initialize(FullAddressSpace)
-
 }
 
 // ParseProcessAddressSpace parses the self proc map to get the entire address space.
@@ -70,8 +69,6 @@ func ParseProcessAddressSpace(defProt uint8) []*VMArea {
 				Size: uint64(end - start),
 				Prot: uint8(rights | defProt),
 			},
-			uintptr(start),
-			^uint32(0),
 		}
 		vmareas = append(vmareas, vm)
 	}

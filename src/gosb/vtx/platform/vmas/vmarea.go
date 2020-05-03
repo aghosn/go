@@ -11,13 +11,6 @@ import (
 type VMArea struct {
 	commons.ListElem
 	commons.Section
-
-	// PhysicalAddr is used only for specific regions.
-	// It allows to break HVA == GPA == GVA for VM specific parts.
-	PhysicalAddr uintptr
-
-	// Slot that corresponds to the userMemoryRegion registered with kvm
-	UmemSlot uint32
 }
 
 // SectVMA translates a section into a vmarea
@@ -32,8 +25,6 @@ func SectVMA(s *commons.Section) *VMArea {
 	return &VMArea{
 		commons.ListElem{},
 		commons.Section{s.Addr, size, s.Prot},
-		0,
-		^uint32(0),
 	}
 }
 

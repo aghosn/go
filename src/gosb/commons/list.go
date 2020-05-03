@@ -26,6 +26,12 @@ func (l *List) IsEmpty() bool {
 	return l.First == nil
 }
 
+func (l *List) Foreach(f func(e *ListElem)) {
+	for v := l.First; v != nil; v = v.Next {
+		f(v)
+	}
+}
+
 func (l *List) AddBack(e *ListElem) {
 	if e.Prev != nil || e.Next != nil || e.List != nil {
 		log.Fatalf("element already in a List! %v\n", e)
