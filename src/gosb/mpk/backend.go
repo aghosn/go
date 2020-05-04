@@ -14,6 +14,7 @@ import (
 
 const (
 	_RUNTIME_ID = 0
+	_PROTECTED  = -1
 	_CGO_ID     = -2
 )
 
@@ -68,7 +69,7 @@ func Epilog(id c.SandId) {
 //If the section did not exist, it must be a dynamic library and hence should
 //be added to the package as such.
 func Register(id int, start, size uintptr) {
-	if id == _RUNTIME_ID || id == _CGO_ID { // Runtime
+	if id == _RUNTIME_ID || id == _PROTECTED || id == _CGO_ID { // Runtime
 		return
 	}
 
@@ -230,9 +231,9 @@ func Init() {
 	fmt.Println("Initilizing GOSB with MPK backend")
 	fmt.Printf("Nb of packages:%d\n", n)
 
-	for _, p := range g.Packages {
-		fmt.Printf("%03d - %s\n", p.Id, p.Name)
-	}
+	// for _, p := range g.Packages {
+	// 	fmt.Printf("%03d - %s\n", p.Id, p.Name)
+	// }
 
 	for sbID, sb := range g.Domains {
 		// fmt.Printf("//// Sandbox %s ////\n", sbID)
