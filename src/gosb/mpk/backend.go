@@ -62,7 +62,6 @@ func Epilog(id c.SandId) {
 	WritePKRU(AllRightsPKRU)
 }
 
-//TODO(CharlyCst) implement this one.
 //The goal is to go and look at sections, see if it already exists.
 //If not, we create and add a new one and tag it with the correct key
 //(i.e., the one that corresponds to the package id).
@@ -81,7 +80,6 @@ func Register(id int, start, size uintptr) {
 
 	for _, section := range pkg.Sects {
 		if section.Addr == uint64(start) {
-			println("[MPK BACKEND]: Register section not found")
 			return
 		}
 	}
@@ -107,7 +105,6 @@ func Register(id int, start, size uintptr) {
 	PkeyMprotect(uintptr(section.Addr), section.Size, SysProtRW, key)
 }
 
-//TODO(charlyCst) implement this one.
 //Apparently the section should already exist somewhere (we should keep a map of them with start address to make things easier).
 //We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
 //The same should apply for the previous function.
@@ -234,7 +231,7 @@ func Init() {
 	fmt.Printf("Nb of packages:%d\n", n)
 
 	for _, p := range g.Packages {
-		fmt.Printf("%02d - %s\n", p.Id, p.Name)
+		fmt.Printf("%03d - %s\n", p.Id, p.Name)
 	}
 
 	for sbID, sb := range g.Domains {
@@ -266,7 +263,7 @@ func Init() {
 	}
 
 	sbKeys := make(map[c.SandId][]int)
-	for i := range sbKeys {
+	for i := range g.Domains {
 		sbKeys[i] = make([]int, 0)
 	}
 
