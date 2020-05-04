@@ -99,6 +99,20 @@ func (a *AddressSpace) InitializePageTables() {
 	}
 }
 
+// ApplyDomain changes the view of this address space to the one specified by
+// this domain.
+func (a *AddressSpace) ApplyDomain(d *commons.Domain) {
+	/*accumulator := make([]*VMArea, 0)
+	//TODO maybe clear bitmap.
+	for pkg, v := range d.SView {
+		accumulator = append(accumulator, PackageToVMAreas(pkg, v)...)
+	}
+	view := Convert(accumulator)
+	for v := ToVMA(view.First); v != nil; v = ToVMA(v.Next) {
+		fmt.Printf("%x -- %x (%v)\n", v.Addr, v.Addr+v.Size, v.Prot)
+	}*/
+}
+
 func (a *AddressSpace) Print() {
 	for r := ToMemoryRegion(a.Regions.First); r != nil; r = ToMemoryRegion(r.Next) {
 		fmt.Printf("%x -- %x (%x)", r.Span.Start, r.Span.Start+r.Span.Size, r.Span.Prot)

@@ -154,6 +154,7 @@ func newMachine(vm int, d *commons.Domain) (*Machine, error) {
 	// TODO change the memory view afterwards, remove the domain specific things.
 	memview := vmas.AddressSpaceTemplate.Copy()
 	memview.InitializePageTables()
+	memview.ApplyDomain(d)
 	// Create the machine.
 	m := &Machine{
 		fd:        vm,

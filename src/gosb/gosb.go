@@ -122,6 +122,12 @@ func loadPackages() {
 	for _, pkg := range g.Packages {
 		pkg.Dynamic = make([]c.Section, 0, 1000)
 	}
+
+	for _, pkg := range g.Packages {
+		if strings.HasPrefix(pkg.Name, "gosb") {
+			g.PkgBackends = append(g.PkgBackends, pkg)
+		}
+	}
 }
 
 func loadSandboxes() {
@@ -158,16 +164,20 @@ func loadSandboxes() {
 				log.Fatalf("Unable to find package %v\n", k)
 			}
 			sb.SView[pkg] = v
+			log.Printf("%v with view %v\n", pkg.Name, v)
 		}
 		// Initialize the packages
 		for _, k := range d.Pkgs {
 			pkg, ok := g.PkgMap[k]
 			if !ok {
-				log.Fatalf("Unable to dinf package %v\n", k)
+				log.Fatalf("Unable to find package %v\n", k)
 			}
 			sb.SPkgs = append(sb.SPkgs, pkg)
 			l, _ := g.PkgIdToSid[pkg.Id]
 			g.PkgIdToSid[pkg.Id] = append(l, sb.Config.Id)
+			if _, ok1 := sb.SView[pkg]; !ok1 {
+				sb.SView[pkg] = c.D_VAL
+			}
 		}
 		// Add the domain to the global list
 		g.Domains[sb.Config.Id] = sb
