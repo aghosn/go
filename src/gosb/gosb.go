@@ -193,7 +193,7 @@ func loadSandboxes() {
 		g.Domains[sb.Config.Id] = sb
 
 		// Add its symbol too.
-		if sb.Config.Id != "-1" {
+		if sb.Config.Id != "-1" && sb.Config.Id != "-2" {
 			sym, ok := syms[sb.Config.Func]
 			if !ok {
 				log.Fatalf("Unable to find sandbox definition %v\n", sb.Config.Func)
