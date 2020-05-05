@@ -38,10 +38,10 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 	// 2. Check that Rip is a syscall.
 	instr := (*uint16)(unsafe.Pointer(uintptr(regs.Rip - 2)))
 	if *instr != _SYSCALL_INSTR {
-		if vcpu.exceptionCode == 14 && vcpu.machine.ValidAddress(regs.Rax, c.W_VAL|c.R_VAL) {
+		/*if vcpu.exceptionCode == 14 && vcpu.machine.ValidAddress(regs.Rax, c.W_VAL|c.R_VAL) {
 			vcpu.exceptionCode = -1
 			return syshandlerValid
-		}
+		}*/
 		if vcpu.exceptionCode != 0 {
 			return syshandlerException
 		}

@@ -133,6 +133,15 @@ func loadPackages() {
 func loadSandboxes() {
 	g.PkgIdToSid = make(map[int][]c.SandId)
 	p, err := elf.Open(os.Args[0])
+
+	// Use this to find symbols
+	syms := make(map[string]elf.Symbol)
+	symbols, err := p.Symbols()
+	check(err)
+	for _, s := range symbols {
+		syms[s.Name] = s
+	}
+
 	check(err)
 	sbSec := p.Section(".sandboxes")
 	defer func() { check(p.Close()) }()
@@ -144,6 +153,8 @@ func loadSandboxes() {
 	check(err)
 	// Get the sandbox domains
 	sbDomains := make([]*c.SandboxDomain, 0)
+	g.Closures = make(map[c.SandId]*c.Section)
+
 	err = json.Unmarshal(sbBytes, &sbDomains)
 	check(err)
 	// Now generate internal data with direct access to domains.
@@ -164,7 +175,6 @@ func loadSandboxes() {
 				log.Fatalf("Unable to find package %v\n", k)
 			}
 			sb.SView[pkg] = v
-			log.Printf("%v with view %v\n", pkg.Name, v)
 		}
 		// Initialize the packages
 		for _, k := range d.Pkgs {
@@ -181,6 +191,15 @@ func loadSandboxes() {
 		}
 		// Add the domain to the global list
 		g.Domains[sb.Config.Id] = sb
+
+		// Add its symbol too.
+		if sb.Config.Id != "-1" {
+			sym, ok := syms[sb.Config.Func]
+			if !ok {
+				log.Fatalf("Unable to find sandbox definition %v\n", sb.Config.Func)
+			}
+			g.Closures[sb.Config.Id] = &c.Section{sym.Value, sym.Size, c.X_VAL | c.R_VAL | c.USER_VAL}
+		}
 	}
 }
 

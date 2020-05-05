@@ -104,6 +104,8 @@ func (ctxt *Link) gosb_generateDomains() {
 			return false
 		}
 		// Maybe I should parse these things and refactor them.
+		//TODO(aghosn) we should seggregate what goes inside or not from gosb.
+		v.Packages = append(v.Packages, "gosb")
 		for _, p := range v.Packages {
 			if p == "go.itab" || p == "go.runtime" {
 				panic("go.itab and go.runtime should not be here")

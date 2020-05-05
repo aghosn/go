@@ -3,6 +3,7 @@ package vmas
 import (
 	"fmt"
 	"gosb/commons"
+	"gosb/globals"
 	pg "gosb/vtx/platform/ring0/pagetables"
 	"unsafe"
 )
@@ -11,7 +12,7 @@ type RegType = int
 
 const (
 	IMMUTABLE_REG  RegType = iota // Cannot be changed during the sandbox execution.
-	MUTABLE_REG    RegType = iota // Can map/unmap, e.g., the heap
+	HEAP_REG       RegType = iota // Can map/unmap, e.g., the heap
 	EXTENSIBLE_REG RegType = iota // Can grow, add new parts.
 )
 
@@ -38,6 +39,8 @@ type MemoryRegion struct {
 	Span             MemorySpan
 	Bitmap           []uint64      // Presence bitmap
 	Owner            *AddressSpace // The owner AddressSpace
+	View             VMAreas
+	finalized        bool
 }
 
 type AddressSpace struct {
@@ -89,28 +92,41 @@ func (a *AddressSpace) Initialize(procmap *VMAreas) {
 	//a.Print()
 }
 
-// Translate the address space into page tables.
-func (a *AddressSpace) InitializePageTables() {
-	check(a.Tables == nil && a.PTEAllocator != nil)
-	a.Tables = pg.New(a.PTEAllocator)
-	deflags := pg.ConvertOpts(commons.D_VAL)
-	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
-		m.Apply(deflags)
-	}
-}
-
 // ApplyDomain changes the view of this address space to the one specified by
 // this domain.
 func (a *AddressSpace) ApplyDomain(d *commons.Domain) {
-	/*accumulator := make([]*VMArea, 0)
-	//TODO maybe clear bitmap.
+	check(a.Tables == nil && a.PTEAllocator != nil)
+	// Initialize the root page table.
+	a.Tables = pg.New(a.PTEAllocator)
+	accumulator := make([]*VMArea, 0)
+	for _, pkg := range globals.PkgBackends {
+		accumulator = append(accumulator, PackageToVMAreas(pkg, commons.D_VAL)...)
+	}
+	accumulator = append(accumulator, getSBSymbol(d))
 	for pkg, v := range d.SView {
 		accumulator = append(accumulator, PackageToVMAreas(pkg, v)...)
 	}
 	view := Convert(accumulator)
-	for v := ToVMA(view.First); v != nil; v = ToVMA(v.Next) {
-		fmt.Printf("%x -- %x (%v)\n", v.Addr, v.Addr+v.Size, v.Prot)
-	}*/
+	for v := ToVMA(view.First); v != nil; {
+		next := ToVMA(v.Next)
+		view.Remove(v.ToElem())
+		a.Assign(v)
+		v = next
+	}
+	// Now finalize and apply the changes.
+	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
+		m.Finalize()
+	}
+}
+
+// Assign finds the memory region to which this vma belongs.
+func (a *AddressSpace) Assign(vma *VMArea) {
+	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
+		if m.ContainsRegion(vma.Addr, vma.Size) {
+			m.Assign(vma)
+			return
+		}
+	}
 }
 
 func (a *AddressSpace) Print() {
@@ -196,7 +212,7 @@ func (a *AddressSpace) Extend(m *MemoryRegion, start, size uint64, prot uint8) {
 		m.Span.GPA = a.FreeAllocator.Malloc(m.Span.Size)
 	}
 	a.Regions.AddBack(m.ToElem())
-	m.ApplyRange(start, size, pg.ConvertOpts(commons.D_VAL))
+	m.ApplyRange(start, size, prot)
 }
 
 /*				MemoryRegion methods				*/
@@ -222,6 +238,12 @@ func (m *MemoryRegion) AllocBitmap() {
 	m.Bitmap = make([]uint64, nbEntries)
 }
 
+// Assign just registers the given vma as belonging to this region.
+func (m *MemoryRegion) Assign(vma *VMArea) {
+	check(m.Span.Start <= vma.Addr && m.Span.Start+m.Span.Size >= vma.Addr+vma.Size)
+	m.View.AddBack(vma.ToElem())
+}
+
 //go:nosplit
 func (m *MemoryRegion) Map(start, size uint64, prot uint8, apply bool) {
 	s := m.Coordinates(start)
@@ -235,15 +257,16 @@ func (m *MemoryRegion) Map(start, size uint64, prot uint8, apply bool) {
 		m.Bitmap[idX(c)] |= uint64(1 << idY(c))
 	}
 skip:
-	if apply {
-		//TODO implement page tables.
-		panic("Not implemented yet")
+	if !apply {
+		return
 	}
+	m.ApplyRange(start, size, prot)
 }
 
 //go:nosplit
-func (m *MemoryRegion) ApplyRange(start, size uint64, deflags uintptr) {
-	flags := pg.ConvertOpts(m.Span.Prot)
+func (m *MemoryRegion) ApplyRange(start, size uint64, prot uint8) {
+	eflags := pg.ConvertOpts(m.Span.Prot & prot)
+	deflags := pg.ConvertOpts(commons.D_VAL)
 	alloc := func(addr uintptr, lvl int) uintptr {
 		if lvl > 0 {
 			_, addr := m.Owner.PTEAllocator.NewPTEs2()
@@ -256,7 +279,7 @@ func (m *MemoryRegion) ApplyRange(start, size uint64, deflags uintptr) {
 	}
 	visit := func(pte *pg.PTE, lvl int) {
 		if lvl == 0 {
-			pte.SetFlags(flags)
+			pte.SetFlags(eflags)
 			return
 		}
 		pte.SetFlags(deflags)
@@ -270,38 +293,29 @@ func (m *MemoryRegion) ApplyRange(start, size uint64, deflags uintptr) {
 	m.Owner.Tables.Map(uintptr(start), uintptr(size), &visitor)
 }
 
-//go:nosplit
-func (m *MemoryRegion) Apply(deflags uintptr) {
-	if len(m.Bitmap) == 0 {
-		m.ApplyRange(m.Span.Start, m.Span.Size, deflags)
-	}
-	// Bitmap case.
-	head := -1
-	tail := -1
-	start, end := 0, bitmapSize(len(m.Bitmap))-1
-	for i := start; i <= end; i++ {
-		bit := m.Bitmap[idX(i)] & uint64(1<<idY(i))
-		// Bit is present.
-		if bit != 0 {
-			if head == -1 {
-				head = i
-			}
-			tail = i
-			if i == end {
-				goto mapp
-			}
-			continue
+// Finalize applies the memory region view to the page tables.
+func (m *MemoryRegion) Finalize() {
+	switch m.Tpe {
+	case IMMUTABLE_REG:
+		//TODO fix afterwards
+		if m.Span.Prot&commons.X_VAL == 0 {
+			m.Map(m.Span.Start, m.Span.Size, m.Span.Prot, true)
+			break
 		}
-	mapp:
-		// Bit is 0, applyRange or do nothing.
-		if head != -1 {
-			check(tail != -1)
-			start := m.Transpose(head)
-			size := m.Transpose(tail) - start + _PageSize
-			m.ApplyRange(start, size, deflags)
-			head, tail = -1, -1
+		// This is the text, data, and rodata.
+		// We go through each of them and mapp them.
+		for v := ToVMA(m.View.First); v != nil; v = ToVMA(v.Next) {
+			m.Map(v.Addr, v.Size, v.Prot, true)
+			//fmt.Printf("%x -- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot&m.Span.Prot)
 		}
+		//fallthrough
+	case HEAP_REG:
+		//TODO change this part afterwards, for the moment fallthrough
+		fallthrough
+	default:
+		m.Map(m.Span.Start, m.Span.Size, m.Span.Prot, true)
 	}
+	m.finalized = true
 }
 
 //go:nosplit
@@ -345,7 +359,8 @@ func (m *MemoryRegion) Copy() *MemoryRegion {
 	doppler.Tpe = m.Tpe
 	doppler.Span = m.Span
 	doppler.Bitmap = make([]uint64, len(m.Bitmap))
-	copy(doppler.Bitmap, m.Bitmap)
+	//TODO figure out if we need this or not
+	//copy(doppler.Bitmap, m.Bitmap)
 
 	// We are done copying.
 	if m.Tpe != EXTENSIBLE_REG {
@@ -361,7 +376,7 @@ func (m *MemoryRegion) ValidAddress(addr uint64) bool {
 	if addr < m.Span.Start || addr >= m.Span.Start+m.Span.Size {
 		return false
 	}
-	if m.Tpe == EXTENSIBLE_REG || len(m.Bitmap) == 0 {
+	if m.Tpe == EXTENSIBLE_REG || len(m.Bitmap) == 0 || !m.finalized {
 		return true
 	}
 	c := m.Coordinates(addr)
@@ -371,7 +386,7 @@ func (m *MemoryRegion) ValidAddress(addr uint64) bool {
 //go:nosplit
 func (m *MemoryRegion) ContainsRegion(addr, size uint64) bool {
 	// Not completely correct but oh well right now.
-	return m.ValidAddress(addr) && m.ValidAddress(addr+size)
+	return m.ValidAddress(addr) && m.ValidAddress(addr+size-1)
 }
 
 //go:nosplit
@@ -440,17 +455,17 @@ func (s *MemorySpan) ToElem() *commons.ListElem {
 func guessTpe(head, tail *VMArea) RegType {
 	isexec := head.Prot&commons.X_VAL == commons.X_VAL
 	isread := head.Prot&commons.R_VAL == commons.R_VAL
-	iswrit := head.Prot*commons.W_VAL == commons.W_VAL
+	iswrit := head.Prot&commons.W_VAL == commons.W_VAL
 	// TODO should get that information from the runtime.
 	isheap := head.Addr == HEAP_START
 	ismeta := head.Addr > HEAP_START
 
 	// executable and readonly sections do not change.
-	if isexec || (isread && !iswrit) {
+	if !ismeta && (isexec || (isread && !iswrit)) {
 		return IMMUTABLE_REG
 	}
 	if isheap {
-		return MUTABLE_REG
+		return HEAP_REG
 	}
 	if ismeta {
 		return EXTENSIBLE_REG
@@ -479,4 +494,12 @@ func idY(idx int) int {
 //go:nosplit
 func bitmapSize(length int) int {
 	return length * 64
+}
+
+func getSBSymbol(d *commons.Domain) *VMArea {
+	sym, ok := globals.Closures[d.Config.Id]
+	if !ok {
+		panic("Unable to find the domain's closure definition")
+	}
+	return SectVMA(sym)
 }

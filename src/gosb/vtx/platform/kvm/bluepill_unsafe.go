@@ -161,10 +161,16 @@ func bluepillHandler(context unsafe.Pointer) {
 				return
 			case syshandlerErr1:
 				throw("Something wrong err 1")
+				//c.die(bluepillArchContext(context), "Invalid address")
+				return
 			case syshandlerErr2:
-				throw("Something wrong err 2")
+				//throw("Something wrong err 2")
+				c.die(bluepillArchContext(context), "Not a syscall")
+				return
 			case syshandlerException:
-				throw("Died with an exception")
+				//throw("Died with an exception")
+				c.die(bluepillArchContext(context), "Received an exception")
+				return
 			default:
 				throw("Something went wrong not identified")
 			}

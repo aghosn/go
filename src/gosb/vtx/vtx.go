@@ -2,7 +2,6 @@ package vtx
 
 import (
 	"gosb/commons"
-	"gosb/debug"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
 	"gosb/vtx/platform/vmas"
@@ -53,7 +52,6 @@ func Init() {
 //go:nosplit
 func Prolog(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
-		debug.TakeInc(0)
 		runtime.LockOSThread()
 		runtime.AssignSbId(id)
 		sb.SwitchToUser()
@@ -66,7 +64,7 @@ func Prolog(id commons.SandId) {
 
 //go:nosplit
 func Epilog(id commons.SandId) {
-	kvm.Redpill()
+	_, _ = tryRedpill()
 }
 
 //go:nosplit
@@ -77,6 +75,7 @@ func Transfer(oldid, newid int, start, size uintptr) {
 		if ok {
 			for _, u := range lunmap {
 				if vm, ok2 := machines[u]; ok2 {
+					//TODO correct this, we should change the view.
 					vm.Unmap(start, size)
 				}
 			}
@@ -85,6 +84,7 @@ func Transfer(oldid, newid int, start, size uintptr) {
 		if ok1 {
 			for _, m := range lmap {
 				if vm, ok2 := machines[m]; ok2 {
+					//TODO correct this, we should apply the view.
 					vm.Map(start, size, commons.HEAP_VAL)
 				}
 			}
@@ -104,7 +104,6 @@ func Register(id int, start, size uintptr) {
 				}
 			}
 		}
-		debug.DoneAdding(start)
 	})
 }
 
@@ -169,7 +168,6 @@ func tryRedpill() (bool, string) {
 		runtime.UnlockOSThread()
 		return false, msbid
 	}
-	debug.TakeInc(1)
 	kvm.Redpill()
 	runtime.AssignSbId("")
 	runtime.UnlockOSThread()
