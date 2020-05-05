@@ -917,8 +917,17 @@ func (p *parser) parseFuncType() (*ast.FuncType, *ast.Scope) {
 	if p.trace {
 		defer un(trace(p, "FuncType"))
 	}
-
-	pos := p.expect(token.FUNC)
+	pos := p.pos
+	if p.tok == token.SANDBOX {
+		p.next() // Consume `sandbox`
+		p.next() // Consume `[`
+		p.next() // Consume `""`
+		p.next() // Consume `,`
+		p.next() // Consume `""`
+		p.next() // Consume `]`
+	} else {
+		pos = p.expect(token.FUNC)
+	}
 	scope := ast.NewScope(p.topScope) // function scope
 	params, results := p.parseSignature(scope)
 
@@ -1154,6 +1163,9 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 		return &ast.ParenExpr{Lparen: lparen, X: x, Rparen: rparen}
 
 	case token.FUNC:
+		return p.parseFuncTypeOrLit()
+
+	case token.SANDBOX:
 		return p.parseFuncTypeOrLit()
 	}
 
@@ -2211,7 +2223,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 		s = &ast.DeclStmt{Decl: p.parseDecl(stmtStart)}
 	case
 		// tokens that may start an expression
-		token.IDENT, token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operands
+		token.IDENT, token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING, token.FUNC, token.SANDBOX, token.LPAREN, // operands
 		token.LBRACK, token.STRUCT, token.MAP, token.CHAN, token.INTERFACE, // composite types
 		token.ADD, token.SUB, token.MUL, token.AND, token.XOR, token.ARROW, token.NOT: // unary operators
 		s, _ = p.parseSimpleStmt(labelOk)
