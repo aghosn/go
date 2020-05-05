@@ -917,8 +917,16 @@ func (p *parser) parseFuncType() (*ast.FuncType, *ast.Scope) {
 	if p.trace {
 		defer un(trace(p, "FuncType"))
 	}
-
-	pos := p.expect(token.FUNC)
+	if p.pos == token.SANDBOX {
+		p.next() // Consume `sandbox`
+		p.next() // Consume `[`
+		p.next() // Consume `""`
+		p.next() // Consume `,`
+		p.next() // Consume `""`
+		p.next() // Consume `]`
+	} else {
+		pos := p.expect(token.FUNC)
+	}
 	scope := ast.NewScope(p.topScope) // function scope
 	params, results := p.parseSignature(scope)
 
