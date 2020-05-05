@@ -79,6 +79,13 @@ func Register(id int, start, size uintptr) {
 		return
 	}
 
+	key, ok := pkgKeys[id]
+	if !ok {
+		// Package does not belong to a sandbox
+		return
+	}
+
+	// Check if section already exist
 	for _, section := range pkg.Sects {
 		if section.Addr == uint64(start) {
 			return
@@ -93,16 +100,6 @@ func Register(id int, start, size uintptr) {
 
 	pkg.Dynamic = append(pkg.Dynamic, *section)
 
-	// Updating protection key
-	if id == 0 { // Runtime
-		return
-	}
-
-	key, ok := pkgKeys[id]
-	if !ok {
-		println("[MPK BACKEND]: Register key not found")
-		return
-	}
 	PkeyMprotect(uintptr(section.Addr), section.Size, SysProtRW, key)
 }
 
