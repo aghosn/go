@@ -91,3 +91,24 @@ func ConvertOpts(prot uint8) uintptr {
 	}
 	return uintptr(val)
 }
+
+func (p *PageTables) FindMapping(addr uintptr) (uintptr, uintptr, uintptr) {
+	addr = addr - (addr % 0x1000)
+	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
+	s2, s1 := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
+	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())
+	pte := p.Allocator.LookupPTEs(pdpte[s3].Address())
+	page := p.Allocator.LookupPTEs(pte[s2].Address())
+	return page[s1].Address(), page[s1].Flags(), uintptr(page[s1])
+}
+
+func (p *PageTables) Clear(addr uintptr) {
+	return
+	addr = addr - (addr % 0x1000)
+	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
+	s2, s1 := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
+	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())
+	pte := p.Allocator.LookupPTEs(pdpte[s3].Address())
+	page := p.Allocator.LookupPTEs(pte[s2].Address())
+	page[s1].SetFlags(0x4 | 0x1)
+}

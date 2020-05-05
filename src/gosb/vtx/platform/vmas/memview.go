@@ -108,6 +108,7 @@ func (a *AddressSpace) ApplyDomain(d *commons.Domain) {
 	}
 	view := Convert(accumulator)
 	for v := ToVMA(view.First); v != nil; {
+		//fmt.Printf("%x -- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot)
 		next := ToVMA(v.Next)
 		view.Remove(v.ToElem())
 		a.Assign(v)
@@ -298,15 +299,17 @@ func (m *MemoryRegion) Finalize() {
 	switch m.Tpe {
 	case IMMUTABLE_REG:
 		//TODO fix afterwards
-		if m.Span.Prot&commons.X_VAL == 0 {
+		//if m.Span.Prot&(commons.W_VAL|commons.R_VAL) == (commons.W_VAL | commons.R_VAL) {
+		if m.Span.Prot == 0x34 {
 			m.Map(m.Span.Start, m.Span.Size, m.Span.Prot, true)
 			break
 		}
+		//fmt.Printf("Mapping for %x -- %x (%x)\n", m.Span.Start, m.Span.Start+m.Span.Size, m.Span.Prot)
 		// This is the text, data, and rodata.
 		// We go through each of them and mapp them.
 		for v := ToVMA(m.View.First); v != nil; v = ToVMA(v.Next) {
 			m.Map(v.Addr, v.Size, v.Prot, true)
-			//fmt.Printf("%x -- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot&m.Span.Prot)
+			//fmt.Printf("%x -- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot)
 		}
 		//fallthrough
 	case HEAP_REG:
@@ -336,7 +339,7 @@ func (m *MemoryRegion) Unmap(start, size uintptr, apply bool) {
 func (m *MemoryRegion) Coordinates(addr uint64) int {
 	addr = addr - m.Span.Start
 	page := (addr - (addr % _PageSize)) / _PageSize
-	return int(page) //idX(int(page)) + idY(int(page%64))
+	return int(page)
 }
 
 // Transpose takes an index and changes it into an address within the span.
@@ -359,8 +362,6 @@ func (m *MemoryRegion) Copy() *MemoryRegion {
 	doppler.Tpe = m.Tpe
 	doppler.Span = m.Span
 	doppler.Bitmap = make([]uint64, len(m.Bitmap))
-	//TODO figure out if we need this or not
-	//copy(doppler.Bitmap, m.Bitmap)
 
 	// We are done copying.
 	if m.Tpe != EXTENSIBLE_REG {
