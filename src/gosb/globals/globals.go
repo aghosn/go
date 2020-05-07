@@ -16,6 +16,8 @@ var (
 	PkgMap      map[string]*c.Package
 	Domains     map[c.SandId]*c.Domain
 	Closures    map[c.SandId]*c.Section
+	Pclntab     *c.Section
+	GoString    *c.Section
 	IdToPkg     map[int]*c.Package
 	PkgIdToSid  map[int][]c.SandId
 )

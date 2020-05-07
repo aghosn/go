@@ -36,6 +36,8 @@ const (
 	READ     = "R"
 	WRITE    = "W"
 	EXECUTE  = "X"
+
+	_PageSize = uint64(0x1000)
 )
 
 const (
@@ -132,4 +134,13 @@ func parsePerm(entry string) (uint8, error) {
 		return 0, fmt.Errorf("Reading access right must be specified explicitly.\n")
 	}
 	return perm, nil
+}
+
+//go:nosplit
+func Round(addr uint64, up bool) uint64 {
+	res := addr - (addr % _PageSize)
+	if up && (addr%_PageSize != 0) {
+		res += _PageSize
+	}
+	return res
 }

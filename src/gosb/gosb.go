@@ -135,14 +135,9 @@ func loadSandboxes() {
 	p, err := elf.Open(os.Args[0])
 
 	// Use this to find symbols
-	syms := make(map[string]elf.Symbol)
 	symbols, err := p.Symbols()
 	check(err)
-	for _, s := range symbols {
-		syms[s.Name] = s
-	}
-
-	check(err)
+	syms := checkInvariants(symbols)
 	sbSec := p.Section(".sandboxes")
 	defer func() { check(p.Close()) }()
 	if sbSec == nil {
@@ -201,6 +196,50 @@ func loadSandboxes() {
 			g.Closures[sb.Config.Id] = &c.Section{sym.Value, sym.Size, c.X_VAL | c.R_VAL | c.USER_VAL}
 		}
 	}
+}
+
+// checkInvariants is used for some of the symbols that go inserts after the bloat.
+// For the moment we handle:
+// 1. The fact that go.string.* has the wrong symbol size and actually maps more memory than declared.
+//		For that, we expect go.func.* to be the next symbol and register the full region between the two
+//		inside the global.GoString section that should be shared will all sandboxes.
+// 2. The pclntab is an elf section that is RO, we therefore load it from the binary.
+//		The same applies here, it should be shared with all sandboxes and is available in
+//		global.Pclntab.
+func checkInvariants(syms []elf.Symbol) map[string]elf.Symbol {
+	// We first sort the slice.
+	sort.Slice(syms, func(i, j int) bool {
+		return syms[i].Value < syms[j].Value
+	})
+
+	res := make(map[string]elf.Symbol)
+	// Then we check that go.string.* is followed by go.func.*
+	for i, s := range syms {
+		res[s.Name] = s
+		if s.Name == "go.string.*" {
+			if i == len(syms)-1 {
+				panic("go string at the end of the symbols.")
+			}
+			if syms[i+1].Name != "go.func.*" {
+				panic("Invariant failure")
+			}
+			// we have found go string.
+			g.GoString = &c.Section{
+				c.Round(s.Value, false),
+				c.Round(syms[i+1].Value, false) - c.Round(s.Value, false),
+				c.R_VAL | c.USER_VAL,
+			}
+		}
+		// Handle pclntab
+		if s.Name == "runtime.pclntab" {
+			g.Pclntab = &c.Section{
+				c.Round(s.Value, false),
+				c.Round(s.Size, true),
+				c.R_VAL | c.USER_VAL,
+			}
+		}
+	}
+	return res
 }
 
 // check is to prevent me from getting tired of writing the error check

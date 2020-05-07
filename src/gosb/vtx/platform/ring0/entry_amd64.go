@@ -21,17 +21,6 @@ import (
 //
 // The sysenter function is invoked in two situations:
 //
-//  (1) The guest kernel has executed a system call.
-//  (2) The guest application has executed a system call.
-//
-// The interrupt flag is examined to determine whether the system call was
-// executed from kernel mode or not and the appropriate stub is called.
-func sysenter()
-
-// This is an assembly function.
-//
-// The sysenter function is invoked in two situations:
-//
 // (1) The guest kernel executed a syscall.
 // (2) The guest application executed a syscall.
 //

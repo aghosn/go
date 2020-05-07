@@ -83,14 +83,6 @@ func (c *vCPU) initArchState() error {
 	// Point to kernel page tables, with no initial PCID.
 	kernelSystemRegs.CR3 = c.machine.kernel.PageTables.CR3(false, 0)
 
-	// Initialize the PCID database.
-	//	if hasGuestPCID {
-	//		// Note that NewPCIDs may return a nil table here, in which
-	//		// case we simply don't use PCID support (see below). In
-	//		// practice, this should not happen, however.
-	//		c.PCIDs = pagetables.NewPCIDs(fixedKernelPCID+1, poolPCIDs)
-	//	}
-
 	// Set the CPUID; this is required before setting system registers,
 	// since KVM will reject several CR4 bits if the CPUID does not
 	// indicate the support is available.

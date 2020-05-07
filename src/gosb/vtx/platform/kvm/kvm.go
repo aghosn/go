@@ -103,7 +103,7 @@ func (k *KVM) SwitchToUser() {
 	opts := ring0.SwitchOpts{
 		Registers:   &k.uregs,
 		PageTables:  k.Machine.MemView.Tables,
-		Flush:       false,
+		Flush:       true,
 		FullRestore: true,
 	}
 	opts.Registers.Rip = bluepillretaddr //uint64(reflect.ValueOf(Bluepillret).Pointer())

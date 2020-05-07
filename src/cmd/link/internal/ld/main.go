@@ -241,6 +241,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.typelink()
 	ctxt.symtab()
 	ctxt.buildinfo()
+	// Assign this symbol to the runtime so that it is part of the bloat.
+	if len(Bloats) > 0 {
+		s := ctxt.Syms.ROLookup("runtime.findfunctab", 0)
+		s.File = "runtime"
+	}
 	ctxt.dodata()
 	order := ctxt.address()
 

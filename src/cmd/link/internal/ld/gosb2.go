@@ -294,7 +294,7 @@ func gosb_dumpPackages() []byte {
 		_, ok := Bloats[first.File]
 		// The symbol is part of a bloat
 		if ok && (first.Align != 0x1000 || first.Value%0x1000 != 0) {
-			log.Fatalf("Wrong alignment for bloated section %v: %v", first.File, first)
+			log.Fatalf("Wrong alignment for bloated section %v: %v - %x| - %x\n", first.File, first, first.Align, first.Value)
 		}
 		// We just verify that symbols are increasing and all belong to the same
 		// package.

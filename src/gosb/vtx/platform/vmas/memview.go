@@ -96,19 +96,19 @@ func (a *AddressSpace) Initialize(procmap *VMAreas) {
 // this domain.
 func (a *AddressSpace) ApplyDomain(d *commons.Domain) {
 	check(a.Tables == nil && a.PTEAllocator != nil)
+	check(AddressSpaceTemplate.Tables == nil)
 	// Initialize the root page table.
 	a.Tables = pg.New(a.PTEAllocator)
 	accumulator := make([]*VMArea, 0)
 	for _, pkg := range globals.PkgBackends {
 		accumulator = append(accumulator, PackageToVMAreas(pkg, commons.D_VAL)...)
 	}
-	accumulator = append(accumulator, getSBSymbol(d))
+	accumulator = append(accumulator, getExtraSymbols(d)...)
 	for pkg, v := range d.SView {
 		accumulator = append(accumulator, PackageToVMAreas(pkg, v)...)
 	}
 	view := Convert(accumulator)
 	for v := ToVMA(view.First); v != nil; {
-		//fmt.Printf("%x -- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot)
 		next := ToVMA(v.Next)
 		view.Remove(v.ToElem())
 		a.Assign(v)
@@ -298,18 +298,10 @@ func (m *MemoryRegion) ApplyRange(start, size uint64, prot uint8) {
 func (m *MemoryRegion) Finalize() {
 	switch m.Tpe {
 	case IMMUTABLE_REG:
-		//TODO fix afterwards
-		//if m.Span.Prot&(commons.W_VAL|commons.R_VAL) == (commons.W_VAL | commons.R_VAL) {
-		if m.Span.Prot == 0x34 {
-			m.Map(m.Span.Start, m.Span.Size, m.Span.Prot, true)
-			break
-		}
-		//fmt.Printf("Mapping for %x -- %x (%x)\n", m.Span.Start, m.Span.Start+m.Span.Size, m.Span.Prot)
 		// This is the text, data, and rodata.
 		// We go through each of them and mapp them.
 		for v := ToVMA(m.View.First); v != nil; v = ToVMA(v.Next) {
 			m.Map(v.Addr, v.Size, v.Prot, true)
-			//fmt.Printf("%x -- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot)
 		}
 		//fallthrough
 	case HEAP_REG:
@@ -497,10 +489,13 @@ func bitmapSize(length int) int {
 	return length * 64
 }
 
-func getSBSymbol(d *commons.Domain) *VMArea {
+func getExtraSymbols(d *commons.Domain) []*VMArea {
+	var res []*VMArea = nil
 	sym, ok := globals.Closures[d.Config.Id]
-	if !ok {
-		panic("Unable to find the domain's closure definition")
-	}
-	return SectVMA(sym)
+	check(ok)
+	check(globals.Pclntab != nil)
+	res = append(res, SectVMA(sym))
+	res = append(res, SectVMA(globals.Pclntab))
+	res = append(res, SectVMA(globals.GoString))
+	return res
 }

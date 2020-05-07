@@ -408,6 +408,11 @@ func (ctxt *Link) symtab() {
 		s.Type = t
 		s.Size = 0
 		s.Attr |= sym.AttrLocal | sym.AttrReachable
+		// Assign to runtime
+		if s.File == "" {
+			s.File = "runtime"
+			s.Align = 0x1000
+		}
 		return s
 	}
 	var (
