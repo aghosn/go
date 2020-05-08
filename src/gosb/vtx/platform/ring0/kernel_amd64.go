@@ -113,7 +113,7 @@ func (c *CPU) CR0() uint64 {
 //
 //go:nosplit
 func (c *CPU) CR4() uint64 {
-	cr4 := uint64(_CR4_PAE | _CR4_PSE | _CR4_OSFXSR | _CR4_OSXMMEXCPT)
+	cr4 := uint64(_CR4_PAE /*| _CR4_PSE */ | _CR4_OSFXSR | _CR4_OSXMMEXCPT)
 	/*if hasPCID {
 		cr4 |= _CR4_PCIDE
 	}*/
@@ -193,6 +193,12 @@ func (c *CPU) SwitchToUser(switchOpts SwitchOpts) (vector Vector) {
 
 	//regs.Fs = uint64(Udata)
 	regs.Gs = uint64(Udata)
+
+	// Set the registers in the real cpu too!!
+	// This is crucial for the rest of the program.
+	c.registers.Cs = regs.Cs
+	c.registers.Ss = regs.Ss
+	c.registers.Ds = regs.Ds
 
 	// Perform the switch.
 	swapgs()                       // GS will be swapped on return.

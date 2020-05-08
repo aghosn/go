@@ -14,7 +14,7 @@ const (
 
 	// Handy for mmap
 	_DEFAULT_PROTS = syscall.PROT_READ | syscall.PROT_WRITE
-	_DEFAULT_FALGS = syscall.MAP_ANONYMOUS | syscall.MAP_PRIVATE
+	_DEFAULT_FLAGS = syscall.MAP_ANONYMOUS | syscall.MAP_PRIVATE
 )
 
 // FreeSpaceAllocator keeps track of free space inside the address space.
@@ -101,7 +101,7 @@ func (pga *PageTableAllocator) NewPTEs() *pg.PTEs {
 //go:nosplit
 func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 	if pga.Current == nil {
-		start, err := commons.Mmap(0, ARENA_TOTAL_SIZE, _DEFAULT_PROTS, _DEFAULT_FALGS, -1, 0)
+		start, err := commons.Mmap(0, ARENA_TOTAL_SIZE, _DEFAULT_PROTS, _DEFAULT_FLAGS, -1, 0)
 		check(err == 0 && (start >= commons.Limit39bits))
 		gpstart := pga.Allocator.Malloc(uint64(ARENA_TOTAL_SIZE))
 		current := &Arena{HVA: uint64(start), GPA: gpstart, Slot: ^uint32(0)}

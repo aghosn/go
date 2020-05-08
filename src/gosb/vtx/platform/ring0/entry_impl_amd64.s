@@ -323,7 +323,7 @@ user:
 	// Set the error code and adjust the stack.
 	MOVQ 8(SP), AX              // Load the error code.
 	MOVQ AX, CPU_ERROR_CODE(GS) // Copy out to the CPU.
-	MOVQ $0, CPU_ERROR_TYPE(GS) // Set error type to kernel.
+	MOVQ $1, CPU_ERROR_TYPE(GS) // Set error type to user.
 	MOVQ 0(SP), BX              // BX contains the vector.
 	ADDQ $48, SP                // Drop the exception frame.
 

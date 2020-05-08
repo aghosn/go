@@ -87,6 +87,7 @@ func (c *vCPU) getUserRegisters(uregs *userRegs) syscall.Errno {
 }
 
 // setSystemRegisters sets system registers.
+//go:nosplit
 func (c *vCPU) setSystemRegisters(sregs *systemRegs) error {
 	if _, errno := commons.Ioctl(c.fd, _KVM_SET_SREGS, uintptr(unsafe.Pointer(sregs))); errno != 0 {
 		return fmt.Errorf("error setting system registers: %v", errno)
@@ -95,6 +96,7 @@ func (c *vCPU) setSystemRegisters(sregs *systemRegs) error {
 }
 
 // getSystemRegisters gets system registers.
+//go:nosplit
 func (c *vCPU) getSystemRegisters(sregs *systemRegs) error {
 	if _, errno := commons.Ioctl(c.fd, _KVM_GET_SREGS, uintptr(unsafe.Pointer(sregs))); errno != 0 {
 		return fmt.Errorf("error setting system registers: %v", errno)
