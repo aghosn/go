@@ -920,11 +920,11 @@ func (p *parser) parseFuncType() (*ast.FuncType, *ast.Scope) {
 	pos := p.pos
 	if p.tok == token.SANDBOX {
 		p.next() // Consume `sandbox`
-		p.next() // Consume `[`
+		p.expect(token.LBRACK) // Consume `[`
 		p.next() // Consume `""`
-		p.next() // Consume `,`
+		p.expect(token.COMMA) // Consume `,`
 		p.next() // Consume `""`
-		p.next() // Consume `]`
+		p.expect(token.RBRACK) // Consume `]`
 	} else {
 		pos = p.expect(token.FUNC)
 	}
