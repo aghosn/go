@@ -74,15 +74,15 @@ func (p *PageTables) pageWalk(root *PTEs, start, end uintptr, lvl int, v *Visito
 //
 //go:nosplit
 func ConvertOpts(prot uint8) uintptr {
-	val := uintptr(present | accessed)
+	val := uintptr(accessed)
 	if prot&gc.X_VAL == 0 {
 		val |= executeDisable
 	}
 	if prot&gc.W_VAL != 0 {
 		val |= writable
 	}
-	if prot&gc.R_VAL == 0 {
-		panic("Missing read val")
+	if prot&gc.R_VAL == gc.R_VAL {
+		val |= present
 	}
 	if prot&gc.USER_VAL == gc.USER_VAL {
 		val |= user
