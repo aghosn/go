@@ -51,10 +51,15 @@ func ParseProcessAddressSpace(defProt uint8) []*VMArea {
 		}
 		// Parsing access rights.
 		rstr := fields[1]
-		rights := uint8(commons.R_VAL)
+		rights := uint8(0)
+		if strings.Contains(rstr, "r") {
+			rights |= commons.R_VAL
+		}
+		// This doesn't work for some C dependencies that have ---p
+		/*rights := uint8(commons.R_VAL)
 		if !strings.Contains(rstr, "r") {
 			log.Fatalf("missing read rights parsed from self proc: %v\n", rstr)
-		}
+		}*/
 		if strings.Contains(rstr, "w") {
 			rights |= commons.W_VAL
 		}
