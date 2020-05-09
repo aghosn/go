@@ -1,7 +1,8 @@
-package vmas
+package memview
 
 import (
 	"gosb/commons"
+	"gosb/vmas"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -9,13 +10,13 @@ import (
 )
 
 var (
-	FullAddressSpace     *VMAreas      = nil
+	FullAddressSpace     *vmas.VMAreas = nil
 	AddressSpaceTemplate *AddressSpace = nil
 )
 
 func InitFullMemoryView() {
 	fvmas := ParseProcessAddressSpace(commons.USER_VAL)
-	FullAddressSpace = Convert(fvmas)
+	FullAddressSpace = vmas.Convert(fvmas)
 
 	// Generate the address space.
 	AddressSpaceTemplate = &AddressSpace{}
@@ -24,13 +25,13 @@ func InitFullMemoryView() {
 
 // ParseProcessAddressSpace parses the self proc map to get the entire address space.
 // defProt is the common set of flags we want for this.
-func ParseProcessAddressSpace(defProt uint8) []*VMArea {
+func ParseProcessAddressSpace(defProt uint8) []*vmas.VMArea {
 	dat, err := ioutil.ReadFile("/proc/self/maps")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 	tvmas := strings.Split(string(dat), "\n")
-	vmareas := make([]*VMArea, 0)
+	vmareas := make([]*vmas.VMArea, 0)
 	for _, v := range tvmas {
 		if len(v) == 0 {
 			continue
@@ -67,7 +68,7 @@ func ParseProcessAddressSpace(defProt uint8) []*VMArea {
 			rights |= commons.X_VAL
 		}
 
-		vm := &VMArea{
+		vm := &vmas.VMArea{
 			commons.ListElem{},
 			commons.Section{
 				Addr: uint64(start),

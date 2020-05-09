@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"gosb/commons"
 	"gosb/vtx/atomicbitops"
+	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/procid"
 	"gosb/vtx/platform/ring0"
-	"gosb/vtx/platform/vmas"
 	"gosb/vtx/sync"
 	"log"
 	"reflect"
@@ -20,7 +20,7 @@ type Machine struct {
 	fd int
 
 	// Memory view for this machine
-	MemView *vmas.AddressSpace
+	MemView *mv.AddressSpace
 
 	// kernel is the set of global structures.
 	kernel ring0.Kernel
@@ -152,7 +152,7 @@ func (m *Machine) newVCPU() *vCPU {
 
 func newMachine(vm int, d *commons.Domain) (*Machine, error) {
 	// TODO change the memory view afterwards, remove the domain specific things.
-	memview := vmas.AddressSpaceTemplate.Copy()
+	memview := mv.AddressSpaceTemplate.Copy()
 	memview.ApplyDomain(d)
 	// Create the machine.
 	m := &Machine{

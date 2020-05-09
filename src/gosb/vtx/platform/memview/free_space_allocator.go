@@ -1,8 +1,9 @@
-package vmas
+package memview
 
 import (
 	"fmt"
 	"gosb/commons"
+	"gosb/vmas"
 	pg "gosb/vtx/platform/ring0/pagetables"
 	"syscall"
 	"unsafe"
@@ -10,7 +11,7 @@ import (
 
 const (
 	ARENA_SIZE       = 10
-	ARENA_TOTAL_SIZE = uintptr(ARENA_SIZE * _PageSize)
+	ARENA_TOTAL_SIZE = uintptr(ARENA_SIZE * vmas.PageSize)
 
 	// Handy for mmap
 	_DEFAULT_PROTS = syscall.PROT_READ | syscall.PROT_WRITE
@@ -19,8 +20,8 @@ const (
 
 // FreeSpaceAllocator keeps track of free space inside the address space.
 type FreeSpaceAllocator struct {
-	FreeSpace *VMAreas
-	Used      *VMAreas
+	FreeSpace *vmas.VMAreas
+	Used      *vmas.VMAreas
 }
 
 type PageTableAllocator struct {
@@ -41,8 +42,8 @@ type Arena struct {
 
 /*			FreeSpaceAllocator methods				*/
 
-func (f *FreeSpaceAllocator) Initialize(frees *VMAreas) {
-	f.Used = &VMAreas{}
+func (f *FreeSpaceAllocator) Initialize(frees *vmas.VMAreas) {
+	f.Used = &vmas.VMAreas{}
 	f.Used.Init()
 	f.FreeSpace = frees.Copy()
 }
@@ -53,9 +54,9 @@ func (f *FreeSpaceAllocator) Initialize(frees *VMAreas) {
 //
 //go:nosplit
 func (f *FreeSpaceAllocator) Malloc(size uint64) uint64 {
-	check(size%_PageSize == 0)
-	var candidate *VMArea = nil
-	for v := ToVMA(f.FreeSpace.First); v != nil; v = ToVMA(v.Next) {
+	commons.Check(size%vmas.PageSize == 0)
+	var candidate *vmas.VMArea = nil
+	for v := vmas.ToVMA(f.FreeSpace.First); v != nil; v = vmas.ToVMA(v.Next) {
 		if v.Size >= size && (candidate == nil || candidate.Size > v.Size) {
 			candidate = v
 		}
@@ -102,7 +103,7 @@ func (pga *PageTableAllocator) NewPTEs() *pg.PTEs {
 func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 	if pga.Current == nil {
 		start, err := commons.Mmap(0, ARENA_TOTAL_SIZE, _DEFAULT_PROTS, _DEFAULT_FLAGS, -1, 0)
-		check(err == 0 && (start >= commons.Limit39bits))
+		commons.Check(err == 0 && (start >= commons.Limit39bits))
 		gpstart := pga.Allocator.Malloc(uint64(ARENA_TOTAL_SIZE))
 		current := &Arena{HVA: uint64(start), GPA: gpstart, Slot: ^uint32(0)}
 		pga.All.AddBack(current.ToElem())
@@ -159,8 +160,8 @@ func (a *Arena) ToElem() *commons.ListElem {
 //
 //go:nosplit
 func (a *Arena) Allocate() (*pg.PTEs, uint64) {
-	check(!a.Full)
-	addr := a.HVA + uint64(a.Idx)*uint64(_PageSize)
+	commons.Check(!a.Full)
+	addr := a.HVA + uint64(a.Idx)*uint64(vmas.PageSize)
 	pte := (*pg.PTEs)(unsafe.Pointer(uintptr(addr)))
 	a.PTEs[a.Idx] = pte
 	a.Idx++
@@ -188,16 +189,16 @@ func (a *Arena) ContainsGPA(gpa uint64) bool {
 
 //go:nosplit
 func (a *Arena) HVA2GPA(hva uint64) uint64 {
-	idx := (hva - a.HVA) / _PageSize
+	idx := (hva - a.HVA) / vmas.PageSize
 	if uint64(uintptr(unsafe.Pointer(a.PTEs[idx]))) != hva {
 		panic("This address is not registered as a pte!")
 	}
-	return a.GPA + idx*_PageSize
+	return a.GPA + idx*vmas.PageSize
 }
 
 //go:nosplit
 func (a *Arena) GPA2HVA(gpa uint64) *pg.PTEs {
-	idx := (gpa - a.GPA) / _PageSize
+	idx := (gpa - a.GPA) / vmas.PageSize
 	if idx >= ARENA_SIZE || a.PTEs[idx] == nil {
 		panic("Index is too damn high!")
 	}

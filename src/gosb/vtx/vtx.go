@@ -4,7 +4,7 @@ import (
 	"gosb/commons"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
-	"gosb/vtx/platform/vmas"
+	mv "gosb/vtx/platform/memview"
 	"log"
 	"os"
 	"runtime"
@@ -24,7 +24,7 @@ var (
 func Init() {
 	kvmOnce.Do(func() {
 		// Initialize the full memory templates.
-		vmas.InitFullMemoryView()
+		mv.InitFullMemoryView()
 		kvmFd, err := os.OpenFile(_KVM_DRIVER_PATH, syscall.O_RDWR, 0)
 		if err != nil {
 			log.Fatalf("error opening /dev/kvm: %v\n", err)

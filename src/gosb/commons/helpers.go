@@ -41,6 +41,13 @@ func Memcpy(dest, src, size uintptr) {
 	}
 }
 
+//go:nosplit
+func Check(condition bool) {
+	if !condition {
+		panic("Condition is not satisfied")
+	}
+}
+
 // @from gvisor
 // ReplaceSignalHandler replaces the existing signal handler for the provided
 // signal with the one that handles faults in safecopy-protected functions.

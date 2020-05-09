@@ -2,7 +2,8 @@ package kvm
 
 import (
 	"gosb/commons"
-	"gosb/vtx/platform/vmas"
+	"gosb/vmas"
+	mv "gosb/vtx/platform/memview"
 )
 
 //go:nosplit
@@ -12,8 +13,8 @@ func GetFs(addr *uint64)
 func (m *Machine) SetAllEPTSlots() {
 	// First, we register the pages used for page tables.
 	m.MemView.PTEAllocator.All.Foreach(func(e *commons.ListElem) {
-		arena := vmas.ToArena(e)
-		err := m.setEPTRegion(m.MemView.NextSlot, arena.GPA, uint64(vmas.ARENA_TOTAL_SIZE), arena.HVA, 0)
+		arena := mv.ToArena(e)
+		err := m.setEPTRegion(m.MemView.NextSlot, arena.GPA, uint64(mv.ARENA_TOTAL_SIZE), arena.HVA, 0)
 		if err != 0 {
 			panic("Error mapping slot")
 		}
@@ -23,10 +24,10 @@ func (m *Machine) SetAllEPTSlots() {
 
 	// Second, map the memory regions.
 	m.MemView.Regions.Foreach(func(e *commons.ListElem) {
-		mem := vmas.ToMemoryRegion(e)
+		mem := mv.ToMemoryRegion(e)
 		span := mem.Span
 		switch mem.Tpe {
-		case vmas.IMMUTABLE_REG:
+		case mv.IMMUTABLE_REG:
 			for v := vmas.ToVMA(mem.View.First); v != nil; v = vmas.ToVMA(v.Next) {
 				flags := uint32(1)
 				if v.Prot&commons.W_VAL == 0 {
@@ -39,7 +40,7 @@ func (m *Machine) SetAllEPTSlots() {
 				span.Slot = m.MemView.NextSlot
 				m.MemView.NextSlot++
 			}
-		case vmas.HEAP_REG:
+		case mv.HEAP_REG:
 			fallthrough
 		default:
 			err := m.setEPTRegion(m.MemView.NextSlot, span.GPA, span.Size, span.Start, 1)

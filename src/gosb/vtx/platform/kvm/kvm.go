@@ -2,8 +2,8 @@ package kvm
 
 import (
 	"gosb/commons"
+	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
-	"gosb/vtx/platform/vmas"
 	"log"
 	"reflect"
 	"syscall"
@@ -23,7 +23,7 @@ type KVM struct {
 	Machine *Machine
 
 	// Used for emergency runtime growth
-	EMR [10]*vmas.MemoryRegion
+	EMR [10]*mv.MemoryRegion
 
 	// uregs is used to switch to user space.
 	uregs syscall.PtraceRegs
@@ -53,13 +53,13 @@ func New(fd int, d *commons.Domain) *KVM {
 	kvm := &KVM{Machine: machine}
 	// Allocate special emergency regions. Need to see when we can reallocate some.
 	for i := range kvm.EMR {
-		kvm.EMR[i] = &vmas.MemoryRegion{}
+		kvm.EMR[i] = &mv.MemoryRegion{}
 	}
 	return kvm
 }
 
 //go:nosplit
-func (k *KVM) AcquireEMR() *vmas.MemoryRegion {
+func (k *KVM) AcquireEMR() *mv.MemoryRegion {
 	//TODO(aghosn) probably need a lock
 	for i := range k.EMR {
 		if k.EMR[i] != nil {
