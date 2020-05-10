@@ -12,15 +12,10 @@ import (
 	"gosb/vmas"
 )
 
-// View is a tuple that references both package and vmareas.
-type View struct {
-	Pkg *c.Package
-	Mem *vmas.VMAreas
-}
-
 type SandboxMemory struct {
 	Static  *vmas.VMAreas
 	Dynamic *vmas.VMAreas
+	Config  *c.SandboxDomain
 	View    map[int]uint8
 }
 
@@ -60,8 +55,8 @@ var (
 	TrustedSpace     *vmas.VMAreas
 
 	// Maps
-	NameToPkg map[string]*View
-	IdToPkg2  map[int]*View
+	NameToPkg map[string]*c.Package
+	IdToPkg2  map[int]*c.Package
 
 	// Sandboxes
 	Configurations []*c.SandboxDomain

@@ -3,11 +3,10 @@ package gosb
 import (
 	"debug/elf"
 	"encoding/json"
-	"fmt"
+	//	"fmt"
 	"gosb/commons"
 	"gosb/globals"
 	"gosb/vmas"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -32,8 +31,8 @@ func loadPackages2() {
 	err = json.Unmarshal(data, &globals.AllPackages)
 
 	// Generate maps for packages.
-	globals.NameToPkg = make(map[string]*globals.View)
-	globals.IdToPkg2 = make(map[int]*globals.View)
+	globals.NameToPkg = make(map[string]*commons.Package)
+	globals.IdToPkg2 = make(map[int]*commons.Package)
 
 	for _, v := range globals.AllPackages {
 
@@ -62,9 +61,8 @@ func loadPackages2() {
 		if _, ok := globals.IdToPkg2[v.Id]; ok {
 			panic("Duplicated package " + v.Name)
 		}
-		packageMemory := &globals.View{v, vmas.PackageToVMAs(v)}
-		globals.NameToPkg[v.Name] = packageMemory
-		globals.IdToPkg2[v.Id] = packageMemory
+		globals.NameToPkg[v.Name] = v
+		globals.IdToPkg2[v.Id] = v
 
 		// Register backend packages.
 		if strings.HasPrefix(v.Name, globals.BackendPrefix) {
@@ -110,9 +108,6 @@ func loadPackages2() {
 				}
 			}
 			commons.Check(count >= 2)
-			//commons.Check(globals.Symbols[i+1].Name == "type.*")
-			//commons.Check(globals.Symbols[i+2].Name == "go.string.*")
-			//commons.Check(globals.Symbols[i+3].Name == "go.func.*")
 			gf := globals.Symbols[i+count]
 			globals.CommonVMAs.Map(vmas.SectVMA(&commons.Section{
 				commons.Round(s.Value, false),
@@ -167,6 +162,7 @@ func loadSandboxes2() {
 		sbox := &globals.SandboxMemory{
 			new(vmas.VMAreas),
 			new(vmas.VMAreas),
+			d,
 			make(map[int]uint8),
 		}
 		var statics []*vmas.VMArea = nil
@@ -191,10 +187,10 @@ func loadSandboxes2() {
 			if _p, ok := d.View[v]; ok {
 				view = _p
 			}
-			sbox.View[p.Pkg.Id] = view
+			sbox.View[p.Id] = view
 
 			// Do the statics
-			for _, section := range p.Pkg.Sects {
+			for _, section := range p.Sects {
 				if vma := vmas.SectVMA(&section); vma != nil {
 					commons.Check(vma.Prot&commons.USER_VAL != 0)
 					vma.Prot &= view
@@ -203,7 +199,7 @@ func loadSandboxes2() {
 			}
 
 			// Do the dynamics
-			for _, section := range p.Pkg.Dynamic {
+			for _, section := range p.Dynamic {
 				if vma := vmas.SectVMA(&section); vma != nil {
 					commons.Check(vma.Prot&commons.USER_VAL != 0)
 					vma.Prot &= view
@@ -219,57 +215,11 @@ func loadSandboxes2() {
 		// Add common parts
 		sbox.Static.MapAreaCopy(globals.CommonVMAs)
 
-		fmt.Println("common")
-		globals.CommonVMAs.Print()
-		fmt.Println("trusted")
-		globals.TrustedSpace.Print()
+		globals.Sandboxes[sbox.Config.Id] = sbox
+
+		//fmt.Println("common")
+		//globals.CommonVMAs.Print()
+		//fmt.Println("trusted")
+		//globals.TrustedSpace.Print()
 	}
-}
-
-// ParseProcessAddressSpace parses the self proc map to get the entire address space.
-// defProt is the common set of flags we want for this.
-func ParseProcessAddressSpace(defProt uint8) {
-	dat, err := ioutil.ReadFile("/proc/self/maps")
-	commons.CheckE(err)
-	tvmas := strings.Split(string(dat), "\n")
-	vmareas := make([]*vmas.VMArea, 0)
-	for _, v := range tvmas {
-		if len(v) == 0 {
-			continue
-		}
-		fields := strings.Fields(v)
-		commons.Check(len(fields) >= 5)
-
-		// Parsing addresses.
-		bounds := strings.Split(fields[0], "-")
-		commons.Check(len(bounds) == 2)
-		start, err := strconv.ParseUint(bounds[0], 16, 64)
-		end, err1 := strconv.ParseUint(bounds[1], 16, 64)
-		commons.CheckE(err)
-		commons.CheckE(err1)
-
-		// Parsing access rights.
-		rstr := fields[1]
-		rights := uint8(0)
-		if strings.Contains(rstr, "r") {
-			rights |= commons.R_VAL
-		}
-		if strings.Contains(rstr, "w") {
-			rights |= commons.W_VAL
-		}
-		if strings.Contains(rstr, "x") {
-			rights |= commons.X_VAL
-		}
-
-		vm := &vmas.VMArea{
-			commons.ListElem{},
-			commons.Section{
-				Addr: uint64(start),
-				Size: uint64(end - start),
-				Prot: uint8(rights | defProt),
-			},
-		}
-		vmareas = append(vmareas, vm)
-	}
-	globals.FullAddressSpace = vmas.Convert(vmareas)
 }

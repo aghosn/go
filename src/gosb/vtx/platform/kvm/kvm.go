@@ -2,6 +2,7 @@ package kvm
 
 import (
 	"gosb/commons"
+	"gosb/globals"
 	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
 	"log"
@@ -30,7 +31,7 @@ type KVM struct {
 }
 
 // New creates a VM with KVM, and initializes its machine and pagetables.
-func New(fd int, d *commons.Domain) *KVM {
+func New(fd int, d *globals.SandboxMemory) *KVM {
 	// Create a new VM fd.
 	var (
 		vm    int

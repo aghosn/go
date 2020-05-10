@@ -95,20 +95,12 @@ func (a *AddressSpace) Initialize(procmap *vmas.VMAreas) {
 
 // ApplyDomain changes the view of this address space to the one specified by
 // this domain.
-func (a *AddressSpace) ApplyDomain(d *commons.Domain) {
+func (a *AddressSpace) ApplyDomain(d *globals.SandboxMemory) {
 	commons.Check(a.Tables == nil && a.PTEAllocator != nil)
 	commons.Check(AddressSpaceTemplate.Tables == nil)
 	// Initialize the root page table.
 	a.Tables = pg.New(a.PTEAllocator)
-	accumulator := make([]*vmas.VMArea, 0)
-	for _, pkg := range globals.PkgBackends {
-		accumulator = append(accumulator, vmas.PackageToVMAreas(pkg, commons.D_VAL)...)
-	}
-	accumulator = append(accumulator, getExtraSymbols(d)...)
-	for pkg, v := range d.SView {
-		accumulator = append(accumulator, vmas.PackageToVMAreas(pkg, v)...)
-	}
-	view := vmas.Convert(accumulator)
+	view := d.Static.Copy()
 	for v := vmas.ToVMA(view.First); v != nil; {
 		next := vmas.ToVMA(v.Next)
 		view.Remove(v.ToElem())
@@ -133,8 +125,9 @@ func (a *AddressSpace) Assign(vma *vmas.VMArea) {
 
 func (a *AddressSpace) Print() {
 	for r := ToMemoryRegion(a.Regions.First); r != nil; r = ToMemoryRegion(r.Next) {
-		fmt.Printf("%x -- %x (%x)", r.Span.Start, r.Span.Start+r.Span.Size, r.Span.Prot)
-		fmt.Printf(" [%x]\n", r.Span.GPA)
+		r.Print()
+		//fmt.Printf("%x -- %x (%x)", r.Span.Start, r.Span.Start+r.Span.Size, r.Span.Prot)
+		//fmt.Printf(" [%x]\n", r.Span.GPA)
 	}
 }
 
@@ -312,6 +305,17 @@ func (m *MemoryRegion) Finalize() {
 		m.Map(m.Span.Start, m.Span.Size, m.Span.Prot, true)
 	}
 	m.finalized = true
+}
+
+func (m *MemoryRegion) Print() {
+	switch m.Tpe {
+	case IMMUTABLE_REG:
+		for v := vmas.ToVMA(m.View.First); v != nil; v = vmas.ToVMA(v.Next) {
+			fmt.Printf("%x -- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot)
+		}
+	default:
+		fmt.Printf("%x -- %x (%x)\n", m.Span.Start, m.Span.Start+m.Span.Size, m.Span.Prot)
+	}
 }
 
 //go:nosplit

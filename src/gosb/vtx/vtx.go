@@ -38,7 +38,7 @@ func Init() {
 
 		// Initialize the different sandboxes.
 		machines = make(map[commons.SandId]*kvm.KVM)
-		for _, d := range globals.Domains {
+		for _, d := range globals.Sandboxes {
 			// Skip over the non-sandbox.
 			if d.Config.Id == "-1" {
 				continue
