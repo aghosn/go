@@ -1,6 +1,7 @@
 package vmas
 
 import (
+	"fmt"
 	"gosb/commons"
 	"log"
 	"sort"
@@ -29,13 +30,19 @@ func Convert(acc []*VMArea) *VMAreas {
 	return space
 }
 
+func PackageToVMAs(p *commons.Package) *VMAreas {
+	vmareas := PackageToVMAreas(p, commons.D_VAL)
+	return Convert(vmareas)
+}
+
 // PackageToVMAreas translates a package into a slice of vmareas,
 // applying the replacement view mask to the protection.
 func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
 	acc := make([]*VMArea, 0)
-	for _, s := range p.Sects {
+	for i, s := range p.Sects {
 		if s.Addr%PageSize != 0 {
-			log.Fatalf("error, section address not aligned %v\n", s)
+			log.Printf("Section number %d\n", i)
+			panic("Section address not aligned ")
 		}
 		area := SectVMA(&s)
 		// @warning IMPORTANT Skip the empty sections (otherwise crashes)
@@ -84,6 +91,11 @@ func (s *VMAreas) Coalesce() {
 // Map maps a VMAreas to the address space.
 // So far the implementation is stupid and inefficient.
 func (s *VMAreas) Map(vma *VMArea) {
+	if s.IsEmpty() {
+		s.AddBack(vma.ToElem())
+		return
+	}
+
 	for v := ToVMA(s.First); v != nil; v = ToVMA(v.Next) {
 		next := ToVMA(v.Next)
 		if vma.Addr < v.Addr {
@@ -96,9 +108,32 @@ func (s *VMAreas) Map(vma *VMArea) {
 		}
 	}
 	if vma.List == nil {
-		log.Fatalf("Failed to insert vma %v\n", vma)
+		// Probably already mapped.
+		log.Printf("vma: %v\n", vma)
+		panic("Failed to insert the vma.")
 	}
 	s.Coalesce()
+}
+
+// MapArea maps a vmarea inside another vmarea
+func (s *VMAreas) MapArea(vm *VMAreas) {
+	for v := ToVMA(vm.First); v != nil; {
+		next := ToVMA(v.Next)
+		vm.Remove(v.ToElem())
+		s.Map(v)
+		v = next
+	}
+}
+
+func (s *VMAreas) MapAreaCopy(vm *VMAreas) {
+	doppler := vm.Copy()
+	s.MapArea(doppler)
+}
+
+func (s *VMAreas) UnmapArea(vm *VMAreas) {
+	for v := ToVMA(vm.First); v != nil; v = ToVMA(v.Next) {
+		s.Unmap(v)
+	}
 }
 
 // Unmap removes a VMArea from the address space.
@@ -170,4 +205,10 @@ func (vs *VMAreas) Copy() *VMAreas {
 		doppler.AddBack(cpy.ToElem())
 	}
 	return doppler
+}
+
+func (vs *VMAreas) Print() {
+	for v := ToVMA(vs.First); v != nil; v = ToVMA(v.Next) {
+		fmt.Printf("%x -+- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot)
+	}
 }

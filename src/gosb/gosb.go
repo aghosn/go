@@ -21,6 +21,9 @@ var (
 // Initialize loads the sandbox and package information from the binary.
 func Initialize(b Backend) {
 	once.Do(func() {
+		// Just checking right now
+		loadPackages2()
+		loadSandboxes2()
 		loadPackages()
 		loadSandboxes()
 		initBackend(b)

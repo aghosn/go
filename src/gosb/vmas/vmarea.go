@@ -24,7 +24,7 @@ func SectVMA(s *commons.Section) *VMArea {
 	}
 	return &VMArea{
 		commons.ListElem{},
-		commons.Section{s.Addr, size, s.Prot},
+		commons.Section{s.Addr, size, s.Prot | commons.USER_VAL},
 	}
 }
 
@@ -80,7 +80,8 @@ func (vm *VMArea) merge(o *VMArea) (*VMArea, bool) {
 	// They intersect or are contiguous.
 	// Safety check first
 	if vm.intersect(o) && vm.Prot != o.Prot {
-		log.Fatalf("Malformed address space, incompatible protection %v, %v\n", vm, o)
+		log.Printf("Malformed address space, incompatible protection %v, %v\n", vm, o)
+		panic("backtrace")
 	}
 	// Contiguous but different protection
 	if vm.Prot != o.Prot {
