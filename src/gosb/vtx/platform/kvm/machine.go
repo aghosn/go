@@ -3,7 +3,6 @@ package kvm
 import (
 	"fmt"
 	"gosb/commons"
-	"gosb/globals"
 	"gosb/vtx/atomicbitops"
 	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/procid"
@@ -151,8 +150,7 @@ func (m *Machine) newVCPU() *vCPU {
 	return c
 }
 
-func newMachine(vm int, d *globals.SandboxMemory) (*Machine, error) {
-	// TODO change the memory view afterwards, remove the domain specific things.
+func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {
 	memview := mv.AddressSpaceTemplate.Copy()
 	memview.ApplyDomain(d)
 	// Create the machine.

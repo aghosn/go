@@ -9,15 +9,7 @@ package globals
 import (
 	"debug/elf"
 	c "gosb/commons"
-	"gosb/vmas"
 )
-
-type SandboxMemory struct {
-	Static  *vmas.VMAreas
-	Dynamic *vmas.VMAreas
-	Config  *c.SandboxDomain
-	View    map[int]uint8
-}
 
 const (
 	BackendPrefix = "gosb"
@@ -25,18 +17,6 @@ const (
 	// Non-mappable sandbox.
 	TrustedSandbox  = "-1"
 	TrustedPackages = "non-bloat"
-)
-
-var (
-	Packages    []*c.Package
-	PkgBackends []*c.Package
-	PkgMap      map[string]*c.Package
-	Domains     map[c.SandId]*c.Domain
-	Closures    map[c.SandId]*c.Section
-	Pclntab     *c.Section
-	GoString    *c.Section
-	IdToPkg     map[int]*c.Package
-	PkgIdToSid  map[int][]c.SandId
 )
 
 // Refactoring.
@@ -50,18 +30,19 @@ var (
 	BackendPackages []*c.Package
 
 	// VMareas
-	CommonVMAs       *vmas.VMAreas
-	FullAddressSpace *vmas.VMAreas
-	TrustedSpace     *vmas.VMAreas
+	CommonVMAs       *c.VMAreas
+	FullAddressSpace *c.VMAreas
+	TrustedSpace     *c.VMAreas
 
 	// Maps
 	NameToPkg map[string]*c.Package
-	IdToPkg2  map[int]*c.Package
+	IdToPkg   map[int]*c.Package
+	NameToId  map[string]int
 
 	// Sandboxes
 	Configurations []*c.SandboxDomain
-	SandboxFuncs   map[c.SandId]*vmas.VMArea
-	Sandboxes      map[c.SandId]*SandboxMemory
+	SandboxFuncs   map[c.SandId]*c.VMArea
+	Sandboxes      map[c.SandId]*c.SandboxMemory
 
 	// Dependencies
 	PkgDeps map[int][]c.SandId

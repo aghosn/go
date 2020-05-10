@@ -1,15 +1,14 @@
-package vmas
+package commons
 
 import (
 	"fmt"
-	"gosb/commons"
 	"log"
 	"sort"
 )
 
 // VMAreas represents an address space, i.e., a list of VMArea.
 type VMAreas struct {
-	commons.List
+	List
 }
 
 const (
@@ -30,14 +29,14 @@ func Convert(acc []*VMArea) *VMAreas {
 	return space
 }
 
-func PackageToVMAs(p *commons.Package) *VMAreas {
-	vmareas := PackageToVMAreas(p, commons.D_VAL)
+func PackageToVMAs(p *Package) *VMAreas {
+	vmareas := PackageToVMAreas(p, D_VAL)
 	return Convert(vmareas)
 }
 
 // PackageToVMAreas translates a package into a slice of vmareas,
 // applying the replacement view mask to the protection.
-func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
+func PackageToVMAreas(p *Package, replace uint8) []*VMArea {
 	acc := make([]*VMArea, 0)
 	for i, s := range p.Sects {
 		if s.Addr%PageSize != 0 {
@@ -50,7 +49,7 @@ func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
 			continue
 		}
 		area.Prot &= replace
-		area.Prot |= commons.USER_VAL
+		area.Prot |= USER_VAL
 		acc = append(acc, area)
 	}
 
@@ -61,7 +60,7 @@ func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
 			log.Fatalf("error, dynamic section should no be empty")
 		}
 		area.Prot &= replace
-		area.Prot |= commons.USER_VAL
+		area.Prot |= USER_VAL
 		acc = append(acc, area)
 	}
 	return acc
@@ -163,8 +162,8 @@ func (s *VMAreas) Unmap(vma *VMArea) {
 			nsize := v.Addr + v.Size - nstart
 			v.Size = vma.Addr - v.Addr
 			s.Map(&VMArea{
-				commons.ListElem{},
-				commons.Section{nstart, nsize, v.Prot},
+				ListElem{},
+				Section{nstart, nsize, v.Prot},
 			})
 			break
 		}
@@ -182,14 +181,14 @@ func (s *VMAreas) Unmap(vma *VMArea) {
 func (s *VMAreas) Mirror() *VMAreas {
 	mirror := &VMAreas{}
 	a := &VMArea{
-		commons.ListElem{},
-		commons.Section{
+		ListElem{},
+		Section{
 			Addr: 0x0,
-			Size: uint64(commons.Limit39bits),
+			Size: uint64(Limit39bits),
 		},
 	}
 	mirror.AddBack(a.ToElem())
-	for v := ToVMA(s.First); v != nil && uintptr(v.Addr) < commons.Limit39bits; v = ToVMA(v.Next) {
+	for v := ToVMA(s.First); v != nil && uintptr(v.Addr) < Limit39bits; v = ToVMA(v.Next) {
 		mirror.Unmap(v)
 	}
 	return mirror

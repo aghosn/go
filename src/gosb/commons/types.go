@@ -28,3 +28,10 @@ type Section struct {
 	Size uint64
 	Prot uint8
 }
+
+type SandboxMemory struct {
+	Static  *VMAreas
+	Dynamic *VMAreas
+	Config  *SandboxDomain
+	View    map[int]uint8
+}

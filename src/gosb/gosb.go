@@ -3,9 +3,8 @@ package gosb
 import (
 	"debug/elf"
 	"encoding/json"
-	c "gosb/commons"
-	g "gosb/globals"
-	"log"
+	"gosb/commons"
+	"gosb/globals"
 	"os"
 	"runtime"
 	"sort"
@@ -21,9 +20,6 @@ var (
 // Initialize loads the sandbox and package information from the binary.
 func Initialize(b Backend) {
 	once.Do(func() {
-		// Just checking right now
-		loadPackages2()
-		loadSandboxes2()
 		loadPackages()
 		loadSandboxes()
 		initBackend(b)
@@ -32,12 +28,12 @@ func Initialize(b Backend) {
 }
 
 func initRuntime() {
-	pkgToId := make(map[string]int)
-	for k, d := range g.PkgMap {
-		pkgToId[k] = d.Id
+	globals.NameToId = make(map[string]int)
+	for k, d := range globals.NameToPkg {
+		globals.NameToId[k] = d.Id
 	}
 	runtime.LitterboxHooks(
-		pkgToId,
+		globals.NameToId,
 		getPkgName,
 		backend.transfer,
 		backend.register,
@@ -51,7 +47,6 @@ func initRuntime() {
 // getPkgName is called by the runtime.
 // As a result it should not be call printf.
 //TODO(aghosn) implement it by hand and add a nosplit condition.
-// TODO(aghosn) fix this.
 func getPkgName(name string) string {
 	idx := strings.LastIndex(name, "/")
 	if idx == -1 {
@@ -66,188 +61,207 @@ func getPkgName(name string) string {
 }
 
 func loadPackages() {
-	if g.Packages != nil {
-		log.Fatalf("Error we are re-parsing packages\n")
-	}
-	p, err := elf.Open(os.Args[0])
-	check(err)
-	bloatSec := p.Section(".bloated")
-	defer func() { check(p.Close()) }()
-	if bloatSec == nil {
+	// Load information from the elf.
+	file, err := elf.Open(os.Args[0])
+	commons.CheckE(err)
+	defer func() { commons.CheckE(file.Close()) }()
+	section := file.Section(".bloated")
+	if section == nil {
 		// No bloat section
 		return
 	}
-	bloatBytes, err := bloatSec.Data()
-	check(err)
-	// Parse the bloated packages
-	g.Packages = make([]*c.Package, 0)
-	err = json.Unmarshal(bloatBytes, &g.Packages)
-	check(err)
+	data, err := section.Data()
+	commons.CheckE(err)
 
-	// Find the type section address
-	syms, err := p.Symbols()
-	var typeSectionAddr uint64
-	sort.Slice(syms, func(i, j int) bool { return syms[i].Value < syms[j].Value })
-	for i, v := range syms {
-		if _, ok := c.ExtraSymbols[v.Name]; ok && i < len(syms) {
-			if v.Value%0x1000 != 0 {
-				panic("The symbol is not aligned :(")
-			}
-			typeSectionAddr = v.Value
-			break
-		}
-	}
+	// Initialize globals.
+	globals.AllPackages = make([]*commons.Package, 0)
+	err = json.Unmarshal(data, &globals.AllPackages)
 
-	// Generate the map for later TODO(aghosn) we might want to change that to int
-	g.PkgMap = make(map[string]*c.Package)
-	g.IdToPkg = make(map[int]*c.Package)
-	for _, v := range g.Packages {
-		if _, ok := g.PkgMap[v.Name]; ok {
-			log.Fatalf("Duplicated package %v\n", v.Name)
-		}
+	// Generate maps for packages.
+	globals.NameToPkg = make(map[string]*commons.Package)
+	globals.IdToPkg = make(map[int]*commons.Package)
 
-		// Remove type section
-		idx := 0
-		for i, section := range v.Sects {
-			if section.Addr == typeSectionAddr { // && section.Size == typeSection.Size
-				idx = i
-				break
+	for _, v := range globals.AllPackages {
+
+		// Map information for trusted address space.
+		if v.Name == globals.TrustedPackages {
+			globals.TrustedSpace = new(commons.VMAreas)
+			for i, s := range v.Sects {
+				if s.Size == 0 {
+					continue
+				}
+				// Arrange the sections
+				v.Sects[i].Addr = commons.Round(s.Addr, false)
+				v.Sects[i].Size = commons.Round(s.Size, true)
+				v.Sects[i].Prot = s.Prot | commons.USER_VAL
+				// TODO(aghosn) can maybe move that to the end.
+				globals.TrustedSpace.Map(&commons.VMArea{
+					commons.ListElem{},
+					commons.Section{
+						commons.Round(s.Addr, false),
+						commons.Round(s.Size, true),
+						s.Prot | commons.USER_VAL,
+					},
+				})
 			}
 		}
-		v.Sects[idx] = v.Sects[len(v.Sects)-1]
-		v.Sects = v.Sects[:len(v.Sects)-1]
+		// Check for duplicates.
+		if _, ok := globals.NameToPkg[v.Name]; ok {
+			panic("Duplicated package " + v.Name)
+		}
+		if _, ok := globals.IdToPkg[v.Id]; ok {
+			panic("Duplicated package " + v.Name)
+		}
+		globals.NameToPkg[v.Name] = v
+		globals.IdToPkg[v.Id] = v
 
-		g.PkgMap[v.Name] = v
-		g.IdToPkg[v.Id] = v
-	}
-
-	// TODO(CharlyCst) handle memory allocation in `mpkRegister` (mpk.go)
-	for _, pkg := range g.Packages {
-		pkg.Dynamic = make([]c.Section, 0, 1000)
-	}
-
-	for _, pkg := range g.Packages {
-		if strings.HasPrefix(pkg.Name, "gosb") {
-			g.PkgBackends = append(g.PkgBackends, pkg)
+		// Register backend packages.
+		if strings.HasPrefix(v.Name, globals.BackendPrefix) {
+			globals.BackendPackages = append(globals.BackendPackages, v)
 		}
 	}
+
+	// Generate backend VMAreas.
+	globals.CommonVMAs = new(commons.VMAreas)
+	for _, p := range globals.BackendPackages {
+		sub := commons.PackageToVMAs(p)
+		globals.CommonVMAs.MapArea(sub)
+	}
+
+	// Initialize the symbols.
+	globals.Symbols, err = file.Symbols()
+	commons.CheckE(err)
+	sort.Slice(globals.Symbols, func(i, j int) bool {
+		return globals.Symbols[i].Value < globals.Symbols[j].Value
+	})
+	globals.NameToSym = make(map[string]*elf.Symbol)
+	for i, s := range globals.Symbols {
+		globals.NameToSym[s.Name] = &globals.Symbols[i]
+
+		// Handle stupid runtime.types, and go.string.* and pclntab
+		if s.Name == "runtime.types" {
+			commons.Check(i < len(globals.Symbols)-1)
+			count := 0
+			for j := i + 1; j < len(globals.Symbols); j++ {
+				switch globals.Symbols[j].Name {
+				case "type.*":
+					fallthrough
+				case "runtime.rodata":
+					fallthrough
+				case "go.string.*":
+					count++
+				case "go.func.*":
+					// Only way to break
+					count++
+					j = len(globals.Symbols)
+				default:
+					panic("Unknown symbol " + globals.Symbols[j].Name)
+				}
+			}
+			commons.Check(count >= 2)
+			gf := globals.Symbols[i+count]
+			globals.CommonVMAs.Map(commons.SectVMA(&commons.Section{
+				commons.Round(s.Value, false),
+				commons.Round(gf.Value, false) - commons.Round(s.Value, false),
+				commons.R_VAL | commons.USER_VAL,
+			}))
+		} else if s.Name == "runtime.pclntab" {
+			globals.CommonVMAs.Map(commons.SectVMA(&commons.Section{
+				commons.Round(s.Value, false),
+				commons.Round(s.Size, true),
+				commons.R_VAL | commons.USER_VAL,
+			}))
+		}
+	}
+
+	// Make sure  Backend is removed from trusted.
+	globals.TrustedSpace.UnmapArea(globals.CommonVMAs)
 }
 
 func loadSandboxes() {
-	g.PkgIdToSid = make(map[int][]c.SandId)
-	p, err := elf.Open(os.Args[0])
-
-	// Use this to find symbols
-	symbols, err := p.Symbols()
-	check(err)
-	syms := checkInvariants(symbols)
-	sbSec := p.Section(".sandboxes")
-	defer func() { check(p.Close()) }()
-	if sbSec == nil {
-		// no sandboxes
+	file, err := elf.Open(os.Args[0])
+	commons.CheckE(err)
+	defer func() { commons.CheckE(file.Close()) }()
+	section := file.Section(".sandboxes")
+	if section == nil {
+		// No sboxes
 		return
 	}
-	sbBytes, err := sbSec.Data()
-	check(err)
-	// Get the sandbox domains
-	sbDomains := make([]*c.SandboxDomain, 0)
-	g.Closures = make(map[c.SandId]*c.Section)
+	globals.PkgDeps = make(map[int][]commons.SandId)
+	globals.SandboxFuncs = make(map[commons.SandId]*commons.VMArea)
+	globals.Configurations = make([]*commons.SandboxDomain, 0)
+	globals.Sandboxes = make(map[commons.SandId]*commons.SandboxMemory)
 
-	err = json.Unmarshal(sbBytes, &sbDomains)
-	check(err)
-	// Now generate internal data with direct access to domains.
-	g.Domains = make(map[string]*c.Domain)
-	for _, d := range sbDomains {
-		if _, ok := g.Domains[d.Id]; ok {
-			log.Fatalf("Duplicated sandbox id %v\n", d.Id)
-		}
-		// Unquote sandbox ids.
-		if ns, err := strconv.Unquote(d.Id); err == nil {
-			d.Id = ns
-		}
-		sb := &c.Domain{d, make(map[*c.Package]uint8), make([]*c.Package, 0)}
-		// Initialize the view
-		for k, v := range d.View {
-			pkg, ok := g.PkgMap[k]
-			if !ok {
-				log.Fatalf("Unable to find package %v\n", k)
-			}
-			sb.SView[pkg] = v
-		}
-		// Initialize the packages
-		for _, k := range d.Pkgs {
-			pkg, ok := g.PkgMap[k]
-			if !ok {
-				log.Fatalf("Unable to find package %v\n", k)
-			}
-			sb.SPkgs = append(sb.SPkgs, pkg)
-			l, _ := g.PkgIdToSid[pkg.Id]
-			g.PkgIdToSid[pkg.Id] = append(l, sb.Config.Id)
-			if _, ok1 := sb.SView[pkg]; !ok1 {
-				sb.SView[pkg] = c.D_VAL
-			}
-		}
-		// Add the domain to the global list
-		g.Domains[sb.Config.Id] = sb
+	data, err := section.Data()
+	commons.CheckE(err)
+	err = json.Unmarshal(data, &globals.Configurations)
+	commons.CheckE(err)
 
-		// Add its symbol too.
-		if sb.Config.Id != "-1" {
-			sym, ok := syms[sb.Config.Func]
-			if !ok {
-				log.Fatalf("Unable to find sandbox definition %v\n", sb.Config.Func)
-			}
-			g.Closures[sb.Config.Id] = &c.Section{sym.Value, sym.Size, c.X_VAL | c.R_VAL | c.USER_VAL}
-		}
-	}
-}
+	// Generate internal data
+	for _, d := range globals.Configurations {
+		_, ok := globals.Sandboxes[d.Id]
+		commons.Check(!ok)
 
-// checkInvariants is used for some of the symbols that go inserts after the bloat.
-// For the moment we handle:
-// 1. The fact that go.string.* has the wrong symbol size and actually maps more memory than declared.
-//		For that, we expect go.func.* to be the next symbol and register the full region between the two
-//		inside the global.GoString section that should be shared will all sandboxes.
-// 2. The pclntab is an elf section that is RO, we therefore load it from the binary.
-//		The same applies here, it should be shared with all sandboxes and is available in
-//		global.Pclntab.
-func checkInvariants(syms []elf.Symbol) map[string]elf.Symbol {
-	// We first sort the slice.
-	sort.Slice(syms, func(i, j int) bool {
-		return syms[i].Value < syms[j].Value
-	})
+		// Handle quotes in the id.
+		if nid, err := strconv.Unquote(d.Id); err == nil {
+			d.Id = nid
+		}
+		// Create the sbox memory
+		sbox := &commons.SandboxMemory{
+			new(commons.VMAreas),
+			new(commons.VMAreas),
+			d,
+			make(map[int]uint8),
+		}
+		var statics []*commons.VMArea = nil
+		var dynamics []*commons.VMArea = nil
 
-	res := make(map[string]elf.Symbol)
-	// Then we check that go.string.* is followed by go.func.*
-	for i, s := range syms {
-		res[s.Name] = s
-		if s.Name == "go.string.*" {
-			if i == len(syms)-1 {
-				panic("go string at the end of the symbols.")
+		if d.Id != globals.TrustedSandbox {
+			sf, ok := globals.NameToSym[d.Func]
+			commons.Check(ok)
+			function := commons.SectVMA(&commons.Section{
+				commons.Round(sf.Value, false),
+				commons.Round(sf.Size, true),
+				commons.X_VAL | commons.R_VAL | commons.USER_VAL,
+			})
+			statics = append(statics, function)
+		}
+
+		// Go through each package.
+		for _, v := range d.Pkgs {
+			view := uint8(commons.D_VAL)
+			p, ok := globals.NameToPkg[v]
+			commons.Check(ok)
+			if _p, ok := d.View[v]; ok {
+				view = _p | commons.USER_VAL
 			}
-			if syms[i+1].Name != "go.func.*" {
-				panic("Invariant failure")
+			sbox.View[p.Id] = view
+
+			// Do the statics
+			for _, section := range p.Sects {
+				if vma := commons.SectVMA(&section); vma != nil {
+					commons.Check(vma.Prot&commons.USER_VAL != 0)
+					vma.Prot &= view
+					statics = append(statics, vma)
+				}
 			}
-			// we have found go string.
-			g.GoString = &c.Section{
-				c.Round(s.Value, false),
-				c.Round(syms[i+1].Value, false) - c.Round(s.Value, false),
-				c.R_VAL | c.USER_VAL,
+
+			// Do the dynamics
+			for _, section := range p.Dynamic {
+				if vma := commons.SectVMA(&section); vma != nil {
+					commons.Check(vma.Prot&commons.USER_VAL != 0)
+					vma.Prot &= view
+					dynamics = append(dynamics, vma)
+				}
 			}
 		}
-		// Handle pclntab
-		if s.Name == "runtime.pclntab" {
-			g.Pclntab = &c.Section{
-				c.Round(s.Value, false),
-				c.Round(s.Size, true),
-				c.R_VAL | c.USER_VAL,
-			}
-		}
-	}
-	return res
-}
 
-// check is to prevent me from getting tired of writing the error check
-func check(err error) {
-	if err != nil {
-		log.Fatalf("gosb: %v\n", err.Error())
+		// Finalize
+		sbox.Static = commons.Convert(statics)
+		sbox.Dynamic = commons.Convert(dynamics)
+
+		// Add common parts
+		sbox.Static.MapAreaCopy(globals.CommonVMAs)
+		globals.Sandboxes[sbox.Config.Id] = sbox
 	}
 }

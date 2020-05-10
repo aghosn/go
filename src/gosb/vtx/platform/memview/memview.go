@@ -3,8 +3,6 @@ package memview
 import (
 	"fmt"
 	"gosb/commons"
-	"gosb/globals"
-	"gosb/vmas"
 	pg "gosb/vtx/platform/ring0/pagetables"
 	"unsafe"
 )
@@ -40,7 +38,7 @@ type MemoryRegion struct {
 	Span             MemorySpan
 	Bitmap           []uint64      // Presence bitmap
 	Owner            *AddressSpace // The owner AddressSpace
-	View             vmas.VMAreas
+	View             commons.VMAreas
 	finalized        bool
 }
 
@@ -73,14 +71,14 @@ func (a *AddressSpace) Copy() *AddressSpace {
 	return doppler
 }
 
-func (a *AddressSpace) Initialize(procmap *vmas.VMAreas) {
+func (a *AddressSpace) Initialize(procmap *commons.VMAreas) {
 	// Start by finding out the free portions in the (1 << 39) space.
 	free := procmap.Mirror()
 	a.FreeAllocator = &FreeSpaceAllocator{}
 	a.FreeAllocator.Initialize(free)
 
 	// Now aggregate areas per type.
-	for v := vmas.ToVMA(procmap.First); v != nil; v = vmas.ToVMA(v.Next) {
+	for v := commons.ToVMA(procmap.First); v != nil; v = commons.ToVMA(v.Next) {
 		head := v
 		tail := v
 		// Now create a region that corresponds to this.
@@ -95,14 +93,14 @@ func (a *AddressSpace) Initialize(procmap *vmas.VMAreas) {
 
 // ApplyDomain changes the view of this address space to the one specified by
 // this domain.
-func (a *AddressSpace) ApplyDomain(d *globals.SandboxMemory) {
+func (a *AddressSpace) ApplyDomain(d *commons.SandboxMemory) {
 	commons.Check(a.Tables == nil && a.PTEAllocator != nil)
 	commons.Check(AddressSpaceTemplate.Tables == nil)
 	// Initialize the root page table.
 	a.Tables = pg.New(a.PTEAllocator)
 	view := d.Static.Copy()
-	for v := vmas.ToVMA(view.First); v != nil; {
-		next := vmas.ToVMA(v.Next)
+	for v := commons.ToVMA(view.First); v != nil; {
+		next := commons.ToVMA(v.Next)
 		view.Remove(v.ToElem())
 		a.Assign(v)
 		v = next
@@ -114,7 +112,7 @@ func (a *AddressSpace) ApplyDomain(d *globals.SandboxMemory) {
 }
 
 // Assign finds the memory region to which this vma belongs.
-func (a *AddressSpace) Assign(vma *vmas.VMArea) {
+func (a *AddressSpace) Assign(vma *commons.VMArea) {
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
 		if m.ContainsRegion(vma.Addr, vma.Size) {
 			m.Assign(vma)
@@ -132,7 +130,7 @@ func (a *AddressSpace) Print() {
 }
 
 //go:nosplit
-func (a *AddressSpace) CreateMemoryRegion(head *vmas.VMArea, tail *vmas.VMArea) *MemoryRegion {
+func (a *AddressSpace) CreateMemoryRegion(head *commons.VMArea, tail *commons.VMArea) *MemoryRegion {
 	// Safety checks
 	commons.Check(head == tail || (head.Addr+head.Size <= tail.Addr))
 	commons.Check(head.Prot == tail.Prot)
@@ -155,7 +153,7 @@ func (a *AddressSpace) CreateMemoryRegion(head *vmas.VMArea, tail *vmas.VMArea) 
 		return mem
 	}
 	mem.AllocBitmap()
-	for v := head; v != nil; v = vmas.ToVMA(v.Next) {
+	for v := head; v != nil; v = commons.ToVMA(v.Next) {
 		mem.Map(v.Addr, v.Size, v.Prot, false)
 		if v == tail {
 			break
@@ -222,8 +220,8 @@ func ToMemoryRegion(e *commons.ListElem) *MemoryRegion {
 // This should be called only once.
 func (m *MemoryRegion) AllocBitmap() {
 	commons.Check(m.Bitmap == nil)
-	nbPages := m.Span.Size / uint64(vmas.PageSize)
-	if m.Span.Size%uint64(vmas.PageSize) != 0 {
+	nbPages := m.Span.Size / uint64(commons.PageSize)
+	if m.Span.Size%uint64(commons.PageSize) != 0 {
 		nbPages += 1
 	}
 	nbEntries := nbPages / 64
@@ -234,7 +232,7 @@ func (m *MemoryRegion) AllocBitmap() {
 }
 
 // Assign just registers the given vma as belonging to this region.
-func (m *MemoryRegion) Assign(vma *vmas.VMArea) {
+func (m *MemoryRegion) Assign(vma *commons.VMArea) {
 	commons.Check(m.Span.Start <= vma.Addr && m.Span.Start+m.Span.Size >= vma.Addr+vma.Size)
 	m.View.AddBack(vma.ToElem())
 }
@@ -294,7 +292,7 @@ func (m *MemoryRegion) Finalize() {
 	case IMMUTABLE_REG:
 		// This is the text, data, and rodata.
 		// We go through each of them and mapp them.
-		for v := vmas.ToVMA(m.View.First); v != nil; v = vmas.ToVMA(v.Next) {
+		for v := commons.ToVMA(m.View.First); v != nil; v = commons.ToVMA(v.Next) {
 			m.Map(v.Addr, v.Size, v.Prot, true)
 		}
 		//fallthrough
@@ -310,7 +308,7 @@ func (m *MemoryRegion) Finalize() {
 func (m *MemoryRegion) Print() {
 	switch m.Tpe {
 	case IMMUTABLE_REG:
-		for v := vmas.ToVMA(m.View.First); v != nil; v = vmas.ToVMA(v.Next) {
+		for v := commons.ToVMA(m.View.First); v != nil; v = commons.ToVMA(v.Next) {
 			fmt.Printf("%x -- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot)
 		}
 	default:
@@ -335,15 +333,15 @@ func (m *MemoryRegion) Unmap(start, size uintptr, apply bool) {
 //go:nosplit
 func (m *MemoryRegion) Coordinates(addr uint64) int {
 	addr = addr - m.Span.Start
-	page := (addr - (addr % vmas.PageSize)) / vmas.PageSize
+	page := (addr - (addr % commons.PageSize)) / commons.PageSize
 	return int(page)
 }
 
 // Transpose takes an index and changes it into an address within the span.
 //go:nosplit
 func (m *MemoryRegion) Transpose(idx int) uint64 {
-	base := uint64(idX(idx) * (64 * vmas.PageSize))
-	off := uint64(idY(idx) * vmas.PageSize)
+	base := uint64(idX(idx) * (64 * commons.PageSize))
+	off := uint64(idY(idx) * commons.PageSize)
 	addr := m.Span.Start + base + off
 	commons.Check(addr < m.Span.Start+m.Span.Size)
 	return addr
@@ -450,7 +448,7 @@ func (s *MemorySpan) ToElem() *commons.ListElem {
 /*				Helper functions				*/
 
 //go:nosplit
-func guessTpe(head, tail *vmas.VMArea) RegType {
+func guessTpe(head, tail *commons.VMArea) RegType {
 	isexec := head.Prot&commons.X_VAL == commons.X_VAL
 	isread := head.Prot&commons.R_VAL == commons.R_VAL
 	iswrit := head.Prot&commons.W_VAL == commons.W_VAL
@@ -492,15 +490,4 @@ func idY(idx int) int {
 //go:nosplit
 func bitmapSize(length int) int {
 	return length * 64
-}
-
-func getExtraSymbols(d *commons.Domain) []*vmas.VMArea {
-	var res []*vmas.VMArea = nil
-	sym, ok := globals.Closures[d.Config.Id]
-	commons.Check(ok)
-	commons.Check(globals.Pclntab != nil)
-	res = append(res, vmas.SectVMA(sym))
-	res = append(res, vmas.SectVMA(globals.Pclntab))
-	res = append(res, vmas.SectVMA(globals.GoString))
-	return res
 }

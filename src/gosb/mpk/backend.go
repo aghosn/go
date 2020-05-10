@@ -219,17 +219,15 @@ func computePKRU(sandboxKeys map[c.SandId][]int, keys []Pkey) {
 // Init relies on domains and packages, they must be initialized before the call
 func Init() {
 	WritePKRU(AllRightsPKRU)
-	n := len(g.Packages)
+	n := len(g.AllPackages)
 	pkgAppearsIn := make(map[int][]c.SandId, n)
 
 	fmt.Println("Initilizing GOSB with MPK backend")
 	fmt.Printf("Nb of packages:%d\n", n)
 
-	for sbID, sb := range g.Domains {
+	for sbID, sb := range g.Sandboxes {
 		// fmt.Printf("//// Sandbox %s ////\n", sbID)
-		for _, pkg := range sb.SPkgs {
-			pkgID := pkg.Id
-
+		for pkgID, _ := range sb.View {
 			if pkgID == 0 { // Runtime
 				continue
 			}
