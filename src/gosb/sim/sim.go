@@ -13,20 +13,20 @@ var (
 func Init() {
 	log.Println("Init simulation backend.")
 	countEntries = make(map[c.SandId]int)
-	for _, d := range g.Domains {
+	for _, d := range g.Sandboxes {
 		countEntries[d.Config.Id] = 0
 	}
 }
 
 func Prolog(id c.SandId) {
-	if _, ok := g.Domains[id]; ok {
+	if _, ok := g.Sandboxes[id]; ok {
 		log.Printf("Prolog sandbox %v\n", id)
 		count, _ := countEntries[id]
 		countEntries[id] = count + 1
 		return
 	}
 	// Error for the sandboxes.
-	for _, s := range g.Domains {
+	for _, s := range g.Sandboxes {
 		log.Printf("sandbox: %v\n", s.Config.Id)
 	}
 
@@ -34,7 +34,7 @@ func Prolog(id c.SandId) {
 }
 
 func Epilog(id c.SandId) {
-	if _, ok := g.Domains[id]; ok {
+	if _, ok := g.Sandboxes[id]; ok {
 		log.Printf("Epilog sandbox %v\n", id)
 		count, _ := countEntries[id]
 		countEntries[id] = count - 1

@@ -38,7 +38,7 @@ func Init() {
 
 		// Initialize the different sandboxes.
 		machines = make(map[commons.SandId]*kvm.KVM)
-		for _, d := range globals.Domains {
+		for _, d := range globals.Sandboxes {
 			// Skip over the non-sandbox.
 			if d.Config.Id == "-1" {
 				continue
@@ -70,8 +70,8 @@ func Epilog(id commons.SandId) {
 //go:nosplit
 func Transfer(oldid, newid int, start, size uintptr) {
 	tryInHost(func() {
-		lunmap, ok := globals.PkgIdToSid[oldid]
-		lmap, ok1 := globals.PkgIdToSid[newid]
+		lunmap, ok := globals.PkgDeps[oldid]
+		lmap, ok1 := globals.PkgDeps[newid]
 		if ok {
 			for _, u := range lunmap {
 				if vm, ok2 := machines[u]; ok2 {
@@ -95,7 +95,7 @@ func Transfer(oldid, newid int, start, size uintptr) {
 //go:nosplit
 func Register(id int, start, size uintptr) {
 	tryInHost(func() {
-		lmap, ok := globals.PkgIdToSid[id]
+		lmap, ok := globals.PkgDeps[id]
 		// TODO probably lock.
 		if ok {
 			for _, m := range lmap {
@@ -113,7 +113,7 @@ func Register(id int, start, size uintptr) {
 func RuntimeGrowth(id int, start, size uintptr) {
 	tryInHost(
 		func() {
-			lmap, ok := globals.PkgIdToSid[id]
+			lmap, ok := globals.PkgDeps[id]
 			// TODO probably lock.
 			if ok {
 				for _, m := range lmap {

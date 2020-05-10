@@ -150,8 +150,7 @@ func (m *Machine) newVCPU() *vCPU {
 	return c
 }
 
-func newMachine(vm int, d *commons.Domain) (*Machine, error) {
-	// TODO change the memory view afterwards, remove the domain specific things.
+func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {
 	memview := mv.AddressSpaceTemplate.Copy()
 	memview.ApplyDomain(d)
 	// Create the machine.

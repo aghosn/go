@@ -2,7 +2,6 @@ package kvm
 
 import (
 	"gosb/commons"
-	"gosb/vmas"
 	mv "gosb/vtx/platform/memview"
 )
 
@@ -28,7 +27,7 @@ func (m *Machine) SetAllEPTSlots() {
 		span := mem.Span
 		switch mem.Tpe {
 		case mv.IMMUTABLE_REG:
-			for v := vmas.ToVMA(mem.View.First); v != nil; v = vmas.ToVMA(v.Next) {
+			for v := commons.ToVMA(mem.View.First); v != nil; v = commons.ToVMA(v.Next) {
 				flags := uint32(1)
 				if v.Prot&commons.W_VAL == 0 {
 					flags = uint32(1)

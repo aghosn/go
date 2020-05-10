@@ -30,7 +30,7 @@ type KVM struct {
 }
 
 // New creates a VM with KVM, and initializes its machine and pagetables.
-func New(fd int, d *commons.Domain) *KVM {
+func New(fd int, d *commons.SandboxMemory) *KVM {
 	// Create a new VM fd.
 	var (
 		vm    int

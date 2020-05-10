@@ -1,14 +1,14 @@
-package vmas
+package commons
 
 import (
-	"gosb/commons"
+	"fmt"
 	"log"
 	"sort"
 )
 
 // VMAreas represents an address space, i.e., a list of VMArea.
 type VMAreas struct {
-	commons.List
+	List
 }
 
 const (
@@ -29,13 +29,19 @@ func Convert(acc []*VMArea) *VMAreas {
 	return space
 }
 
+func PackageToVMAs(p *Package) *VMAreas {
+	vmareas := PackageToVMAreas(p, D_VAL)
+	return Convert(vmareas)
+}
+
 // PackageToVMAreas translates a package into a slice of vmareas,
 // applying the replacement view mask to the protection.
-func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
+func PackageToVMAreas(p *Package, replace uint8) []*VMArea {
 	acc := make([]*VMArea, 0)
-	for _, s := range p.Sects {
+	for i, s := range p.Sects {
 		if s.Addr%PageSize != 0 {
-			log.Fatalf("error, section address not aligned %v\n", s)
+			log.Printf("Section number %d\n", i)
+			panic("Section address not aligned ")
 		}
 		area := SectVMA(&s)
 		// @warning IMPORTANT Skip the empty sections (otherwise crashes)
@@ -43,7 +49,7 @@ func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
 			continue
 		}
 		area.Prot &= replace
-		area.Prot |= commons.USER_VAL
+		area.Prot |= USER_VAL
 		acc = append(acc, area)
 	}
 
@@ -54,7 +60,7 @@ func PackageToVMAreas(p *commons.Package, replace uint8) []*VMArea {
 			log.Fatalf("error, dynamic section should no be empty")
 		}
 		area.Prot &= replace
-		area.Prot |= commons.USER_VAL
+		area.Prot |= USER_VAL
 		acc = append(acc, area)
 	}
 	return acc
@@ -84,6 +90,11 @@ func (s *VMAreas) Coalesce() {
 // Map maps a VMAreas to the address space.
 // So far the implementation is stupid and inefficient.
 func (s *VMAreas) Map(vma *VMArea) {
+	if s.IsEmpty() {
+		s.AddBack(vma.ToElem())
+		return
+	}
+
 	for v := ToVMA(s.First); v != nil; v = ToVMA(v.Next) {
 		next := ToVMA(v.Next)
 		if vma.Addr < v.Addr {
@@ -96,9 +107,32 @@ func (s *VMAreas) Map(vma *VMArea) {
 		}
 	}
 	if vma.List == nil {
-		log.Fatalf("Failed to insert vma %v\n", vma)
+		// Probably already mapped.
+		log.Printf("vma: %v\n", vma)
+		panic("Failed to insert the vma.")
 	}
 	s.Coalesce()
+}
+
+// MapArea maps a vmarea inside another vmarea
+func (s *VMAreas) MapArea(vm *VMAreas) {
+	for v := ToVMA(vm.First); v != nil; {
+		next := ToVMA(v.Next)
+		vm.Remove(v.ToElem())
+		s.Map(v)
+		v = next
+	}
+}
+
+func (s *VMAreas) MapAreaCopy(vm *VMAreas) {
+	doppler := vm.Copy()
+	s.MapArea(doppler)
+}
+
+func (s *VMAreas) UnmapArea(vm *VMAreas) {
+	for v := ToVMA(vm.First); v != nil; v = ToVMA(v.Next) {
+		s.Unmap(v)
+	}
 }
 
 // Unmap removes a VMArea from the address space.
@@ -128,8 +162,8 @@ func (s *VMAreas) Unmap(vma *VMArea) {
 			nsize := v.Addr + v.Size - nstart
 			v.Size = vma.Addr - v.Addr
 			s.Map(&VMArea{
-				commons.ListElem{},
-				commons.Section{nstart, nsize, v.Prot},
+				ListElem{},
+				Section{nstart, nsize, v.Prot},
 			})
 			break
 		}
@@ -147,14 +181,14 @@ func (s *VMAreas) Unmap(vma *VMArea) {
 func (s *VMAreas) Mirror() *VMAreas {
 	mirror := &VMAreas{}
 	a := &VMArea{
-		commons.ListElem{},
-		commons.Section{
+		ListElem{},
+		Section{
 			Addr: 0x0,
-			Size: uint64(commons.Limit39bits),
+			Size: uint64(Limit39bits),
 		},
 	}
 	mirror.AddBack(a.ToElem())
-	for v := ToVMA(s.First); v != nil && uintptr(v.Addr) < commons.Limit39bits; v = ToVMA(v.Next) {
+	for v := ToVMA(s.First); v != nil && uintptr(v.Addr) < Limit39bits; v = ToVMA(v.Next) {
 		mirror.Unmap(v)
 	}
 	return mirror
@@ -170,4 +204,10 @@ func (vs *VMAreas) Copy() *VMAreas {
 		doppler.AddBack(cpy.ToElem())
 	}
 	return doppler
+}
+
+func (vs *VMAreas) Print() {
+	for v := ToVMA(vs.First); v != nil; v = ToVMA(v.Next) {
+		fmt.Printf("%x -+- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot)
+	}
 }
