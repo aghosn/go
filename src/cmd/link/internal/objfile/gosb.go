@@ -88,7 +88,7 @@ func registerSandboxes(sbs []string) {
 			assert(err == nil, "Error parsing number of packages")
 			content = content[1:]
 			// Parse memory view
-			extras, err := gosb.ParseMemoryView(config[2])
+			extras, err := gosb.ParseMemoryView(config[1])
 			if err != nil {
 				panic(err.Error())
 			}

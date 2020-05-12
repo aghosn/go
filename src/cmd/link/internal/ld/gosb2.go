@@ -113,7 +113,8 @@ func (ctxt *Link) gosb_generateDomains() {
 		// Handle the extras and their permissions!
 		memView := make(map[string]uint8)
 		for _, p := range v.Extras {
-			ext := make(map[string]bool)
+			memView[p.Name] = p.Perm
+			/*ext := make(map[string]bool)
 			f := func(ctxt *Link, id int, deps []int) {}
 			c := func(s string) bool {
 				if _, ok := ext[s]; ok {
@@ -136,7 +137,7 @@ func (ctxt *Link) gosb_generateDomains() {
 					}
 					visited[k] = pack
 				}
-			}
+			}*/
 		}
 		// Finally, we set the packages and the memory view
 		for _, pack := range visited {
