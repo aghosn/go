@@ -248,24 +248,12 @@ func Init() {
 				sbProt = make(map[c.SandId]Prot)
 				pkgSbProt[pkgID] = sbProt
 			}
-			id, err := strconv.Unquote(sbID)
-			if err == nil {
-				pkgAppearsIn[pkgID] = append(sbGroup, id)
-				view, ok := sb.SView[pkg]
-				if ok {
-					sbProt[id] = getMPKProt(view)
-				} else {
-					sbProt[id] = ProtRWX
-				}
-			} else {
-				pkgAppearsIn[pkgID] = append(sbGroup, sbID)
-				view, ok := sb.SView[pkg]
-				if ok {
-					sbProt[sbID] = getMPKProt(view)
-				} else {
-					sbProt[sbID] = ProtRWX
-				}
+			pkgAppearsIn[pkgID] = append(sbGroup, sbID)
+			view, ok := sb.View[pkgID]
+			if !ok {
+				panic("Missing view")
 			}
+			sbProt[sbID] = getMPKProt(view)
 		}
 	}
 
@@ -348,9 +336,9 @@ func popMap(m map[int][]c.SandId) (int, []c.SandId) {
 }
 
 func getMPKProt(p uint8) Prot {
-	if p & c.W_VAL > 0 {
+	if p&c.W_VAL > 0 {
 		return ProtRWX
-	} else if p & c.R_VAL > 0 {
+	} else if p&c.R_VAL > 0 {
 		return ProtRX
 	}
 	return ProtX
