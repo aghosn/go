@@ -8,7 +8,10 @@ type sbSpanList struct {
 
 //go:notinheap
 type spanExtras struct {
-	id    int         // package id
+	id    int // package id
+	oldid int
+	dirty bool
+	move  bool
 	inext *mspan      // next entry in list
 	iprev *mspan      // previous entry in list
 	ilist *sbSpanList // link back to the list
@@ -26,6 +29,11 @@ type spanExtras struct {
 	tinyoffset uintptr
 }
 
+const (
+	_mallocing_register = -1
+	_mallocing_nested   = -2
+)
+
 // setId takes care of calling our backend if we want to switch a section.
 // The move boolean is true if we are moving the span from one section to another.
 // It is false for newly mmapped sections.
@@ -34,20 +42,36 @@ type spanExtras struct {
 // TODO(aghosn) can we have race conditions on the id?
 func (e *mspan) setId(id int, move bool) {
 	mp := acquirem()
-	old := mp.mallocing
-	if mp.mallocing != 0 {
-		mp.mallocing = -1
+	if e.id == id || transferSection == nil || registerSection == nil {
+		e.id = id
+		releasem(mp)
+		return
 	}
-	if move && transferSection != nil {
-		transferSection(e.id, id, e.startAddr, e.limit-e.startAddr)
-	} else if !move && registerSection != nil {
-		registerSection(id, e.startAddr, e.limit-e.startAddr)
+	if mp.toclean != nil {
+		throw("Already have stuff to clean")
 	}
-	if mp.mallocing == -1 {
-		mp.mallocing = old
-	}
-	releasem(mp)
+	e.oldid = e.id
 	e.id = id
+	if e.dirty && e.oldid != id {
+		throw("Nested dirty span")
+	}
+	e.dirty = true
+	e.move = move
+	mp.toclean = e
+	mp.nester = mp.locks - 1
+	releasem(mp)
+}
+
+func (e *mspan) DoRegistration() {
+	if !e.dirty {
+		panic("we fucked up")
+	}
+	if e.move && transferSection != nil {
+		transferSection(e.oldid, e.id, e.startAddr, e.limit-e.startAddr)
+	} else if !e.move && registerSection != nil {
+		registerSection(e.id, e.startAddr, e.limit-e.startAddr)
+	}
+	e.dirty = false
 }
 
 // Initialize an empty doubly-linked list.

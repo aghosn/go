@@ -448,6 +448,11 @@ func acquirem() *m {
 //go:nosplit
 func releasem(mp *m) {
 	_g_ := getg()
+	if mp.mallocing == 0 && mp.nester == mp.locks && mp.toclean != nil {
+		cleaner := mp.toclean
+		mp.toclean = nil
+		cleaner.DoRegistration()
+	}
 	mp.locks--
 	if mp.locks == 0 && _g_.preempt {
 		// restore the preemption request in case we've cleared it in newstack

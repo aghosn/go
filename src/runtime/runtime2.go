@@ -521,6 +521,11 @@ type m struct {
 	dlogPerM
 
 	mOS
+
+	// @aghosn marking the M as belonging to a sandbox.
+	sbid    string
+	nester  int32
+	toclean *mspan
 }
 
 type p struct {

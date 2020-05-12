@@ -1,50 +1,40 @@
-package vmas
+package commons
 
 import (
-	"gosb/commons"
 	"log"
 	"unsafe"
 )
 
-// VMarea is similar to gosb/commons.Section for the moment,
+// VMarea is similar to gosb/Section for the moment,
 // but the goal is to be able to coalesce them.
 type VMArea struct {
-	commons.ListElem
-	commons.Section
-
-	// PhysicalAddr is used only for specific regions.
-	// It allows to break HVA == GPA == GVA for VM specific parts.
-	PhysicalAddr uintptr
-
-	// Slot that corresponds to the userMemoryRegion registered with kvm
-	UmemSlot uint32
+	ListElem
+	Section
 }
 
 // SectVMA translates a section into a vmarea
-func SectVMA(s *commons.Section) *VMArea {
+func SectVMA(s *Section) *VMArea {
 	if s == nil || s.Size == 0 {
 		return nil
 	}
 	size := s.Size
-	if size%_PageSize != 0 {
-		size = ((size / _PageSize) + 1) * _PageSize
+	if size%PageSize != 0 {
+		size = ((size / PageSize) + 1) * PageSize
 	}
 	return &VMArea{
-		commons.ListElem{},
-		commons.Section{s.Addr, size, s.Prot},
-		0,
-		^uint32(0),
+		ListElem{},
+		Section{s.Addr, size, s.Prot | USER_VAL},
 	}
 }
 
 // ToElem converts a VMArea pointer to a ListElem pointer.
 //
 //go:nosplit
-func (v *VMArea) ToElem() *commons.ListElem {
-	return (*commons.ListElem)(unsafe.Pointer(v))
+func (v *VMArea) ToElem() *ListElem {
+	return (*ListElem)(unsafe.Pointer(v))
 }
 
-func ToVMA(e *commons.ListElem) *VMArea {
+func ToVMA(e *ListElem) *VMArea {
 	return (*VMArea)(unsafe.Pointer(e))
 }
 
@@ -89,7 +79,8 @@ func (vm *VMArea) merge(o *VMArea) (*VMArea, bool) {
 	// They intersect or are contiguous.
 	// Safety check first
 	if vm.intersect(o) && vm.Prot != o.Prot {
-		log.Fatalf("Malformed address space, incompatible protection %v, %v\n", vm, o)
+		log.Printf("Malformed address space, incompatible protection %v, %v\n", vm, o)
+		panic("backtrace")
 	}
 	// Contiguous but different protection
 	if vm.Prot != o.Prot {
@@ -113,7 +104,13 @@ func (vm *VMArea) merge(o *VMArea) (*VMArea, bool) {
 	return vm, true
 }
 
+func (v *VMArea) Copy() *VMArea {
+	doppler := &VMArea{}
+	doppler.Addr, doppler.Size, doppler.Prot = v.Addr, v.Size, v.Prot
+	return doppler
+}
+
 // InvalidAddr return true if the address is above the guest physical limit.
 func (v *VMArea) InvalidAddr() bool {
-	return uintptr(v.Addr+v.Size) > commons.Limit39bits
+	return uintptr(v.Addr+v.Size) > Limit39bits
 }

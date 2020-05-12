@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	nonbloat  *lb.Package
+	nonbloat *lb.Package
+	//	stmps     *lb.Package
 	Bloats    map[string]*lb.Package
 	toSym     map[*lb.Section][]*sym.Symbol
 	lookup    map[int]string
@@ -19,9 +20,9 @@ var (
 	sectNames = []string{".fake", ".bloated", ".sandboxes"}
 )
 
-// gosb_InitBloat initializes global state and computes all dependencies for each
+// computeBloats initializes global state and computes all dependencies for each
 // package that requires to be bloated.
-func (ctxt *Link) gosb_InitBloat() {
+func (ctxt *Link) computeBloats() {
 	if Bloats == nil {
 		Bloats = make(map[string]*lb.Package)
 	}
@@ -56,11 +57,18 @@ func (ctxt *Link) gosb_InitBloat() {
 	for k := range objfile.SegregatedPkgs {
 		ctxt.gosb_walkTransDeps(k, create, check)
 	}
-	// Add an entry for non-bloated packages.
-	nonbloat = &lb.Package{"non-bloat", -1, make([]lb.Section, sym.SABIALIAS), nil}
+	// Add an entry for non-bloated packages, and shared stmps
+	nonbloat = &lb.Package{lb.TrustedPkgName, -1, make([]lb.Section, sym.SABIALIAS), nil}
+	//stmps = &lb.Package{lb.StmpPkgName, -2, make([]lb.Section, sym.SABIALIAS), nil}
+
 	for i := range nonbloat.Sects {
 		nonbloat.Sects[i].Prot = symKindtoProt(sym.SymKind(i))
+		//stmps.Sects[i].Prot = symKindtoProt(sym.SymKind(i))
 	}
+	// Add the stmp only if we have sandboxes.
+	/*if HasSandboxes() {
+		//Bloats[lb.StmpPkgName] = stmps
+	}*/
 	// For all the sandboxes, we get the transitive dependencies & generate
 	// the sandboxes informations.
 	ctxt.gosb_generateDomains()
@@ -71,6 +79,9 @@ func (ctxt *Link) gosb_InitBloat() {
 func registerExtraPackages() {
 	if objfile.SegregatedPkgs != nil {
 		objfile.SegregatedPkgs["gosb"] = true
+		//objfile.SegregatedPkgs[lb.StmpPkgName] = true
+		// cgo does not track dependencies well. maybe relocate into runtime.
+		objfile.SegregatedPkgs["runtime/cgo"] = true
 	}
 }
 
@@ -81,7 +92,7 @@ func (ctxt *Link) gosb_generateDomains() {
 		sb.Func = v.Func
 		var err error
 		sb.Sys, err = lb.ParseSyscalls(v.Sys)
-		sb.View = nil //make(map[string]uint8)
+		sb.View = nil
 		if err != nil {
 			log.Fatalf("Error parsing %v: %v\n", v.Sys, err.Error())
 		}
@@ -103,7 +114,7 @@ func (ctxt *Link) gosb_generateDomains() {
 			visited[s] = pack
 			return false
 		}
-		// Maybe I should parse these things and refactor them.
+		v.Packages = append(v.Packages, lb.ExtraDependencies...)
 		for _, p := range v.Packages {
 			if p == "go.itab" || p == "go.runtime" {
 				panic("go.itab and go.runtime should not be here")
@@ -114,30 +125,6 @@ func (ctxt *Link) gosb_generateDomains() {
 		memView := make(map[string]uint8)
 		for _, p := range v.Extras {
 			memView[p.Name] = p.Perm
-			/*ext := make(map[string]bool)
-			f := func(ctxt *Link, id int, deps []int) {}
-			c := func(s string) bool {
-				if _, ok := ext[s]; ok {
-					return true
-				}
-				ext[s] = true
-				return false
-			}
-			ctxt.gosb_walkTransDeps(p.Name, f, c)
-			for k, _ := range ext {
-				if pack, ok := memView[k]; ok {
-					memView[k] = pack & p.Perm
-				} else {
-					memView[k] = p.Perm
-				}
-				if _, ok := visited[k]; !ok {
-					pack, ok1 := Bloats[k]
-					if !ok1 {
-						log.Fatalf("Oups, forgot to bloat %v\n", k)
-					}
-					visited[k] = pack
-				}
-			}*/
 		}
 		// Finally, we set the packages and the memory view
 		for _, pack := range visited {
@@ -191,12 +178,12 @@ func (ctxt *Link) gosb_walkTransDeps(top string, f func(ctxt *Link, id int, deps
 // part as well.
 // Sandboxes symbols are put at the very end of things.
 // We also have to handle the sandbox information.
-// TODO(aghosn) Maybe I should update dependencies in the initialization.
 func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	// Fast exit if we do not have sandboxes or if it is a section we don't care about
 	if len(objfile.Sandboxes) == 0 || ignoreSection(sel) || len(syms) == 0 {
 		return syms
 	}
+
 	// We divide symbols into bloated per package, unbloated lists, and sandbox
 	// symbols.
 	regSyms := make([]*sym.Symbol, 0)
@@ -207,6 +194,7 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		if s.File == "go.runtime" || s.File == "go.itab" {
 			panic("We have a symbol that belongs to go.[itab|runtime]")
 		}
+
 		// Sandbox symbol itself needs to be seggragated
 		if _, ok := objfile.SBMap[s.Name]; ok {
 			sandSyms = append(sandSyms, s)
@@ -227,9 +215,6 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		if v == nil {
 			continue
 		}
-		/*sort.Slice(v, func(i, j int) bool {
-			return strings.Compare(v[i].Name, v[j].Name) == -1
-		})*/
 		// We register the package here cause we'll need the symbol later.
 		if b, ok := Bloats[k]; ok {
 			toSym[&b.Sects[sel]] = v
@@ -242,10 +227,7 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	sort.Slice(fmap, func(i, j int) bool {
 		return strings.Compare(fmap[i][0].File, fmap[j][0].File) == -1
 	})
-	// We sort the non-bloated packages
-	/*sort.Slice(regSyms, func(i, j int) bool {
-		return strings.Compare(regSyms[i].File, regSyms[j].File) == -1
-	})*/
+
 	// We register the regsyms as well for the nonbloated.
 	toSym[&nonbloat.Sects[sel]] = regSyms
 	// Align symbols
@@ -253,10 +235,6 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		s[0].Align = 0x1000
 		regSyms = append(regSyms, s...)
 	}
-	// TODO(aghosn) maybe we should register these symbols too?
-	// For example inside the sandbox structure.
-	// I think in general I should start generating them right here.
-	// Maybe modify objfile.
 	regSyms = append(regSyms, sandSyms...)
 	return regSyms
 }
@@ -292,7 +270,7 @@ func gosb_dumpPackages() []byte {
 		_, ok := Bloats[first.File]
 		// The symbol is part of a bloat
 		if ok && (first.Align != 0x1000 || first.Value%0x1000 != 0) {
-			log.Fatalf("Wrong alignment for bloated section %v: %v", first.File, first)
+			log.Fatalf("Wrong alignment for bloated section %v: %v - %x| - %x\n", first.File, first, first.Align, first.Value)
 		}
 		// We just verify that symbols are increasing and all belong to the same
 		// package.
@@ -366,4 +344,48 @@ func symKindtoProt(s sym.SymKind) uint8 {
 	}
 	// Debugging, TODO(aghosn) what should we do?
 	return prot
+}
+
+// fixingStupidSymbols Go introduces symbols at link-time that act as aggregators
+// for in-package symbols and are then indexed by the runtime.
+// This renders bloating extremely difficult. As we result, we fix the link
+// hacks by associating all these symbols with the runtime, and making sure
+// the Outer symbol has the correct size (instead of 0, as specified by default
+// go).
+// Apparently they even fuck up the sub thing.... motherfuckers.
+func (ctxt *Link) fixingStupidSymbols() {
+	if !HasSandboxes() {
+		return
+	}
+	for _, s := range ctxt.Syms.Allsym {
+		// One of the blacklisted symbols introduced by the linker.
+		_, contains := lb.SymToFix[s.Name]
+		nopackage := s.File == ""
+		noouter := s.Outer == nil
+		if contains && nopackage && noouter {
+			s.File = "runtime"
+			continue
+		}
+
+		// stmp_* fuckers that are not made available by static analysis.
+		// we relocate them inside the fake stmpPkg
+		_, bloated := objfile.SegregatedPkgs[s.File]
+		if !bloated && isStaticTemp(s.Name) {
+			s.File = "runtime" //lb.StmpPkgName
+		}
+
+		// Some symbols reference outer without being subs.
+		if s.Outer != nil {
+			if _, relocate := lb.SymToFix[s.Outer.Name]; relocate {
+				s.File = "runtime"
+			}
+			continue
+		}
+
+		// itab symbols need to be made available too
+		if !bloated && noouter && strings.HasPrefix(s.Name, "go.itab.") {
+			s.File = "runtime"
+		}
+
+	}
 }

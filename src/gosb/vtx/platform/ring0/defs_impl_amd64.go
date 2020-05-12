@@ -2,7 +2,6 @@ package ring0
 
 import (
 	"gosb/vtx/platform/ring0/pagetables"
-	"gosb/vtx/platform/vmas"
 	"syscall"
 )
 
@@ -108,9 +107,6 @@ type SwitchOpts struct {
 
 	// FullRestore indicates that an iret-based restore should be used.
 	FullRestore bool
-
-	// SwitchArchOpts are architecture-specific options.
-	SwitchArchOpts
 }
 
 // Segment indices and Selectors.
@@ -149,17 +145,8 @@ var (
 
 // KernelOpts has initialization options for the kernel.
 type KernelOpts struct {
-	// Vmas are the vmareas that correspond to the pagetables below.
-	VMareas *vmas.VMAreas
-
 	// PageTables are the kernel pagetables; this must be provided.
 	PageTables *pagetables.PageTables
-}
-
-// InitVMA2Root initially translate the VMAreas to page tables.
-// @aghosn introduced this.
-func (k *KernelOpts) InitVMA2Root() {
-	k.VMareas.Apply(k.PageTables)
 }
 
 // KernelArchState contains architecture-specific state.
@@ -432,19 +419,4 @@ func (c *CPU) ErrorCode() (value uintptr, user bool) {
 func (c *CPU) ClearErrorCode() {
 	c.errorCode = 0
 	c.errorType = 1
-}
-
-// SwitchArchOpts are embedded in SwitchOpts.
-type SwitchArchOpts struct {
-	// UserPCID indicates that the application PCID to be used on switch,
-	// assuming that PCIDs are supported.
-	//
-	// Per pagetables_x86.go, a zero PCID implies a flush.
-	UserPCID uint16
-
-	// KernelPCID indicates that the kernel PCID to be used on return,
-	// assuming that PCIDs are supported.
-	//
-	// Per pagetables_x86.go, a zero PCID implies a flush.
-	KernelPCID uint16
 }

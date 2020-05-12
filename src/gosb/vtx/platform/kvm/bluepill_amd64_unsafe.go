@@ -22,9 +22,11 @@ func dieArchSetup(c *vCPU, context *arch.SignalContext64, guestRegs *userRegs) {
 
 	// If the vCPU is in user mode, we set the stack to the stored stack
 	// value in the vCPU itself. We don't want to unwind the user stack.
-	if guestRegs.RFLAGS&ring0.UserFlagsSet == ring0.UserFlagsSet {
+	_, isuser := c.ErrorCode()
+	if (guestRegs.RFLAGS&ring0.UserFlagsSet == ring0.UserFlagsSet) || isuser {
 		regs := c.CPU.Registers()
-		context.Rax = regs.Rax
+		context.Rax = regs.Rip
+		//context.Rax = regs.Rax
 		context.Rsp = regs.Rsp
 		context.Rbp = regs.Rbp
 	} else {

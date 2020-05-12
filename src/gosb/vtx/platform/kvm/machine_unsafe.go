@@ -16,13 +16,13 @@ func entersyscall()
 //go:linkname exitsyscall runtime.exitsyscall
 func exitsyscall()
 
-// setMemoryRegion initializes a region.
+// setEPTRegion initializes a region.
 //
 // This may be called from bluepillHandler, and therefore returns an errno
 // directly (instead of wrapping in an error) to avoid allocations.
 //
 //go:nosplit
-func (m *Machine) setMemoryRegion(slot int, physical, length, virtual uintptr, flags uint32) syscall.Errno {
+func (m *Machine) setEPTRegion(slot uint32, physical, length, virtual uint64, flags uint32) syscall.Errno {
 	userRegion := userMemoryRegion{
 		slot:          uint32(slot),
 		flags:         uint32(flags),

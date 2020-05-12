@@ -37,6 +37,7 @@ const (
 )
 
 // PDX returns the index for the given address and level.
+//go:nosplit
 func PDX(addr uintptr, n int) int {
 	return int(((addr) >> pdshift[n]) & _PDXMASK)
 }

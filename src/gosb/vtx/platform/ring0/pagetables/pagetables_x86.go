@@ -95,6 +95,7 @@ func (p *PTE) SetAddr(addr uintptr) {
 	atomic.StoreUintptr((*uintptr)(p), v)
 }
 
+//go:nosplit
 func (p *PTE) SetFlags(flags uintptr) {
 	v := p.Address()
 	v |= flags | accessed
@@ -104,4 +105,17 @@ func (p *PTE) SetFlags(flags uintptr) {
 func (p *PTE) AddressAsPTES() *PTEs {
 	addr := p.Address()
 	return (*PTEs)(unsafe.Pointer(addr))
+}
+
+//go:nosplit
+func (p *PTE) Unmap() {
+	flag := p.Flags()
+	flag = ((flag >> 1) << 1)
+	p.SetFlags(flag)
+}
+
+//go:nosplit
+func (p *PTE) Map() {
+	flag := p.Flags() | present
+	p.SetFlags(flag)
 }

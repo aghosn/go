@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"gosb/commons"
 	"gosb/vtx/atomicbitops"
+	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/procid"
 	"gosb/vtx/platform/ring0"
-	"gosb/vtx/platform/ring0/pagetables"
-	"gosb/vtx/platform/vmas"
 	"gosb/vtx/sync"
 	"log"
 	"reflect"
@@ -20,14 +19,8 @@ type Machine struct {
 	// fd is the vm fd
 	fd int
 
-	// nextSlot is the next slot for setMemoryRegion.
-	//
-	// This must be accessed atomically. If nextSlot is ^uint32(0), then
-	// slots are currently being updated, and the caller should retry.
-	nextSlot uint32
-
-	// Quick access to allocator
-	allocator *gosbAllocator
+	// Memory view for this machine
+	MemView *mv.AddressSpace
 
 	// kernel is the set of global structures.
 	kernel ring0.Kernel
@@ -40,7 +33,7 @@ type Machine struct {
 
 	// vCPUs are the machine vCPUs
 	//
-	// Thses are populated dynamically.
+	// These are populated dynamically.
 	vCPUs map[uint64]*vCPU
 
 	// vCPUsByID are the machine vCPUs, can be indexed by the vCPU's ID.
@@ -104,6 +97,12 @@ type vCPU struct {
 	vCPUArchState
 
 	dieState dieState
+
+	// let's us decide whether the vcpu should be changed.
+	entered bool
+
+	// marking the exception error.
+	exceptionCode int
 }
 
 type dieState struct {
@@ -151,27 +150,19 @@ func (m *Machine) newVCPU() *vCPU {
 	return c
 }
 
-func newMachine(vm int, d *commons.Domain) (*Machine, error) {
-	// TODO(aghosn) change the restrictions here afterwards.
-	fvmas := ParseProcessAddressSpace(commons.USER_VAL)
-	full := vmas.Convert(fvmas)
-	space := vmas.ToVMAreas(d, full)
+func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {
+	memview := mv.AddressSpaceTemplate.Copy()
+	memview.ApplyDomain(d)
 	// Create the machine.
 	m := &Machine{
 		fd:        vm,
-		allocator: newAllocator(&space.Phys),
+		MemView:   memview,
 		vCPUs:     make(map[uint64]*vCPU),
 		vCPUsByID: make(map[int]*vCPU),
 	}
 	m.Start = reflect.ValueOf(ring0.Start).Pointer()
 	m.available.L = &m.mu
-	m.kernel.Init(ring0.KernelOpts{
-		VMareas:    space,
-		PageTables: pagetables.New(m.allocator),
-	})
-	// Apply the mappings to the page tables.
-	// @warn this must be done before any cpu is required.
-	m.kernel.InitVMA2Root()
+	m.kernel.Init(ring0.KernelOpts{PageTables: memview.Tables})
 
 	maxVCPUs, errno := commons.Ioctl(m.fd, _KVM_CHECK_EXTENSION, _KVM_CAP_MAX_VCPUS)
 	if errno != 0 {
@@ -182,15 +173,12 @@ func newMachine(vm int, d *commons.Domain) (*Machine, error) {
 
 	// Register the memory address range.
 	// @aghosn, for the moment let's try to map the entire memory space.
-	m.setAllMemoryRegions()
+	m.SetAllEPTSlots()
 
 	// Initialize architecture state.
 	if err := m.initArchState(); err != nil {
 		log.Fatalf("Error initializing machine %v\n", err)
 	}
-
-	//TODO(aghosn) should we set the finalizer?
-	//runtime.SetFinalizer(m, (*machine).Destroy)
 	return m, nil
 }
 

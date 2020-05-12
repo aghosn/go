@@ -208,7 +208,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.loadlib()
 
 	//@aghosn initialize the bloated packages entries.
-	ctxt.gosb_InitBloat()
+	ctxt.computeBloats()
 
 	ctxt.dostrdata()
 	deadcode(ctxt)
@@ -241,14 +241,20 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.typelink()
 	ctxt.symtab()
 	ctxt.buildinfo()
+
+	// Golang generates weird symbols that do not have a package.
+	// This fucks us when we bloat the data. This function fixes this.
+	// It also extracts the stmp_* symbols that are not inside bloated packages
+	// and relocates them into a shared package
+	ctxt.fixingStupidSymbols()
 	ctxt.dodata()
 	order := ctxt.address()
 
 	dwarfcompress(ctxt)
 	filesize := ctxt.layout(order)
-	if len(Bloats) > 0 {
-		filesize = ctxt.initBloat(order)
-	}
+
+	// @aghosn, dump the content of sandboxes.
+	ctxt.dumpGosbSections(order, &filesize)
 
 	// Write out the output file.
 	// It is split into two parts (Asmb and Asmb2). The first

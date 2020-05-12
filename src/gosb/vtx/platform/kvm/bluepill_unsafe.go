@@ -141,52 +141,42 @@ func bluepillHandler(context unsafe.Pointer) {
 		case _KVM_EXIT_DEBUG:
 			c.die(bluepillArchContext(context), "debug")
 			return
+		case _KVM_EXIT_MMIO:
+			c.die(bluepillArchContext(context), "mmio")
+			throw("Implement support for MMIO")
 		case _KVM_EXIT_HLT:
 			// Copy out registers.
 			bluepillArchExit(c, bluepillArchContext(context))
 
-			// Return to the vCPUReady state; notify any waiters.
-			user := atomic.LoadUint32(&c.state) & vCPUUser
-			switch atomic.SwapUint32(&c.state, user) {
-			case user | vCPUGuest: // Expected case.
-			case user | vCPUGuest | vCPUWaiter:
-				panic("TODO implement") //c.notify()
-			default:
-				throw("invalid state")
-			}
-			return
-		case _KVM_EXIT_MMIO:
-			// Increment the fault count.
-			//atomic.AddUint32(&c.faults, 1)
-
-			// For MMIO, the physical address is the first data item.
-			/*physical := uintptr(c.runData.data[0])
-			virtual, ok := handleBluepillFault(c.machine, physical, physicalRegions, _KVM_MEM_FLAGS_NONE)
-			if !ok {
-				c.die(bluepillArchContext(context), "invalid physical address")
+			switch kvmSyscallHandler(c) {
+			case syshandlerValid:
+				// Nothing to do, we'll go back to the VM.
+			case syshandlerBail:
+				// We bailed
+				user := atomic.LoadUint32(&c.state) & vCPUUser
+				switch atomic.SwapUint32(&c.state, user) {
+				case user | vCPUGuest: // Expected case.
+				case user | vCPUGuest | vCPUWaiter:
+					panic("TODO implement") //c.notify()
+				default:
+					throw("invalid state")
+				}
 				return
+			case syshandlerErr1:
+				throw("Something wrong err 1")
+				//c.die(bluepillArchContext(context), "Invalid address")
+				return
+			case syshandlerErr2:
+				//throw("Something wrong err 2")
+				c.die(bluepillArchContext(context), "Not a syscall")
+				return
+			case syshandlerException:
+				//throw("Died with an exception")
+				c.die(bluepillArchContext(context), "Received an exception")
+				return
+			default:
+				throw("Something went wrong not identified")
 			}
-
-				// We now need to fill in the data appropriately. KVM
-				// expects us to provide the result of the given MMIO
-				// operation in the runData struct. This is safe
-				// because, if a fault occurs here, the same fault
-				// would have occurred in guest mode. The kernel should
-				// not create invalid page table mappings.
-				data := (*[8]byte)(unsafe.Pointer(&c.runData.data[1]))
-				length := (uintptr)((uint32)(c.runData.data[2]))
-				write := (uint8)(((c.runData.data[2] >> 32) & 0xff)) != 0
-				for i := uintptr(0); i < length; i++ {
-					b := bytePtr(uintptr(virtual) + i)
-					if write {
-						// Write to the given address.
-						*b = data[i]
-					} else {
-						// Read from the given address.
-						data[i] = *b
-					}
-				}*/
-			throw("Implement support for MMIO")
 		case _KVM_EXIT_IRQ_WINDOW_OPEN:
 			// Interrupt: we must have requested an interrupt
 			// window; set the interrupt line.

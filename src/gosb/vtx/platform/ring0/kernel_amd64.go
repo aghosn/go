@@ -8,7 +8,6 @@ import (
 func (k *Kernel) init(opts KernelOpts) {
 	// Save the root page tables.
 	k.PageTables = opts.PageTables
-	k.VMareas = opts.VMareas
 
 	// Setup the IDT, which is uniform.
 	for v, handler := range handlers {
@@ -114,10 +113,10 @@ func (c *CPU) CR0() uint64 {
 //
 //go:nosplit
 func (c *CPU) CR4() uint64 {
-	cr4 := uint64(_CR4_PAE | _CR4_PSE | _CR4_OSFXSR | _CR4_OSXMMEXCPT)
-	if hasPCID {
+	cr4 := uint64(_CR4_PAE /*| _CR4_PSE */ | _CR4_OSFXSR | _CR4_OSXMMEXCPT)
+	/*if hasPCID {
 		cr4 |= _CR4_PCIDE
-	}
+	}*/
 	if hasXSAVE {
 		cr4 |= _CR4_OSXSAVE
 	}
@@ -186,32 +185,33 @@ func IsCanonical(addr uint64) bool {
 //
 //go:nosplit
 func (c *CPU) SwitchToUser(switchOpts SwitchOpts) (vector Vector) {
-	userCR3 := switchOpts.PageTables.CR3(!switchOpts.Flush, switchOpts.UserPCID)
-	kernelCR3 := c.kernel.PageTables.CR3(true, switchOpts.KernelPCID)
-
-	// Sanitize registers.
 	regs := switchOpts.Registers
 	regs.Eflags &= ^uint64(UserFlagsClear)
 	regs.Eflags |= UserFlagsSet
 	regs.Cs = uint64(Ucode64) // Required for iret.
 	regs.Ss = uint64(Udata)   // Ditto.
 
+	//regs.Fs = uint64(Udata)
+	regs.Gs = uint64(Udata)
+
+	// Set the registers in the real cpu too!!
+	// This is crucial for the rest of the program.
+	c.registers.Cs = regs.Cs
+	c.registers.Ss = regs.Ss
+	c.registers.Ds = regs.Ds
+
 	// Perform the switch.
-	swapgs()                                         // GS will be swapped on return.
-	WriteFS(uintptr(regs.Fs_base))                   // Set application FS.
-	WriteGS(uintptr(regs.Gs_base))                   // Set application GS.
-	LoadFloatingPoint(switchOpts.FloatingPointState) // Copy in floating point.
-	jumpToKernel()                                   // Switch to upper half.
-	writeCR3(uintptr(userCR3))                       // Change to user address space.
+	swapgs()                       // GS will be swapped on return.
+	WriteFS(uintptr(regs.Fs_base)) // Set application FS.
+	WriteGS(uintptr(regs.Gs_base)) // Set application GS.
 	if switchOpts.FullRestore {
-		vector = iret(c, regs)
+		iret(c, regs)
 	} else {
-		vector = sysret(c, regs)
+		sysret(c, regs)
 	}
-	writeCR3(uintptr(kernelCR3))                     // Return to kernel address space.
-	jumpToUser()                                     // Return to lower half.
-	SaveFloatingPoint(switchOpts.FloatingPointState) // Copy out floating point.
-	WriteFS(uintptr(c.registers.Fs_base))            // Restore kernel FS.
+	// We should never get here.
+	panic("Did not manage to do the switch properly")
+	//WriteFS(uintptr(c.registers.Fs_base)) // Restore kernel FS.
 	return
 }
 
@@ -246,14 +246,14 @@ func start(c *CPU) {
 	xsetbv(0, validXCR0Mask&0x7)
 
 	// Set the syscall target.
-	wrmsr(_MSR_LSTAR, kernelFunc(sysenter))
+	wrmsr(_MSR_LSTAR, kernelFunc(sysenter2))
 	wrmsr(_MSR_SYSCALL_MASK, KernelFlagsClear|_RFLAGS_DF)
 
 	// NOTE: This depends on having the 64-bit segments immediately
 	// following the 32-bit user segments. This is simply the way the
 	// sysret instruction is designed to work (it assumes they follow).
 	wrmsr(_MSR_STAR, uintptr(uint64(Kcode)<<32|uint64(Ucode32)<<48))
-	wrmsr(_MSR_CSTAR, kernelFunc(sysenter))
+	wrmsr(_MSR_CSTAR, kernelFunc(sysenter2))
 }
 
 // ReadCR2 reads the current CR2 value.

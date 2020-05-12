@@ -74,15 +74,15 @@ func (p *PageTables) pageWalk(root *PTEs, start, end uintptr, lvl int, v *Visito
 //
 //go:nosplit
 func ConvertOpts(prot uint8) uintptr {
-	val := uintptr(present | accessed)
+	val := uintptr(accessed)
 	if prot&gc.X_VAL == 0 {
 		val |= executeDisable
 	}
 	if prot&gc.W_VAL != 0 {
 		val |= writable
 	}
-	if prot&gc.R_VAL == 0 {
-		panic("Missing read val")
+	if prot&gc.R_VAL == gc.R_VAL {
+		val |= present
 	}
 	if prot&gc.USER_VAL == gc.USER_VAL {
 		val |= user
@@ -90,4 +90,26 @@ func ConvertOpts(prot uint8) uintptr {
 		val &= ^uintptr(user)
 	}
 	return uintptr(val)
+}
+
+//go:nosplit
+func (p *PageTables) FindMapping(addr uintptr) (uintptr, uintptr, uintptr) {
+	addr = addr - (addr % 0x1000)
+	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
+	s2, s1 := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
+	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())
+	pte := p.Allocator.LookupPTEs(pdpte[s3].Address())
+	page := p.Allocator.LookupPTEs(pte[s2].Address())
+	return page[s1].Address(), page[s1].Flags(), uintptr(page[s1])
+}
+
+//go:nosplit
+func (p *PageTables) Clear(addr uintptr) {
+	addr = addr - (addr % 0x1000)
+	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
+	s2, s1 := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
+	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())
+	pte := p.Allocator.LookupPTEs(pdpte[s3].Address())
+	page := p.Allocator.LookupPTEs(pte[s2].Address())
+	page[s1].SetFlags(0x0 | user)
 }
