@@ -20,6 +20,14 @@ func dieArchSetup(c *vCPU, context *arch.SignalContext64, guestRegs *userRegs) {
 		throw(c.dieState.message)
 	}
 
+	if errno := c.getSystemRegisters(&c.dieState.sysRegs); errno != nil {
+		throw(c.dieState.message)
+	}
+	// Small hack to keep track of registers
+	if c.exceptionCode == int(ring0.PageFault) {
+		c.dieState.guestRegs.R15 = c.dieState.sysRegs.CR2
+	}
+
 	// If the vCPU is in user mode, we set the stack to the stored stack
 	// value in the vCPU itself. We don't want to unwind the user stack.
 	_, isuser := c.ErrorCode()

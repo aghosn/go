@@ -112,6 +112,8 @@ type dieState struct {
 	// guestRegs is used to store register state during vCPU.die() to prevent
 	// allocation inside nosplit function.
 	guestRegs userRegs
+
+	sysRegs systemRegs
 }
 
 func (m *Machine) newVCPU() *vCPU {

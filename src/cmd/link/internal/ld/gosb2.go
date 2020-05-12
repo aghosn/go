@@ -85,6 +85,15 @@ func registerExtraPackages() {
 	}
 }
 
+func (ctxt *Link) extraDependencies() []string {
+	res := make([]string, len(lb.ExtraDependencies))
+	copy(res, lb.ExtraDependencies)
+	if _, ok := ctxt.PackageDecl["runtime/cgo"]; ok {
+		res = append(res, "runtime/cgo")
+	}
+	return res
+}
+
 func (ctxt *Link) gosb_generateDomains() {
 	for _, v := range objfile.Sandboxes {
 		sb := &lb.SandboxDomain{}
@@ -114,7 +123,7 @@ func (ctxt *Link) gosb_generateDomains() {
 			visited[s] = pack
 			return false
 		}
-		v.Packages = append(v.Packages, lb.ExtraDependencies...)
+		v.Packages = append(v.Packages, ctxt.extraDependencies()...)
 		for _, p := range v.Packages {
 			if p == "go.itab" || p == "go.runtime" {
 				panic("go.itab and go.runtime should not be here")
