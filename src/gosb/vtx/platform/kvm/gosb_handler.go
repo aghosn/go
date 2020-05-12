@@ -2,6 +2,7 @@ package kvm
 
 import (
 	c "gosb/commons"
+	"gosb/vtx/platform/ring0"
 	"syscall"
 	"unsafe"
 )
@@ -53,11 +54,11 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 	}
 
 	// This is a breakpoint
-	/*if vcpu.exceptionCode == int(ring0.Breakpoint) {
+	if vcpu.exceptionCode == int(ring0.Breakpoint) {
 		vcpu.exceptionCode = -1
 		regs.Rip--
 		return syshandlerValid
-	}*/
+	}
 	if vcpu.exceptionCode != 0 {
 		return syshandlerException
 	}

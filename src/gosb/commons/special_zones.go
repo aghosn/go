@@ -7,7 +7,24 @@ const (
 	ReservedMemory = 0x100000000
 )
 
-// Extra symbols we need to locate
+const (
+	TrustedPkgName = "non-bloat"
+	StmpPkgName    = "shared-stmp"
+)
+
 var (
-	ExtraSymbols = map[string]uint8{"runtime.types": R_VAL}
+	SymToFix = map[string]bool{
+		"type.*":              true,
+		"typerel.*":           true,
+		"go.string.*":         true,
+		"go.func.*":           true,
+		"runtime.gcbits.*":    true,
+		"go.funcrel.*":        true,
+		"runtime.itablink":    true,
+		"runtime.findfunctab": true,
+	}
+
+	ExtraDependencies = []string{
+		"gosb",
+	}
 )

@@ -137,35 +137,7 @@ func loadPackages() {
 	globals.NameToSym = make(map[string]*elf.Symbol)
 	for i, s := range globals.Symbols {
 		globals.NameToSym[s.Name] = &globals.Symbols[i]
-
-		// Handle stupid runtime.types, and go.string.* and pclntab
-		if s.Name == "runtime.types" {
-			commons.Check(i < len(globals.Symbols)-1)
-			count := 0
-			for j := i + 1; j < len(globals.Symbols); j++ {
-				switch globals.Symbols[j].Name {
-				case "type.*":
-					fallthrough
-				case "runtime.rodata":
-					fallthrough
-				case "go.string.*":
-					count++
-				case "go.func.*":
-					// Only way to break
-					count++
-					j = len(globals.Symbols)
-				default:
-					panic("Unknown symbol " + globals.Symbols[j].Name)
-				}
-			}
-			commons.Check(count >= 2)
-			gf := globals.Symbols[i+count]
-			globals.CommonVMAs.Map(commons.SectVMA(&commons.Section{
-				commons.Round(s.Value, false),
-				commons.Round(gf.Value, false) - commons.Round(s.Value, false),
-				commons.R_VAL | commons.USER_VAL,
-			}))
-		} else if s.Name == "runtime.pclntab" {
+		if s.Name == "runtime.pclntab" {
 			globals.CommonVMAs.Map(commons.SectVMA(&commons.Section{
 				commons.Round(s.Value, false),
 				commons.Round(s.Size, true),
@@ -216,6 +188,7 @@ func loadSandboxes() {
 		var statics []*commons.VMArea = nil
 		var dynamics []*commons.VMArea = nil
 
+		// Add the sandbox function itself
 		if d.Id != globals.TrustedSandbox {
 			sf, ok := globals.NameToSym[d.Func]
 			commons.Check(ok)

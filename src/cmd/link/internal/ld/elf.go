@@ -1441,8 +1441,7 @@ func (ctxt *Link) doelf() {
 	Addstring(shstrtab, ".noptrbss")
 	Addstring(shstrtab, ".go.buildinfo")
 
-	//TODO(aghosn) Maybe here.
-	if len(Bloats) > 0 {
+	if HasSandboxes() {
 		for _, sn := range sectNames {
 			Addstring(shstrtab, sn)
 		}

@@ -2,39 +2,45 @@ package sim
 
 import (
 	c "gosb/commons"
-	g "gosb/globals"
-	"log"
+	//	g "gosb/globals"
+	//	"log"
 )
 
 var (
 	countEntries map[c.SandId]int
 )
 
+//go:noinline
+//go:nosplit
 func Init() {
-	log.Println("Init simulation backend.")
+	/*log.Println("Init simulation backend.")
 	countEntries = make(map[c.SandId]int)
 	for _, d := range g.Sandboxes {
 		countEntries[d.Config.Id] = 0
-	}
+	}*/
 }
 
+//go:noinline
+//go:nosplit
 func Prolog(id c.SandId) {
-	if _, ok := g.Sandboxes[id]; ok {
-		log.Printf("Prolog sandbox %v\n", id)
-		count, _ := countEntries[id]
-		countEntries[id] = count + 1
-		return
-	}
-	// Error for the sandboxes.
-	for _, s := range g.Sandboxes {
-		log.Printf("sandbox: %v\n", s.Config.Id)
-	}
+	/*	if _, ok := g.Sandboxes[id]; ok {
+			log.Printf("Prolog sandbox %v\n", id)
+			count, _ := countEntries[id]
+			countEntries[id] = count + 1
+			return
+		}
+		// Error for the sandboxes.
+		for _, s := range g.Sandboxes {
+			log.Printf("sandbox: %v\n", s.Config.Id)
+		}
 
-	log.Fatalf("Error prolog: unable to resolve sandbox %v\n", id)
+		log.Fatalf("Error prolog: unable to resolve sandbox %v\n", id)*/
 }
 
+//go:noinline
+//go:nosplit
 func Epilog(id c.SandId) {
-	if _, ok := g.Sandboxes[id]; ok {
+	/*if _, ok := g.Sandboxes[id]; ok {
 		log.Printf("Epilog sandbox %v\n", id)
 		count, _ := countEntries[id]
 		countEntries[id] = count - 1
@@ -43,7 +49,7 @@ func Epilog(id c.SandId) {
 		}
 		return
 	}
-	log.Fatalf("Error epilog: unable to resolve sandbox %v\n", id)
+	log.Fatalf("Error epilog: unable to resolve sandbox %v\n", id)*/
 }
 
 //go:nosplit

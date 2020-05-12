@@ -408,11 +408,6 @@ func (ctxt *Link) symtab() {
 		s.Type = t
 		s.Size = 0
 		s.Attr |= sym.AttrLocal | sym.AttrReachable
-		// Assign to runtime
-		if s.File == "" {
-			s.File = "runtime"
-			s.Align = 0x1000
-		}
 		return s
 	}
 	var (
@@ -447,7 +442,9 @@ func (ctxt *Link) symtab() {
 	// hide the specific symbols.
 	for _, s := range ctxt.Syms.Allsym {
 		if ctxt.LinkMode != LinkExternal && isStaticTemp(s.Name) {
-			s.Attr |= sym.AttrNotInSymbolTable
+			if !DisableHiddenSyms() {
+				s.Attr |= sym.AttrNotInSymbolTable
+			}
 		}
 
 		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != sym.SRODATA {
@@ -505,7 +502,9 @@ func (ctxt *Link) symtab() {
 			strings.HasPrefix(s.Name, "gclocals·"),
 			strings.HasPrefix(s.Name, "inltree."):
 			s.Type = sym.SGOFUNC
-			s.Attr |= sym.AttrNotInSymbolTable
+			if !DisableHiddenSyms() {
+				s.Attr |= sym.AttrNotInSymbolTable
+			}
 			s.Outer = symgofunc
 			s.Align = 4
 			liveness += (s.Size + int64(s.Align) - 1) &^ (int64(s.Align) - 1)

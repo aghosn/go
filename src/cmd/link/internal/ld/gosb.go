@@ -21,8 +21,9 @@ type BloatJSON struct {
 }
 
 var (
-	Segbloat  sym.Segment
-	bloatsyms []*sym.Symbol
+	Segbloat            sym.Segment
+	bloatsyms           []*sym.Symbol
+	EnableHiddenSymbols = false
 )
 
 func bloatText(text *[]*sym.Symbol) {
@@ -37,12 +38,16 @@ func bloatData(data [sym.SXREF][]*sym.Symbol) {
 	}
 }
 
-//TODO(aghosn) we need to find why including this does not work and leads to a segfault.
+// ignoreSection ignores itablink because all links are by default inside runtime
+// with our fix.
 func ignoreSection(sel int) bool {
 	return sel == int(sym.SITABLINK)
 }
 
-func (ctxt *Link) initBloat(order []*sym.Segment) uint64 {
+func (ctxt *Link) dumpGosbSections(order []*sym.Segment, fsize *uint64) {
+	if !HasSandboxes() || fsize == nil {
+		return
+	}
 	// Get information about the last entry
 	lastSeg := order[len(order)-1]
 	va := lastSeg.Vaddr + lastSeg.Length
@@ -83,8 +88,16 @@ func (ctxt *Link) initBloat(order []*sym.Segment) uint64 {
 	for _, s := range Segbloat.Sections {
 		elfshbits(ctxt.LinkMode, s)
 	}
-
 	order = append(order, &Segbloat)
+	// Set the result
+	*fsize = Segbloat.Fileoff + Segbloat.Filelen
+}
 
-	return Segbloat.Fileoff + Segbloat.Filelen
+// HasSandboxes allows to check whether we have sandboxes to handle.
+func HasSandboxes() bool {
+	return len(Bloats) > 0
+}
+
+func DisableHiddenSyms() bool {
+	return HasSandboxes() && EnableHiddenSymbols
 }
