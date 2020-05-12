@@ -203,14 +203,18 @@ func getSectionProt(section c.Section) SysProt {
 	return prot
 }
 
+func getGroupProt(p int)
+
 // computePKRU initializes `sbPKRU` with corresponding PKRUs
-func computePKRU(sandboxKeys map[c.SandId][]int, keys []Pkey) {
+func computePKRU(sandboxKeys map[c.SandId][]int, sandboxProt map[c.SandId][]Prot, keys []Pkey) {
 	sbPKRU = make(map[c.SandId]PKRU, len(sandboxKeys))
 	for sbID, keyIDs := range sandboxKeys {
+		sbProts := sandboxProt[sbID]
 		pkru := NoRightsPKRU
-		for _, keyID := range keyIDs {
+		for idx, keyID := range keyIDs {
 			key := keys[keyID]
-			pkru = pkru.Update(key, ProtRWX)
+			prot := sbProts[idx]
+			pkru = pkru.Update(key, prot)
 		}
 		sbPKRU[sbID] = pkru
 	}
@@ -221,8 +225,9 @@ func Init() {
 	WritePKRU(AllRightsPKRU)
 	n := len(g.AllPackages)
 	pkgAppearsIn := make(map[int][]c.SandId, n)
+	pkgSbProt := make(map[int]map[c.SandId]Prot) // PkgID -> sbID -> mpk prot
 
-	fmt.Println("Initilizing GOSB with MPK backend")
+	// fmt.Println("Initilizing GOSB with MPK backend")
 	fmt.Printf("Nb of packages:%d\n", n)
 
 	for sbID, sb := range g.Sandboxes {
@@ -232,29 +237,53 @@ func Init() {
 				continue
 			}
 
-			// fmt.Printf("%02d - %s\n", pkg.Id, pkg.Name)
+			// fmt.Printf("%02d - %s - %x\n", pkg.Id, pkg.Name, sb.SView[pkg])
 
 			sbGroup, ok := pkgAppearsIn[pkgID]
 			if !ok {
 				sbGroup = make([]c.SandId, 0)
 			}
-			pkgAppearsIn[pkgID] = append(sbGroup, sbID)
+			sbProt, ok := pkgSbProt[pkgID]
+			if !ok {
+				sbProt = make(map[c.SandId]Prot)
+				pkgSbProt[pkgID] = sbProt
+			}
+			id, err := strconv.Unquote(sbID)
+			if err == nil {
+				pkgAppearsIn[pkgID] = append(sbGroup, id)
+				view, ok := sb.SView[pkg]
+				if ok {
+					sbProt[id] = getMPKProt(view)
+				} else {
+					sbProt[id] = ProtRWX
+				}
+			} else {
+				pkgAppearsIn[pkgID] = append(sbGroup, sbID)
+				view, ok := sb.SView[pkg]
+				if ok {
+					sbProt[sbID] = getMPKProt(view)
+				} else {
+					sbProt[sbID] = ProtRWX
+				}
+			}
 		}
 	}
 
 	sbKeys := make(map[c.SandId][]int)
+	sbProts := make(map[c.SandId][]Prot)
 	for i := range sbKeys {
 		sbKeys[i] = make([]int, 0)
+		sbProts[i] = make([]Prot, 0)
 	}
 
 	pkgGroups := make([][]int, 0)
 	for len(pkgAppearsIn) > 0 {
 		key := len(pkgGroups)
 		group := make([]int, 0)
-		_, SbGroupA := popMap(pkgAppearsIn)
-		for id, SbGroupB := range pkgAppearsIn {
-			if groupEqual(SbGroupA, SbGroupB) {
-				group = append(group, id)
+		pkgA_ID, SbGroupA := popMap(pkgAppearsIn)
+		for pkgB_ID, SbGroupB := range pkgAppearsIn {
+			if testCompatibility(pkgA_ID, pkgB_ID, SbGroupA, SbGroupB, pkgSbProt) {
+				group = append(group, pkgB_ID)
 			}
 		}
 		for _, pkgID := range group {
@@ -262,14 +291,16 @@ func Init() {
 		}
 		// Add group key to sandbox
 		for _, sbID := range SbGroupA {
+			prot := pkgSbProt[pkgA_ID][sbID]
 			sbKeys[sbID] = append(sbKeys[sbID], key)
+			sbProts[sbID] = append(sbProts[sbID], prot)
 		}
 		pkgGroups = append(pkgGroups, group)
 	}
 
 	// We have an allocation for the keys!
 	keys := allocateKey(sbKeys, pkgGroups)
-	computePKRU(sbKeys, keys)
+	computePKRU(sbKeys, sbProts, keys)
 
 	pkgKeys = make(map[int]Pkey, len(pkgAppearsIn))
 	for idx, group := range pkgGroups {
@@ -282,6 +313,8 @@ func Init() {
 	fmt.Println("Sandbox keys:", sbKeys)
 	fmt.Println("Package groups:", pkgGroups)
 	fmt.Println("Keys:", keys)
+	fmt.Println("PKRUs:", sbPKRU)
+	//fmt.Println("PkgSbProt:", pkgSbProt)
 	fmt.Println("///// Done /////")
 
 	// Pre-allocate free list for mpkTransfer and mpkRegister
@@ -291,12 +324,16 @@ func Init() {
 	}
 }
 
-func groupEqual(a, b []c.SandId) bool {
+func testCompatibility(aID, bID int, a, b []c.SandId, pkgSbProt map[int]map[c.SandId]Prot) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := 0; i < len(a); i++ {
 		if a[i] != b[i] {
+			return false
+		}
+		sbID := a[i]
+		if pkgSbProt[aID][sbID] != pkgSbProt[bID][sbID] {
 			return false
 		}
 	}
@@ -308,4 +345,13 @@ func popMap(m map[int][]c.SandId) (int, []c.SandId) {
 		return id, group
 	}
 	return -1, nil
+}
+
+func getMPKProt(p uint8) Prot {
+	if p & c.W_VAL > 0 {
+		return ProtRWX
+	} else if p & c.R_VAL > 0 {
+		return ProtRX
+	}
+	return ProtX
 }
