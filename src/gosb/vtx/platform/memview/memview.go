@@ -375,6 +375,7 @@ func (m *MemoryRegion) ValidAddress(addr uint64) bool {
 	if m.Tpe == EXTENSIBLE_REG || len(m.Bitmap) == 0 || !m.finalized {
 		return true
 	}
+	// TODO should use bitmap only for static?.
 	c := m.Coordinates(addr)
 	return (m.Bitmap[idX(c)]&uint64(1<<idY(c)) != 0)
 }
@@ -469,13 +470,6 @@ func guessTpe(head, tail *commons.VMArea) RegType {
 	// Probably just data, so it is immutable.
 	return IMMUTABLE_REG
 }
-
-//go:nosplit
-/*func check(condition bool) {
-	if !condition {
-		panic("Condition not valid.")
-	}
-}*/
 
 //go:nosplit
 func idX(idx int) int {

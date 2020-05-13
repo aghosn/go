@@ -133,11 +133,6 @@ func RuntimeGrowth(id int, start, size uintptr) {
 
 //go:nosplit
 func Execute(id commons.SandId) {
-	//TODO(aghosn) implement
-	// What we need to do :
-	// 1. Are we executing inside the VM?
-	// 2. If so, should which one?
-	// 3. If not, switch to sandbox?
 	msbid := runtime.GetmSbIds()
 	if msbid == id {
 		// Already in the correct context, continue

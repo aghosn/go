@@ -81,15 +81,21 @@ func (k *KVM) Map(start, size uintptr, prot uint8) {
 //
 //go:nosplit
 func (k *KVM) ExtendRuntime(start, size uintptr, prot uint8) {
+	if start > uintptr(mv.HEAP_START) && start < 0xe000000000 {
+		panic("Heap growth")
+	}
+	size = uintptr(commons.Round(uint64(size), true))
 	m := k.AcquireEMR()
+	var err syscall.Errno
 	k.Machine.MemView.Extend(m, uint64(start), uint64(size), prot)
-	err := k.Machine.setEPTRegion(
-		k.Machine.MemView.NextSlot, m.Span.GPA, m.Span.Size, m.Span.Start, 0)
+	m.Span.Slot, err = k.Machine.setEPTRegion(
+		&k.Machine.MemView.NextSlot, m.Span.GPA, m.Span.Size, m.Span.Start, 0)
 	if err != 0 {
+		if size%commons.PageSize != 0 {
+			panic("Size is shit")
+		}
 		panic("Error mapping slot")
 	}
-	m.Span.Slot = k.Machine.MemView.NextSlot
-	k.Machine.MemView.NextSlot++
 }
 
 //go:nosplit

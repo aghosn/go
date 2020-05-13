@@ -22,9 +22,10 @@ func exitsyscall()
 // directly (instead of wrapping in an error) to avoid allocations.
 //
 //go:nosplit
-func (m *Machine) setEPTRegion(slot uint32, physical, length, virtual uint64, flags uint32) syscall.Errno {
+func (m *Machine) setEPTRegion(slot *uint32, physical, length, virtual uint64, flags uint32) (uint32, syscall.Errno) {
+	v := atomic.AddUint32(slot, 1)
 	userRegion := userMemoryRegion{
-		slot:          uint32(slot),
+		slot:          uint32(v),
 		flags:         uint32(flags),
 		guestPhysAddr: uint64(physical),
 		memorySize:    uint64(length),
@@ -33,7 +34,7 @@ func (m *Machine) setEPTRegion(slot uint32, physical, length, virtual uint64, fl
 
 	// Set the region.
 	_, errno := commons.Ioctl(m.fd, _KVM_SET_USER_MEMORY_REGION, uintptr(unsafe.Pointer(&userRegion)))
-	return errno
+	return v, errno
 }
 
 // mapRunData maps the vCPU run data.
