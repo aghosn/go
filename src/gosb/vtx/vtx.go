@@ -2,6 +2,7 @@ package vtx
 
 import (
 	"gosb/commons"
+	"gosb/debug"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
 	mv "gosb/vtx/platform/memview"
@@ -43,6 +44,7 @@ func Init() {
 			if d.Config.Id == "-1" {
 				continue
 			}
+			//d.Static.Print()
 			machines[d.Config.Id] = kvm.New(int(kvmFd.Fd()), d)
 		}
 		kvmFd.Close()
@@ -114,11 +116,15 @@ func RuntimeGrowth(id int, start, size uintptr) {
 	tryInHost(
 		func() {
 			lmap, ok := globals.PkgDeps[id]
+			debug.TakeValue(666)
 			// TODO probably lock.
 			if ok {
+				debug.TakeValue(777)
 				for _, m := range lmap {
 					if vm, ok1 := machines[m]; ok1 {
+						debug.TakeValue(start)
 						vm.ExtendRuntime(start, size, commons.HEAP_VAL)
+						debug.TakeValue(start)
 					}
 				}
 			}

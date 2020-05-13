@@ -227,6 +227,10 @@ func loadSandboxes() {
 					dynamics = append(dynamics, vma)
 				}
 			}
+
+			//Update package deps for runtime memory updates.
+			l, _ := globals.PkgDeps[p.Id]
+			globals.PkgDeps[p.Id] = append(l, d.Id)
 		}
 
 		// Finalize

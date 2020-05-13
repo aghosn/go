@@ -8,7 +8,7 @@ import (
 // time stamps to see where the code goes. Voila voila.
 
 var (
-	MRTValues  [30]int
+	MRTValues  [50]uintptr
 	MRTIndex   int
 	MRTMarkers [15]int
 	MRTUpdates [50]uintptr
@@ -19,12 +19,12 @@ var (
 //
 //go:nosplit
 func Reset() {
-	MRTValues = [30]int{}
+	MRTValues = [50]uintptr{}
 	MRTIndex = 0
 }
 
 //go:nosplit
-func TakeValue(a int) {
+func TakeValue(a uintptr) {
 	if MRTIndex < len(MRTValues) {
 		MRTValues[MRTIndex] = a
 		MRTIndex++

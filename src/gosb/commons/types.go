@@ -2,12 +2,6 @@ package commons
 
 type SandId = string
 
-type Domain struct {
-	Config *SandboxDomain
-	SView  map[*Package]uint8
-	SPkgs  []*Package
-}
-
 type SandboxDomain struct {
 	Id   SandId
 	Func string

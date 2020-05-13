@@ -53,6 +53,7 @@ func (f *FreeSpaceAllocator) Initialize(frees *commons.VMAreas) {
 //
 //go:nosplit
 func (f *FreeSpaceAllocator) Malloc(size uint64) uint64 {
+	size = commons.Round(size, true)
 	commons.Check(size%commons.PageSize == 0)
 	var candidate *commons.VMArea = nil
 	for v := commons.ToVMA(f.FreeSpace.First); v != nil; v = commons.ToVMA(v.Next) {

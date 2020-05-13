@@ -3,6 +3,7 @@ package kvm
 import (
 	"fmt"
 	"gosb/commons"
+	"gosb/vtx/arch"
 	"gosb/vtx/atomicbitops"
 	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/procid"
@@ -103,6 +104,12 @@ type vCPU struct {
 
 	// marking the exception error.
 	exceptionCode int
+
+	// cr2 for the fault
+	FaultAddr uintptr
+
+	// fault information
+	Info arch.SignalInfo
 }
 
 type dieState struct {

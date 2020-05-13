@@ -81,6 +81,10 @@ func (c *vCPU) KernelException(vector ring0.Vector) {
 	}
 	c.exceptionCode = int(vector)
 	InternalVector = int(vector)
+	if vector == ring0.PageFault {
+		//c.fault(int32(vector), &c.Info)
+		c.FaultAddr = ring0.ReadCR2()
+	}
 	// See above.
 	//ring0.SaveFloatingPoint((*byte)(c.floatingPointState))
 	ring0.Halt()
