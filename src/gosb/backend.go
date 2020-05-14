@@ -18,7 +18,7 @@ type backendConfig struct {
 	transfer      func(oldid, newid int, start, size uintptr)
 	register      func(id int, start, size uintptr)
 	execute       func(id c.SandId)
-	runtimeGrowth func(id int, start, size uintptr)
+	runtimeGrowth func(isheap bool, id int, start, size uintptr)
 }
 
 const (

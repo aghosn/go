@@ -35,7 +35,7 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
 			return nil, int(ret)
 		}
 		if runtimeGrowth != nil {
-			runtimeGrowth(0, uintptr(ret), n)
+			runtimeGrowth(false, 0, uintptr(ret), n)
 			TakeValue(uintptr(ret))
 		}
 		return unsafe.Pointer(ret), 0
@@ -55,7 +55,7 @@ func munmap(addr unsafe.Pointer, n uintptr) {
 func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int) {
 	p, err = sysMmap2(addr, n, prot, flags, fd, off)
 	if runtimeGrowth != nil {
-		runtimeGrowth(0, uintptr(p), n)
+		runtimeGrowth(false, 0, uintptr(p), n)
 		TakeValue(uintptr(p))
 	}
 	return p, err

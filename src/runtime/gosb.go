@@ -20,13 +20,13 @@ var (
 	nameToPkg func(string) string = nil
 
 	// Hooks for the backend
-	registerSection   func(id int, start, size uintptr)           = nil
-	unregisterSection func(old int, start, size uintptr)          = nil
-	transferSection   func(oldid, newid int, start, size uintptr) = nil
-	runtimeGrowth     func(id int, start, size uintptr)           = nil
-	executeSandbox    func(id string)                             = nil
-	prologHook        func(id string)                             = nil
-	epilogHook        func(id string)                             = nil
+	registerSection   func(id int, start, size uintptr)              = nil
+	unregisterSection func(old int, start, size uintptr)             = nil
+	transferSection   func(oldid, newid int, start, size uintptr)    = nil
+	runtimeGrowth     func(isheap bool, id int, start, size uintptr) = nil
+	executeSandbox    func(id string)                                = nil
+	prologHook        func(id string)                                = nil
+	epilogHook        func(id string)                                = nil
 )
 
 //go:nosplit
@@ -45,7 +45,7 @@ func LitterboxHooks(
 	f func(string) string,
 	t func(int, int, uintptr, uintptr),
 	r func(int, uintptr, uintptr),
-	g func(int, uintptr, uintptr),
+	g func(bool, int, uintptr, uintptr),
 	e func(string),
 	prolog func(string),
 	epilog func(string),
@@ -122,4 +122,21 @@ func TakeValueTrace(a uintptr) {
 	if _g_.goid == MRTId {
 		TakeValue(a)
 	}
+}
+
+// This locks out apparently apparently
+//TODO won't work for the newly created span...
+//go:nosplit
+func IsThisTheHeap(p uintptr) bool {
+	result := false
+	systemstack(func() {
+		//lock(&mheap_.lock)
+		r := arenaIndex(p)
+		// Other option is to try to see if r is inside allArenas
+		if mheap_.arenas[r.l1()] != nil && mheap_.arenas[r.l1()][r.l2()] != nil {
+			result = true
+		}
+		//unlock(&mheap_.lock)
+	})
+	return result
 }

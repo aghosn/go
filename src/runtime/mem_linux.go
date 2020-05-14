@@ -158,6 +158,9 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	if err != 0 {
 		return nil
 	}
+	if runtimeGrowth != nil {
+		runtimeGrowth(true, 0, uintptr(v), n)
+	}
 	return p
 }
 

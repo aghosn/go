@@ -112,7 +112,7 @@ func Register(id int, start, size uintptr) {
 // @warning canno do dynamic allocation!
 //
 //go:nosplit
-func RuntimeGrowth(id int, start, size uintptr) {
+func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
 	tryInHost(
 		func() {
 			lmap, ok := globals.PkgDeps[id]
@@ -123,7 +123,7 @@ func RuntimeGrowth(id int, start, size uintptr) {
 				for _, m := range lmap {
 					if vm, ok1 := machines[m]; ok1 {
 						debug.TakeValue(start)
-						vm.ExtendRuntime(start, size, commons.HEAP_VAL)
+						vm.ExtendRuntime(isheap, start, size, commons.HEAP_VAL)
 						debug.TakeValue(start)
 					}
 				}

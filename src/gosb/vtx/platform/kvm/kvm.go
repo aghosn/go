@@ -80,14 +80,16 @@ func (k *KVM) Map(start, size uintptr, prot uint8) {
 // @warning cannot do dynamic allocation.
 //
 //go:nosplit
-func (k *KVM) ExtendRuntime(start, size uintptr, prot uint8) {
-	if start > uintptr(mv.HEAP_START) && start < 0xe000000000 {
-		panic("Heap growth")
-	}
+func (k *KVM) ExtendRuntime(heap bool, start, size uintptr, prot uint8) {
 	size = uintptr(commons.Round(uint64(size), true))
+	if k.Machine.MemView.ContainsRegion(start, size) {
+		// Nothing to do, we already mapped it.
+		return
+	}
+	// We have to map a new region.
 	m := k.AcquireEMR()
 	var err syscall.Errno
-	k.Machine.MemView.Extend(m, uint64(start), uint64(size), prot)
+	k.Machine.MemView.Extend(heap, m, uint64(start), uint64(size), prot)
 	m.Span.Slot, err = k.Machine.setEPTRegion(
 		&k.Machine.MemView.NextSlot, m.Span.GPA, m.Span.Size, m.Span.Start, 0)
 	if err != 0 {

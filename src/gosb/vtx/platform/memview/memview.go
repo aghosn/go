@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gosb/commons"
 	pg "gosb/vtx/platform/ring0/pagetables"
+	"runtime"
 	"unsafe"
 )
 
@@ -185,16 +186,29 @@ func (a *AddressSpace) Toggle(on bool, start, size uintptr, prot uint8) {
 	}
 	// We did not have a match, check if we should add something.
 	if on {
-		a.Extend(nil, uint64(start), uint64(size), prot)
+		a.Extend(false, nil, uint64(start), uint64(size), prot)
 	}
 }
 
 //go:nosplit
-func (a *AddressSpace) Extend(m *MemoryRegion, start, size uint64, prot uint8) {
+func (a *AddressSpace) ContainsRegion(start, size uintptr) bool {
+	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
+		if m.ContainsRegion(uint64(start), uint64(size)) {
+			return true
+		}
+	}
+	return false
+}
+
+//go:nosplit
+func (a *AddressSpace) Extend(heap bool, m *MemoryRegion, start, size uint64, prot uint8) {
 	if m == nil {
 		m = &MemoryRegion{}
 	}
 	m.Tpe = EXTENSIBLE_REG
+	if heap {
+		m.Tpe = HEAP_REG
+	}
 	m.Span.Start, m.Span.Size, m.Span.Prot = start, size, prot
 	m.Owner = a
 	m.Span.Slot = a.NextSlot
@@ -206,6 +220,7 @@ func (a *AddressSpace) Extend(m *MemoryRegion, start, size uint64, prot uint8) {
 	}
 	a.Regions.AddBack(m.ToElem())
 	m.ApplyRange(start, size, prot)
+	m.finalized = true
 }
 
 /*				MemoryRegion methods				*/
@@ -241,7 +256,7 @@ func (m *MemoryRegion) Assign(vma *commons.VMArea) {
 func (m *MemoryRegion) Map(start, size uint64, prot uint8, apply bool) {
 	s := m.Coordinates(start)
 	e := m.Coordinates(start + size - 1)
-	if m.Tpe == EXTENSIBLE_REG {
+	if m.Tpe == EXTENSIBLE_REG || m.Tpe == HEAP_REG {
 		// The entire bitmap is at one
 		goto skip
 	}
@@ -320,10 +335,17 @@ func (m *MemoryRegion) Print() {
 func (m *MemoryRegion) Unmap(start, size uintptr, apply bool) {
 	s := m.Coordinates(uint64(start))
 	e := m.Coordinates(uint64(start + size - 1))
+	if m.Tpe == EXTENSIBLE_REG {
+		panic("Unmap cannot be called on extensible region")
+	}
+	if m.Tpe == HEAP_REG {
+		goto skip
+	}
 	// toggle bits in the bitmap
 	for c := s; s <= e; c++ {
 		m.Bitmap[idX(c)] &= ^(uint64(1 << idY(c)))
 	}
+skip:
 	if apply {
 		//TODO implement page tables
 		panic("Not implemented yet")
@@ -356,11 +378,8 @@ func (m *MemoryRegion) Copy() *MemoryRegion {
 	doppler := &MemoryRegion{}
 	doppler.Tpe = m.Tpe
 	doppler.Span = m.Span
-	doppler.Bitmap = make([]uint64, len(m.Bitmap))
-
-	// We are done copying.
-	if m.Tpe != EXTENSIBLE_REG {
-		return doppler
+	if m.Bitmap != nil {
+		doppler.Bitmap = make([]uint64, len(m.Bitmap))
 	}
 	return doppler
 }
@@ -375,9 +394,14 @@ func (m *MemoryRegion) ValidAddress(addr uint64) bool {
 	if m.Tpe == EXTENSIBLE_REG || len(m.Bitmap) == 0 || !m.finalized {
 		return true
 	}
-	// TODO should use bitmap only for static?.
-	c := m.Coordinates(addr)
-	return (m.Bitmap[idX(c)]&uint64(1<<idY(c)) != 0)
+	if m.Tpe == IMMUTABLE_REG {
+		c := m.Coordinates(addr)
+		return (m.Bitmap[idX(c)]&uint64(1<<idY(c)) != 0)
+	}
+
+	// At that point, we're the heap and need to look into page tables.
+	// TODO implement
+	return true
 }
 
 //go:nosplit
@@ -391,8 +415,13 @@ func (m *MemoryRegion) Toggle(on bool, start, size uint64, prot uint8) {
 	if m.Tpe == EXTENSIBLE_REG {
 		// Should not happen
 		panic("You want to map something that is mapped?")
+	} else if m.Tpe == IMMUTABLE_REG {
+		panic("Trying to change immutable region.")
+	} else if m.Tpe != HEAP_REG {
+		panic("What are you then?!!")
 	}
-	s := m.Coordinates(start)
+
+	/*s := m.Coordinates(start)
 	e := m.Coordinates(start + size - 1)
 	for i := s; i <= e; i++ {
 		if on {
@@ -400,7 +429,7 @@ func (m *MemoryRegion) Toggle(on bool, start, size uint64, prot uint8) {
 		} else {
 			m.Bitmap[idX(i)] &= ^uint64(1 << idY(i))
 		}
-	}
+	}*/
 	deflags := pg.ConvertOpts(prot)
 	// Now apply to pagetable.
 	visit := func(pte *pg.PTE, lvl int) {
@@ -454,8 +483,8 @@ func guessTpe(head, tail *commons.VMArea) RegType {
 	isread := head.Prot&commons.R_VAL == commons.R_VAL
 	iswrit := head.Prot&commons.W_VAL == commons.W_VAL
 	// TODO should get that information from the runtime.
-	isheap := head.Addr == HEAP_START
-	ismeta := head.Addr > HEAP_START
+	isheap := runtime.IsThisTheHeap(uintptr(head.Addr)) //head.Addr == HEAP_START
+	ismeta := head.Addr > HEAP_START && !isheap
 
 	// executable and readonly sections do not change.
 	if !ismeta && (isexec || (isread && !iswrit)) {
