@@ -17,21 +17,25 @@ type List struct {
 	Len   uint64
 }
 
+//go:nosplit
 func (l *List) Init() {
 	l.First = nil
 	l.Last = nil
 }
 
+//go:nosplit
 func (l *List) IsEmpty() bool {
 	return l.First == nil
 }
 
+//go:nosplit
 func (l *List) Foreach(f func(e *ListElem)) {
 	for v := l.First; v != nil; v = v.Next {
 		f(v)
 	}
 }
 
+//go:nosplit
 func (l *List) AddBack(e *ListElem) {
 	if e.Prev != nil || e.Next != nil || e.List != nil {
 		log.Fatalf("element already in a List! %v\n", e)
@@ -47,6 +51,7 @@ func (l *List) AddBack(e *ListElem) {
 	l.Len++
 }
 
+//go:nosplit
 func (l *List) InsertBefore(toins, elem *ListElem) {
 	if elem.List != l {
 		log.Fatalf("The element is not in the given List %v %v\n", elem.List, l)
@@ -70,6 +75,7 @@ func (l *List) InsertBefore(toins, elem *ListElem) {
 	l.Len++
 }
 
+//go:nosplit
 func (l *List) InsertAfter(toins, elem *ListElem) {
 	if elem.List != l {
 		log.Fatalf("The element is not in the given List %v %v\n", elem.List, l)
@@ -93,6 +99,7 @@ func (l *List) InsertAfter(toins, elem *ListElem) {
 	l.Len++
 }
 
+//go:nosplit
 func (l *List) Remove(e *ListElem) {
 	if e.List != l {
 		log.Fatalf("Removing element not in the correct List %v %v\n", e, l)
