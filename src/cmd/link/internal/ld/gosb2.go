@@ -211,6 +211,7 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 	regSyms := make([]*sym.Symbol, 0)
 	bloated := make(map[string][]*sym.Symbol)
 	sandSyms := make([]*sym.Symbol, 0)
+	specials := make([]*sym.Symbol, 0)
 	for _, s := range syms {
 		// Safety check to avoid go.itab and go.runtime
 		if s.File == "go.runtime" || s.File == "go.itab" {
@@ -227,6 +228,9 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 				e = make([]*sym.Symbol, 0)
 			}
 			bloated[s.File] = append(e, s)
+		} else if s.Name == "runtime.pclntab" {
+			s.Align = 0x1000
+			specials = append(specials, s)
 		} else {
 			regSyms = append(regSyms, s)
 		}
@@ -257,6 +261,7 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		s[0].Align = 0x1000
 		regSyms = append(regSyms, s...)
 	}
+	regSyms = append(regSyms, specials...)
 	regSyms = append(regSyms, sandSyms...)
 	return regSyms
 }
