@@ -161,6 +161,8 @@ func bluepillHandler(context unsafe.Pointer) {
 				default:
 					throw("invalid state")
 				}
+				// Make the vCPU available again.
+				atomic.SwapUint32(&c.state, vCPUReady)
 				return
 			case syshandlerErr1:
 				c.die(bluepillArchContext(context), "Invalid address")

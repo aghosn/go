@@ -1,6 +1,15 @@
 package runtime
 
-// TODO(aghosn) For debugging, remove afterwards.
+import (
+	"unsafe"
+)
+
+// Constant to fix pthread create tls situation.
+const (
+	_LOW_STACK_OFFSET  = 0x288
+	_HIGH_STACK_OFFSET = 0x1178
+)
+
 var (
 	MRTRuntimeVals [60]uintptr
 	MRTRuntimeIdx  int   = 0
@@ -31,7 +40,7 @@ var (
 
 //go:nosplit
 func sandbox_prolog(id, mem, syscalls string) {
-	getg().m.curg.sbid = id
+	//getg().m.curg.sbid = id
 	prologHook(id)
 }
 
@@ -86,6 +95,7 @@ func AssignSbId(id string) {
 func GetmSbIds() string {
 	_g_ := getg()
 	if _g_.sbid != _g_.m.sbid || _g_.sbid != _g_.m.g0.sbid {
+		println(_g_.sbid, "|", _g_.m.sbid, "|", _g_.m.g0.sbid)
 		throw("sbids do not match.")
 	}
 	return _g_.m.sbid
@@ -99,6 +109,17 @@ func TakeValue(a uintptr) {
 		MRTRuntimeVals[MRTRuntimeIdx] = a
 		MRTRuntimeIdx++
 	}
+}
+
+//go:nosplit
+func RegisterPthread() {
+	if !iscgo || runtimeGrowth == nil {
+		return
+	}
+	_g_ := getg().m.g0
+	low := uintptr(_g_.stack.lo - _LOW_STACK_OFFSET)
+	high := uintptr(_g_.stack.hi + _HIGH_STACK_OFFSET)
+	runtimeGrowth(false, 0, low, high-low)
 }
 
 //go:nosplit
@@ -139,4 +160,36 @@ func IsThisTheHeap(p uintptr) bool {
 		//unlock(&mheap_.lock)
 	})
 	return result
+}
+
+//go:nosplit
+func CheckIsM(addr uintptr) bool {
+	for v := allm; v != nil; v = v.alllink {
+		start := uintptr(unsafe.Pointer(v))
+		end := start + unsafe.Sizeof(v)
+		if start <= addr && addr < end {
+			return true
+		}
+	}
+	return false
+}
+
+//go:nosplit
+func TakeMValue() {
+	m := getm()
+	TakeValue(m)
+}
+
+//go:nosplit
+func GetTLSValue() uintptr {
+	_g := getg()
+	if _g == nil || _g.m == nil {
+		panic("Nil routine or m")
+	}
+	return uintptr(unsafe.Pointer(&_g.m.tls[0]))
+}
+
+//go:nosplit
+func Iscgo() bool {
+	return iscgo
 }

@@ -2,7 +2,6 @@ package vtx
 
 import (
 	"gosb/commons"
-	"gosb/debug"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
 	mv "gosb/vtx/platform/memview"
@@ -55,6 +54,30 @@ func Init() {
 func Prolog(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
 		runtime.LockOSThread()
+		sb.Machine.Replenish()
+		var fs uint64
+		kvm.GetFs(&fs)
+		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs, commons.D_VAL) {
+			runtime.RegisterPthread()
+		}
+		runtime.AssignSbId(id)
+		sb.SwitchToUser()
+		// From here, we made the switch to the VM
+		runtime.UnlockOSThread()
+		return
+	}
+	throw("error finding sandbox vtx machine: '" + id + "'")
+}
+
+//go:nosplit
+func prolog_internal(id commons.SandId) {
+	if sb, ok := machines[id]; ok {
+		runtime.LockOSThread()
+		var fs uint64
+		kvm.GetFs(&fs)
+		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs, commons.D_VAL) {
+			runtime.RegisterPthread()
+		}
 		runtime.AssignSbId(id)
 		sb.SwitchToUser()
 		// From here, we made the switch to the VM
@@ -109,22 +132,18 @@ func Register(id int, start, size uintptr) {
 	})
 }
 
-// @warning canno do dynamic allocation!
+// @warning cannot do dynamic allocation!
 //
 //go:nosplit
 func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
 	tryInHost(
 		func() {
 			lmap, ok := globals.PkgDeps[id]
-			debug.TakeValue(666)
 			// TODO probably lock.
 			if ok {
-				debug.TakeValue(777)
 				for _, m := range lmap {
 					if vm, ok1 := machines[m]; ok1 {
-						debug.TakeValue(start)
 						vm.ExtendRuntime(isheap, start, size, commons.HEAP_VAL)
-						debug.TakeValue(start)
 					}
 				}
 			}
@@ -149,7 +168,7 @@ func Execute(id commons.SandId) {
 	}
 	// We are outside the VM, scheduling something outside.
 	if msbid == "" && id != "" {
-		Prolog(id)
+		prolog_internal(id)
 		return
 	}
 	// nested VMs? Or just the scheduler?
@@ -183,7 +202,7 @@ func tryBluepill(do bool, id string) {
 	if !do || id == "" {
 		return
 	}
-	Prolog(id)
+	prolog_internal(id)
 }
 
 //go:nosplit
