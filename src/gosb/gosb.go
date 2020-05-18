@@ -138,16 +138,34 @@ func loadPackages() {
 	for i, s := range globals.Symbols {
 		globals.NameToSym[s.Name] = &globals.Symbols[i]
 		if s.Name == "runtime.pclntab" {
-			globals.CommonVMAs.Map(commons.SectVMA(&commons.Section{
+			runtimePkg := globals.NameToPkg["runtime"]
+			runtimePkg.Sects = append(runtimePkg.Sects, commons.Section{
 				commons.Round(s.Value, false),
 				commons.Round(s.Size, true),
 				commons.R_VAL | commons.USER_VAL,
-			}))
+			})
+			globals.CommonVMAs.Map(commons.SectVMA(&commons.Section{
+				commons.Round(s.Value, false),
+                                commons.Round(s.Size, true),
+                                commons.R_VAL | commons.USER_VAL,
+                        }))
 		}
 	}
 
 	// Make sure  Backend is removed from trusted.
 	globals.TrustedSpace.UnmapArea(globals.CommonVMAs)
+	// Update non-bloat
+	if pkg, ok := globals.NameToPkg[globals.TrustedPackages]; ok {
+		pkg.Sects = make([]commons.Section, 0)
+		globals.TrustedSpace.Foreach(func(e *commons.ListElem) {
+			vma := commons.ToVMA(e)
+			pkg.Sects = append(pkg.Sects, commons.Section{
+				vma.Addr,
+				vma.Size,
+				vma.Prot,
+			})
+		})
+	}
 }
 
 func loadSandboxes() {
