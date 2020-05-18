@@ -10,6 +10,7 @@ import (
 	"fmt"
 	c "gosb/commons"
 	g "gosb/globals"
+	"runtime"
 )
 
 var (
@@ -43,6 +44,7 @@ func Execute(id c.SandId) {
 
 // Prolog initialize isolation of the sandbox
 func Prolog(id c.SandId) {
+	runtime.AssignSbId(id)
 	pkru, ok := sbPKRU[id]
 	if !ok {
 		println("[MPK BACKEND]: Sandbox PKRU not found in prolog")
@@ -53,6 +55,7 @@ func Prolog(id c.SandId) {
 
 // Epilog is called at the end of the execution of a given sandbox
 func Epilog(id c.SandId) {
+	runtime.AssignSbId("")
 	// Clean PKRU
 	WritePKRU(AllRightsPKRU)
 }
