@@ -2,6 +2,7 @@ package kvm
 
 import (
 	"gosb/commons"
+	"gosb/debug"
 	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
 	"log"
@@ -21,9 +22,6 @@ func Bluepillret()
 type KVM struct {
 	// TODO(aghosn) do we need extra info?
 	Machine *Machine
-
-	// Used for emergency runtime growth
-	EMR [10]*mv.MemoryRegion
 
 	// uregs is used to switch to user space.
 	uregs syscall.PtraceRegs
@@ -52,24 +50,10 @@ func New(fd int, d *commons.SandboxMemory) *KVM {
 	}
 	kvm := &KVM{Machine: machine}
 	// Allocate special emergency regions. Need to see when we can reallocate some.
-	for i := range kvm.EMR {
-		kvm.EMR[i] = &mv.MemoryRegion{}
+	for i := range kvm.Machine.EMR {
+		kvm.Machine.EMR[i] = &mv.MemoryRegion{}
 	}
 	return kvm
-}
-
-//go:nosplit
-func (k *KVM) AcquireEMR() *mv.MemoryRegion {
-	//TODO(aghosn) probably need a lock
-	for i := range k.EMR {
-		if k.EMR[i] != nil {
-			result := k.EMR[i]
-			k.EMR[i] = nil
-			return result
-		}
-	}
-	panic("Unable to acquire a new memory region :(")
-	return nil
 }
 
 //go:nosplit
@@ -84,10 +68,11 @@ func (k *KVM) ExtendRuntime(heap bool, start, size uintptr, prot uint8) {
 	size = uintptr(commons.Round(uint64(size), true))
 	if k.Machine.MemView.ContainsRegion(start, size) {
 		// Nothing to do, we already mapped it.
+		debug.TakeValue(999)
 		return
 	}
 	// We have to map a new region.
-	m := k.AcquireEMR()
+	m := k.Machine.AcquireEMR()
 	var err syscall.Errno
 	k.Machine.MemView.Extend(heap, m, uint64(start), uint64(size), prot)
 	m.Span.Slot, err = k.Machine.setEPTRegion(
@@ -115,7 +100,7 @@ func (k *KVM) SwitchToUser() {
 		FullRestore: true,
 	}
 	opts.Registers.Rip = bluepillretaddr //uint64(reflect.ValueOf(Bluepillret).Pointer())
-	GetFs(&opts.Registers.Fs)            // making sure we get the correct FS value.
+	GetFs(&opts.Registers.Fs_base)       // making sure we get the correct FS value.
 	if !c.entered {
 		c.SwitchToUser(opts, nil)
 		return

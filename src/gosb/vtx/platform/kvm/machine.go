@@ -45,6 +45,9 @@ type Machine struct {
 
 	// TODO(aghosn) remove afterwards.
 	Start uintptr
+
+	// Used for emergency runtime growth
+	EMR [10]*mv.MemoryRegion
 }
 
 const (
@@ -157,6 +160,20 @@ func (m *Machine) newVCPU() *vCPU {
 		log.Fatalf("error initialization vCPU state: %v\n", err)
 	}
 	return c
+}
+
+//go:nosplit
+func (k *Machine) AcquireEMR() *mv.MemoryRegion {
+	//TODO(aghosn) probably need a lock
+	for i := range k.EMR {
+		if k.EMR[i] != nil {
+			result := k.EMR[i]
+			k.EMR[i] = nil
+			return result
+		}
+	}
+	panic("Unable to acquire a new memory region :(")
+	return nil
 }
 
 func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {

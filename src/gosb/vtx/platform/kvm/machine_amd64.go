@@ -159,10 +159,10 @@ func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts, info *arch.SignalInfo) 
 	}
 	c.entered = true
 	rip := switchOpts.Registers.Rip
-	fs := switchOpts.Registers.Fs
+	fs := switchOpts.Registers.Fs_base
 	*switchOpts.Registers = *c.CPU.Registers()
 	switchOpts.Registers.Rip = rip
-	switchOpts.Registers.Fs = fs
+	switchOpts.Registers.Fs_base = fs
 	switchOpts.Registers.Rsp = switchOpts.Registers.Rbp + 8
 	switchOpts.Registers.Rbp = *((*uint64)(unsafe.Pointer(uintptr(switchOpts.Registers.Rbp))))
 	c.CPU.SwitchToUser(switchOpts)

@@ -79,3 +79,13 @@ func ParseProcessAddressSpace(defProt uint8) []*commons.VMArea {
 	}
 	return vmareas
 }
+
+func ToPatch(addr uint64) *commons.VMArea {
+	areas := ParseProcessAddressSpace(commons.D_VAL)
+	for _, v := range areas {
+		if v.Addr <= addr && v.Addr+v.Size > addr {
+			return v
+		}
+	}
+	return nil
+}

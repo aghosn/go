@@ -55,12 +55,34 @@ func Init() {
 func Prolog(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
 		runtime.LockOSThread()
+		var fs uint64
+		kvm.GetFs(&fs)
+		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs, commons.D_VAL) {
+			topatch := mv.ToPatch(fs)
+			log.Printf("ToPatch %x -|- %x\n", topatch.Addr, topatch.Addr+topatch.Size)
+			RuntimeGrowth(false, 0, uintptr(topatch.Addr), uintptr(topatch.Size))
+		}
 		runtime.AssignSbId(id)
 		sb.SwitchToUser()
 		// From here, we made the switch to the VM
 		runtime.UnlockOSThread()
 		return
 	}
+	debug.TakeValue(0xdeadbabe)
+	throw("error finding sandbox vtx machine: '" + id + "'")
+}
+
+//go:nosplit
+func prolog_internal(id commons.SandId) {
+	if sb, ok := machines[id]; ok {
+		runtime.LockOSThread()
+		runtime.AssignSbId(id)
+		sb.SwitchToUser()
+		// From here, we made the switch to the VM
+		runtime.UnlockOSThread()
+		return
+	}
+	debug.TakeValue(0xdeadbabe)
 	throw("error finding sandbox vtx machine: '" + id + "'")
 }
 
@@ -109,7 +131,7 @@ func Register(id int, start, size uintptr) {
 	})
 }
 
-// @warning canno do dynamic allocation!
+// @warning cannot do dynamic allocation!
 //
 //go:nosplit
 func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
@@ -127,6 +149,7 @@ func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
 						debug.TakeValue(start)
 					}
 				}
+				debug.TakeValue(888)
 			}
 		})
 }
@@ -149,7 +172,7 @@ func Execute(id commons.SandId) {
 	}
 	// We are outside the VM, scheduling something outside.
 	if msbid == "" && id != "" {
-		Prolog(id)
+		prolog_internal(id)
 		return
 	}
 	// nested VMs? Or just the scheduler?
@@ -183,7 +206,7 @@ func tryBluepill(do bool, id string) {
 	if !do || id == "" {
 		return
 	}
-	Prolog(id)
+	prolog_internal(id)
 }
 
 //go:nosplit

@@ -148,6 +148,19 @@ func loadPackages() {
 
 	// Make sure  Backend is removed from trusted.
 	globals.TrustedSpace.UnmapArea(globals.CommonVMAs)
+
+	// Update non-bloat
+	if pkg, ok := globals.NameToPkg[globals.TrustedPackages]; ok {
+		pkg.Sects = make([]commons.Section, 0)
+		globals.TrustedSpace.Foreach(func(e *commons.ListElem) {
+			vma := commons.ToVMA(e)
+			pkg.Sects = append(pkg.Sects, commons.Section{
+				vma.Addr,
+				vma.Size,
+				vma.Prot,
+			})
+		})
+	}
 }
 
 func loadSandboxes() {
@@ -238,7 +251,9 @@ func loadSandboxes() {
 		sbox.Dynamic = commons.Convert(dynamics)
 
 		// Add common parts
-		sbox.Static.MapAreaCopy(globals.CommonVMAs)
+		if sbox.Config.Id != globals.TrustedSandbox {
+			sbox.Static.MapAreaCopy(globals.CommonVMAs)
+		}
 		globals.Sandboxes[sbox.Config.Id] = sbox
 	}
 }

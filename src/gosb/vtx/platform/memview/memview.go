@@ -324,10 +324,10 @@ func (m *MemoryRegion) Print() {
 	switch m.Tpe {
 	case IMMUTABLE_REG:
 		for v := commons.ToVMA(m.View.First); v != nil; v = commons.ToVMA(v.Next) {
-			fmt.Printf("%x -- %x (%x)\n", v.Addr, v.Addr+v.Size, v.Prot)
+			fmt.Printf("%x -- %x [%x] (%x)\n", v.Addr, v.Addr+v.Size, v.Size, v.Prot)
 		}
 	default:
-		fmt.Printf("%x -- %x (%x)\n", m.Span.Start, m.Span.Start+m.Span.Size, m.Span.Prot)
+		fmt.Printf("%x -- %x [%x] (%x)\n", m.Span.Start, m.Span.Start+m.Span.Size, m.Span.Size, m.Span.Prot)
 	}
 }
 
