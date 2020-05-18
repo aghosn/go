@@ -2,7 +2,6 @@ package kvm
 
 import (
 	"gosb/commons"
-	"gosb/debug"
 	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
 	"log"
@@ -68,7 +67,6 @@ func (k *KVM) ExtendRuntime(heap bool, start, size uintptr, prot uint8) {
 	size = uintptr(commons.Round(uint64(size), true))
 	if k.Machine.MemView.ContainsRegion(start, size) {
 		// Nothing to do, we already mapped it.
-		debug.TakeValue(999)
 		return
 	}
 	// We have to map a new region.

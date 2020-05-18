@@ -4,7 +4,12 @@ import (
 	"unsafe"
 )
 
-// TODO(aghosn) For debugging, remove afterwards.
+// Constant to fix pthread create tls situation.
+const (
+	_LOW_STACK_OFFSET  = 0x288
+	_HIGH_STACK_OFFSET = 0x1178
+)
+
 var (
 	MRTRuntimeVals [60]uintptr
 	MRTRuntimeIdx  int   = 0
@@ -104,6 +109,17 @@ func TakeValue(a uintptr) {
 		MRTRuntimeVals[MRTRuntimeIdx] = a
 		MRTRuntimeIdx++
 	}
+}
+
+//go:nosplit
+func RegisterPthread() {
+	if !iscgo || runtimeGrowth == nil {
+		return
+	}
+	_g_ := getg().m.g0
+	low := uintptr(_g_.stack.lo - _LOW_STACK_OFFSET)
+	high := uintptr(_g_.stack.hi + _HIGH_STACK_OFFSET)
+	runtimeGrowth(false, 0, low, high-low)
 }
 
 //go:nosplit

@@ -163,6 +163,15 @@ func (m *Machine) newVCPU() *vCPU {
 }
 
 //go:nosplit
+func (k *Machine) Replenish() {
+	for i := range k.EMR {
+		if k.EMR[i] == nil {
+			k.EMR[i] = &mv.MemoryRegion{}
+		}
+	}
+}
+
+//go:nosplit
 func (k *Machine) AcquireEMR() *mv.MemoryRegion {
 	//TODO(aghosn) probably need a lock
 	for i := range k.EMR {
