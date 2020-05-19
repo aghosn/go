@@ -28,7 +28,8 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 	regs := vcpu.Registers()
 
 	// 1. Check that the Rip is valid, @later use seccomp too to disambiguate kern/user.
-	if !vcpu.machine.ValidAddress(regs.Rip, c.X_VAL) {
+	// No lock, this part never changes.
+	if !vcpu.machine.ValidAddress(regs.Rip) && vcpu.machine.HasRights(regs.Rip, c.X_VAL) {
 		return syshandlerErr1
 	}
 
@@ -62,6 +63,7 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 	}
 
 	if vcpu.exceptionCode == int(ring0.PageFault) {
+		// TODO(check read then write)
 		if vcpu.machine.MemView.ValidAddress(uint64(vcpu.FaultAddr)) {
 			return syshandlerErr3
 		}
@@ -70,9 +72,4 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 		return syshandlerException
 	}
 	return syshandlerErr2
-}
-
-//go:nosplit
-func (m *Machine) ValidAddress(addr uint64, prots uint8) bool {
-	return m.MemView.ValidAddress(addr)
 }

@@ -184,6 +184,16 @@ func (k *Machine) AcquireEMR() *mv.MemoryRegion {
 	return nil
 }
 
+//go:nosplit
+func (m *Machine) ValidAddress(addr uint64) bool {
+	return m.MemView.ValidAddress(addr)
+}
+
+//go:nosplit
+func (m *Machine) HasRights(addr uint64, prot uint8) bool {
+	return m.MemView.HasRights(addr, prot)
+}
+
 func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {
 	memview := mv.AddressSpaceTemplate.Copy()
 	memview.ApplyDomain(d)
