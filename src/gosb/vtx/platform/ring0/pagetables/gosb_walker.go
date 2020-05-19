@@ -94,7 +94,7 @@ func ConvertOpts(prot uint8) uintptr {
 
 //go:nosplit
 func (p *PageTables) FindMapping(addr uintptr) (uintptr, uintptr, uintptr) {
-	addr = addr - (addr % 0x1000)
+	addr = addr - (addr % gc.PageSize)
 	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
 	s2, s1 := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
 	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())
@@ -105,7 +105,7 @@ func (p *PageTables) FindMapping(addr uintptr) (uintptr, uintptr, uintptr) {
 
 //go:nosplit
 func (p *PageTables) Clear(addr uintptr) {
-	addr = addr - (addr % 0x1000)
+	addr = addr - (addr % gc.PageSize)
 	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
 	s2, s1 := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
 	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())

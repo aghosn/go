@@ -174,6 +174,13 @@ func (a *AddressSpace) ValidAddress(addr uint64) bool {
 }
 
 //go:nosplit
+func (a *AddressSpace) HasRights(addr uint64, prot uint8) bool {
+	prots := pg.ConvertOpts(prot)
+	_, pte, _ := a.Tables.FindMapping(uintptr(addr))
+	return (pte&prots == prots)
+}
+
+//go:nosplit
 func (a *AddressSpace) Toggle(on bool, start, size uintptr, prot uint8) {
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
 		if m.ContainsRegion(uint64(start), uint64(size)) {
