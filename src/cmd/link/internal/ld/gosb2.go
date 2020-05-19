@@ -406,6 +406,16 @@ func (ctxt *Link) fixingStupidSymbols() {
 			s.File = "runtime/cgo"
 		}
 
+		// Missing symbols.
+		if (strings.HasPrefix(s.Name, "$f64") || strings.HasPrefix(s.Name, "$f32")) && s.File == "" {
+			s.File = "runtime"
+		}
+
+		// Make got plt part of the runtime.
+		if s.Name == ".got.plt" {
+			s.File = "runtime"
+		}
+
 		// Some symbols reference outer without being subs.
 		if s.Outer != nil {
 			if _, relocate := lb.SymToFix[s.Outer.Name]; relocate {
