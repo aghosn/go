@@ -401,6 +401,11 @@ func (ctxt *Link) fixingStupidSymbols() {
 			s.File = "runtime" //lb.StmpPkgName
 		}
 
+		// Some cgo symbols have missing packages.
+		if strings.HasPrefix(s.Name, "runtime/cgo") && s.File == "" {
+			s.File = "runtime/cgo"
+		}
+
 		// Some symbols reference outer without being subs.
 		if s.Outer != nil {
 			if _, relocate := lb.SymToFix[s.Outer.Name]; relocate {
