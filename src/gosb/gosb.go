@@ -34,6 +34,11 @@ func Initialize(b Backend) {
 	})
 }
 
+// Benchmark prints statistics about gosb
+func Benchmark() {
+	backend.benchmark()
+}
+
 func initRuntime() {
 	globals.NameToId = make(map[string]int)
 	for k, d := range globals.NameToPkg {

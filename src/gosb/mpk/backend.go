@@ -30,6 +30,7 @@ func getSectionWithoutAlloc() *c.Section {
 
 // Execute turns on sandbox isolation
 func Execute(id c.SandId) {
+	enterExecute()
 	if id == "" {
 		WritePKRU(AllRightsPKRU)
 		return
@@ -44,6 +45,7 @@ func Execute(id c.SandId) {
 
 // Prolog initialize isolation of the sandbox
 func Prolog(id c.SandId) {
+	entrerProlog()
 	runtime.AssignSbId(id)
 	pkru, ok := sbPKRU[id]
 	if !ok {
@@ -70,6 +72,8 @@ func Register(id int, start, size uintptr) {
 	if id == 0 || id == -1 { // Runtime
 		return
 	}
+	enterRegister()
+	defer exitRegister()
 
 	pkg, ok := g.IdToPkg[id]
 	if !ok {
@@ -110,7 +114,6 @@ func Register(id int, start, size uintptr) {
 //We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
 //The same should apply for the previous function.
 func Transfer(oldid, newid int, start, size uintptr) {
-	// Sanity check
 	if newid == 0 || oldid == 0 {
 		return
 	}
@@ -118,6 +121,8 @@ func Transfer(oldid, newid int, start, size uintptr) {
 		println("[MPK BACKEND]: Transfer from a package to itself")
 		return
 	}
+	enterTransfer()
+	defer exitTransfer()
 	oldPkg, ok := g.IdToPkg[oldid]
 	if !ok {
 		println("[MPK BACKEND]: Transfer old package not found")
@@ -225,6 +230,8 @@ func computePKRU(sandboxKeys map[c.SandId][]int, sandboxProt map[c.SandId][]Prot
 
 // Init relies on domains and packages, they must be initialized before the call
 func Init() {
+	startInit()
+	defer stopInit()
 	WritePKRU(AllRightsPKRU)
 	n := len(g.AllPackages)
 	pkgAppearsIn := make(map[int][]c.SandId, n)
