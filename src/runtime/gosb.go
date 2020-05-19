@@ -38,6 +38,7 @@ var (
 	executeSandbox    func(id string)                                = nil
 	prologHook        func(id string)                                = nil
 	epilogHook        func(id string)                                = nil
+	mstartHook        func()                                         = nil
 )
 
 //go:nosplit
@@ -60,6 +61,7 @@ func LitterboxHooks(
 	e func(string),
 	prolog func(string),
 	epilog func(string),
+	mstart func(),
 ) {
 	idToPkg = make(map[int]string)
 	pkgToId = make(map[string]int)
@@ -75,6 +77,7 @@ func LitterboxHooks(
 	executeSandbox = e
 	prologHook = prolog
 	epilogHook = epilog
+	mstartHook = mstart
 	bloatInitDone = true
 }
 
