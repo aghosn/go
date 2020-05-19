@@ -43,7 +43,6 @@ type Machine struct {
 	// maxVCPUs is the maximum number of vCPUs supported by the machine.
 	maxVCPUs int
 
-	// TODO(aghosn) remove afterwards.
 	Start uintptr
 
 	// Used for emergency runtime growth

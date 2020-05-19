@@ -6,6 +6,7 @@ import (
 	"gosb/vtx/platform/ring0"
 	"log"
 	"reflect"
+	"runtime"
 	"syscall"
 )
 
@@ -21,6 +22,12 @@ func Bluepillret()
 type KVM struct {
 	// TODO(aghosn) do we need extra info?
 	Machine *Machine
+
+	// Pointer to the sandbox memory
+	Sand *commons.SandboxMemory
+
+	// For address space extension.
+	Mu runtime.GosbMutex
 
 	// uregs is used to switch to user space.
 	uregs syscall.PtraceRegs
@@ -47,8 +54,7 @@ func New(fd int, d *commons.SandboxMemory) *KVM {
 	if err != nil {
 		log.Fatalf("error creating the machine: %v\n", err)
 	}
-	kvm := &KVM{Machine: machine}
-	// Allocate special emergency regions. Need to see when we can reallocate some.
+	kvm := &KVM{Machine: machine, Sand: d}
 	for i := range kvm.Machine.EMR {
 		kvm.Machine.EMR[i] = &mv.MemoryRegion{}
 	}

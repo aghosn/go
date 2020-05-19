@@ -164,12 +164,9 @@ func (a *AddressSpace) CreateMemoryRegion(head *commons.VMArea, tail *commons.VM
 }
 
 //go:nosplit
-func (a *AddressSpace) ValidAddress(addr uint64, prot uint8) bool {
+func (a *AddressSpace) ValidAddress(addr uint64) bool {
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
 		if addr >= m.Span.Start && addr < m.Span.Start+m.Span.Size {
-			if prot&m.Span.Prot != prot {
-				return false
-			}
 			return m.ValidAddress(addr)
 		}
 	}

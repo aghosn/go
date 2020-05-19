@@ -55,9 +55,8 @@ func Prolog(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
 		runtime.LockOSThread()
 		sb.Machine.Replenish()
-		var fs uint64
-		kvm.GetFs(&fs)
-		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs, commons.D_VAL) {
+		fs := kvm.GetFs2()
+		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs) {
 			runtime.RegisterPthread()
 		}
 		runtime.AssignSbId(id)
@@ -73,9 +72,8 @@ func Prolog(id commons.SandId) {
 func prolog_internal(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
 		runtime.LockOSThread()
-		var fs uint64
-		kvm.GetFs(&fs)
-		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs, commons.D_VAL) {
+		fs := kvm.GetFs2()
+		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs) {
 			runtime.RegisterPthread()
 		}
 		runtime.AssignSbId(id)
@@ -100,17 +98,22 @@ func Transfer(oldid, newid int, start, size uintptr) {
 		if ok {
 			for _, u := range lunmap {
 				if vm, ok2 := machines[u]; ok2 {
-					//TODO correct this, we should change the view.
+					vm.Mu.Lock()
 					vm.Unmap(start, size)
+					vm.Mu.Unlock()
 				}
 			}
 		}
-		// Map the pages. Also probably need a lock.
+		// Map the pages.
 		if ok1 {
 			for _, m := range lmap {
 				if vm, ok2 := machines[m]; ok2 {
-					//TODO correct this, we should apply the view.
-					vm.Map(start, size, commons.HEAP_VAL)
+					// Map with the correct view.
+					if prot, ok := vm.Sand.View[newid]; ok {
+						vm.Mu.Lock()
+						vm.Map(start, size, prot&commons.HEAP_VAL)
+						vm.Mu.Unlock()
+					}
 				}
 			}
 		}
@@ -121,11 +124,14 @@ func Transfer(oldid, newid int, start, size uintptr) {
 func Register(id int, start, size uintptr) {
 	tryInHost(func() {
 		lmap, ok := globals.PkgDeps[id]
-		// TODO probably lock.
 		if ok {
 			for _, m := range lmap {
 				if vm, ok1 := machines[m]; ok1 {
-					vm.Map(start, size, commons.HEAP_VAL)
+					if prot, ok := vm.Sand.View[id]; ok {
+						vm.Mu.Lock()
+						vm.Map(start, size, prot&commons.HEAP_VAL)
+						vm.Mu.Unlock()
+					}
 				}
 			}
 		}
@@ -139,11 +145,12 @@ func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
 	tryInHost(
 		func() {
 			lmap, ok := globals.PkgDeps[id]
-			// TODO probably lock.
 			if ok {
 				for _, m := range lmap {
 					if vm, ok1 := machines[m]; ok1 {
+						vm.Mu.Lock()
 						vm.ExtendRuntime(isheap, start, size, commons.HEAP_VAL)
+						vm.Mu.Unlock()
 					}
 				}
 			}
