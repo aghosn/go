@@ -62,7 +62,7 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 	}
 
 	if vcpu.exceptionCode == int(ring0.PageFault) {
-		if vcpu.machine.MemView.ValidAddress(uint64(vcpu.FaultAddr), c.R_VAL|c.W_VAL) {
+		if vcpu.machine.MemView.ValidAddress(uint64(vcpu.FaultAddr)) {
 			return syshandlerErr3
 		}
 	}
@@ -74,5 +74,5 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 
 //go:nosplit
 func (m *Machine) ValidAddress(addr uint64, prots uint8) bool {
-	return m.MemView.ValidAddress(addr, prots)
+	return m.MemView.ValidAddress(addr)
 }

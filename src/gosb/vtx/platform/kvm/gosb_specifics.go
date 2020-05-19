@@ -9,6 +9,9 @@ import (
 //go:nosplit
 func GetFs(addr *uint64)
 
+//go:nosplit
+func GetFs2() uint64
+
 // SetAllEPTSlots registers the different regions with KVM for HVA -> GPA mappings.
 func (m *Machine) SetAllEPTSlots() {
 	// First, we register the pages used for page tables.
