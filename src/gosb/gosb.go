@@ -54,6 +54,7 @@ func initRuntime() {
 		backend.execute,
 		backend.prolog,
 		backend.epilog,
+		backend.mstart,
 	)
 }
 func finalizeBackend(b Backend) {

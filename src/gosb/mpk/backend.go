@@ -28,6 +28,11 @@ func getSectionWithoutAlloc() *c.Section {
 	return section
 }
 
+// MStart initializes PKRU of new threads
+func MStart() {
+	WritePKRU(AllRightsPKRU)
+}
+
 // Execute turns on sandbox isolation
 func Execute(id c.SandId) {
 	enterExecute()
@@ -193,7 +198,7 @@ func tagPackage(id int, key Pkey) {
 
 	for _, section := range pkg.Sects {
 		if section.Size > 0 {
-			// fmt.Printf("section %06x + %06x -- pkg %02d\n", section.Addr, section.Size, id)
+			// fmt.Printf("section %06x + %06x -- pkg %02d\n", section.Addr, section.Addr+section.Size, id)
 			sysProt := getSectionProt(section)
 			PkeyMprotect(uintptr(section.Addr), section.Size, sysProt, key)
 		}
@@ -241,7 +246,8 @@ func Init() {
 	fmt.Printf("Nb of packages:%d\n", n)
 
 	for sbID, sb := range g.Sandboxes {
-		// fmt.Printf("//// Sandbox %s ////\n", sbID)
+		fmt.Printf("//// Sandbox %s ////\n", sbID)
+		sb.Static.Print()
 		for pkgID, _ := range sb.View {
 			if pkgID == 0 { // Runtime
 				continue

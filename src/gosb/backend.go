@@ -18,6 +18,7 @@ type backendConfig struct {
 	transfer      func(oldid, newid int, start, size uintptr)
 	register      func(id int, start, size uintptr)
 	execute       func(id c.SandId)
+	mstart        func()
 	runtimeGrowth func(isheap bool, id int, start, size uintptr)
 	benchmark     func()
 }
@@ -32,9 +33,9 @@ const (
 // Configurations
 var (
 	configBackends = [__BACKEND_SIZE]backendConfig{
-		backendConfig{SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute, nil, nil},
-		backendConfig{VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, vtx.RuntimeGrowth, nil},
-		backendConfig{MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute, nil, mpk.Benchmark},
+		backendConfig{SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute, nil, nil, nil},
+		backendConfig{VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, nil, vtx.RuntimeGrowth, nil},
+		backendConfig{MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute, mpk.MStart, nil, mpk.Benchmark},
 	}
 )
 

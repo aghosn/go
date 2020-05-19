@@ -1184,6 +1184,9 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 //go:nosplit
 //go:nowritebarrierrec
 func mstart() {
+	if mstartHook != nil {
+		mstartHook()
+	}
 	_g_ := getg()
 
 	osStack := _g_.stack.lo == 0
