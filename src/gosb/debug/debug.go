@@ -10,6 +10,8 @@ import (
 var (
 	MRTValues  [50]uintptr
 	MRTIndex   int
+	MRTValues2 [50]uintptr
+	MRTIndex2  int
 	MRTMarkers [15]int
 	MRTUpdates [50]uintptr
 	MRTUIdx    int = 0
@@ -28,6 +30,14 @@ func TakeValue(a uintptr) {
 	if MRTIndex < len(MRTValues) {
 		MRTValues[MRTIndex] = a
 		MRTIndex++
+	}
+}
+
+//go:nosplit
+func TakeValue2(a uintptr) {
+	if MRTIndex2 < len(MRTValues2) {
+		MRTValues2[MRTIndex2] = a
+		MRTIndex2++
 	}
 }
 

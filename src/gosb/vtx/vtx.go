@@ -2,6 +2,7 @@ package vtx
 
 import (
 	"gosb/commons"
+	"gosb/debug"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
 	mv "gosb/vtx/platform/memview"
@@ -57,7 +58,12 @@ func Prolog(id commons.SandId) {
 		sb.Machine.Replenish()
 		fs := kvm.GetFs2()
 		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs) {
+			debug.TakeValue(0x666)
+			debug.TakeValue(uintptr(fs))
+			debug.TakeValue(0x777)
 			runtime.RegisterPthread()
+			fs = kvm.GetFs2()
+			commons.Check(sb.Machine.MemView.ValidAddress(fs) && sb.Machine.HasRights(fs, commons.W_VAL))
 		}
 		runtime.AssignSbId(id)
 		sb.SwitchToUser()
@@ -75,6 +81,9 @@ func prolog_internal(id commons.SandId) {
 		fs := kvm.GetFs2()
 		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs) {
 			runtime.RegisterPthread()
+			fs2 := kvm.GetFs2()
+			commons.Check(fs == fs2)
+			commons.Check(sb.Machine.MemView.ValidAddress(fs))
 		}
 		runtime.AssignSbId(id)
 		sb.SwitchToUser()
@@ -98,9 +107,9 @@ func Transfer(oldid, newid int, start, size uintptr) {
 		if ok {
 			for _, u := range lunmap {
 				if vm, ok2 := machines[u]; ok2 {
-					vm.Mu.Lock()
+					vm.Machine.Mu.Lock()
 					vm.Unmap(start, size)
-					vm.Mu.Unlock()
+					vm.Machine.Mu.Unlock()
 				}
 			}
 		}
@@ -110,9 +119,9 @@ func Transfer(oldid, newid int, start, size uintptr) {
 				if vm, ok2 := machines[m]; ok2 {
 					// Map with the correct view.
 					if prot, ok := vm.Sand.View[newid]; ok {
-						vm.Mu.Lock()
+						vm.Machine.Mu.Lock()
 						vm.Map(start, size, prot&commons.HEAP_VAL)
-						vm.Mu.Unlock()
+						vm.Machine.Mu.Unlock()
 					}
 				}
 			}
@@ -128,9 +137,9 @@ func Register(id int, start, size uintptr) {
 			for _, m := range lmap {
 				if vm, ok1 := machines[m]; ok1 {
 					if prot, ok := vm.Sand.View[id]; ok {
-						vm.Mu.Lock()
+						vm.Machine.Mu.Lock()
 						vm.Map(start, size, prot&commons.HEAP_VAL)
-						vm.Mu.Unlock()
+						vm.Machine.Mu.Unlock()
 					}
 				}
 			}
@@ -148,9 +157,9 @@ func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
 			if ok {
 				for _, m := range lmap {
 					if vm, ok1 := machines[m]; ok1 {
-						vm.Mu.Lock()
+						vm.Machine.Mu.Lock()
 						vm.ExtendRuntime(isheap, start, size, commons.HEAP_VAL)
-						vm.Mu.Unlock()
+						vm.Machine.Mu.Unlock()
 					}
 				}
 			}
