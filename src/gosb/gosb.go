@@ -22,6 +22,7 @@ func Initialize(b Backend) {
 	once.Do(func() {
 		loadPackages()
 		loadSandboxes()
+		updateTrusted()
 		initBackend(b)
 		initRuntime()
 	})
@@ -151,22 +152,6 @@ func loadPackages() {
 			}))
 		}
 	}
-
-	// Make sure  Backend is removed from trusted.
-	globals.TrustedSpace.UnmapArea(globals.CommonVMAs)
-
-	// Update non-bloat
-	if pkg, ok := globals.NameToPkg[globals.TrustedPackages]; ok {
-		pkg.Sects = make([]commons.Section, 0)
-		globals.TrustedSpace.Foreach(func(e *commons.ListElem) {
-			vma := commons.ToVMA(e)
-			pkg.Sects = append(pkg.Sects, commons.Section{
-				vma.Addr,
-				vma.Size,
-				vma.Prot,
-			})
-		})
-	}
 }
 
 func loadSandboxes() {
@@ -217,6 +202,7 @@ func loadSandboxes() {
 				commons.X_VAL | commons.R_VAL | commons.USER_VAL,
 			})
 			statics = append(statics, function)
+			globals.SandboxFuncs[d.Id] = function.Copy()
 		}
 
 		// Go through each package.
@@ -261,5 +247,30 @@ func loadSandboxes() {
 			sbox.Static.MapAreaCopy(globals.CommonVMAs)
 		}
 		globals.Sandboxes[sbox.Config.Id] = sbox
+	}
+}
+
+// updateTrusted fixes the trusted address space.
+// We have some issues from the linker that prevent us from having an accurate
+// result for the trusted space.
+func updateTrusted() {
+	// C linking ignores the fact that we move sandboxes around.
+	// Make sure  Backend is removed from trusted.
+	globals.TrustedSpace.UnmapArea(globals.CommonVMAs)
+	for _, s := range globals.SandboxFuncs {
+		globals.TrustedSpace.Unmap(s)
+	}
+
+	// Update trusted space package.
+	if pkg, ok := globals.NameToPkg[globals.TrustedPackages]; ok {
+		pkg.Sects = make([]commons.Section, 0)
+		globals.TrustedSpace.Foreach(func(e *commons.ListElem) {
+			vma := commons.ToVMA(e)
+			pkg.Sects = append(pkg.Sects, commons.Section{
+				vma.Addr,
+				vma.Size,
+				vma.Prot,
+			})
+		})
 	}
 }
