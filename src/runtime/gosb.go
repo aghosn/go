@@ -4,6 +4,15 @@ import (
 	"unsafe"
 )
 
+//////// DEBUG /////////
+// WritePKRU updates the value of the PKRU
+func WritePKRU(prot uint32)
+
+// ReadPKRU returns the value of the PKRU
+func ReadPKRU() uint32
+
+///// END DEBUG ///////
+
 // Constant to fix pthread create tls situation.
 const (
 	_LOW_STACK_OFFSET  = 0x288

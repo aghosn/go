@@ -28,8 +28,12 @@ func getSectionWithoutAlloc() *c.Section {
 	return section
 }
 
+var debugMPK = 0
+
 // MStart initializes PKRU of new threads
 func MStart() {
+	debugMPK++
+	panic("Test")
 	WritePKRU(AllRightsPKRU)
 }
 
@@ -206,7 +210,7 @@ func tagPackage(id int, key Pkey) {
 }
 
 func getSectionProt(section c.Section) SysProt {
-	prot := SysProtR
+	prot := SysProtRX
 	if section.Prot&c.W_VAL > 0 {
 		prot = prot | SysProtRW
 	}
