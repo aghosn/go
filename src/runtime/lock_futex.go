@@ -43,6 +43,7 @@ func key32(p *uintptr) *uint32 {
 	return (*uint32)(unsafe.Pointer(p))
 }
 
+//go:nosplit
 func lock(l *mutex) {
 	gp := getg()
 
@@ -103,6 +104,7 @@ func lock(l *mutex) {
 	}
 }
 
+//go:nosplit
 func unlock(l *mutex) {
 	v := atomic.Xchg(key32(&l.key), mutex_unlocked)
 	if v == mutex_unlocked {

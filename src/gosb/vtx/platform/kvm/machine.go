@@ -47,6 +47,9 @@ type Machine struct {
 
 	// Used for emergency runtime growth
 	EMR [10]*mv.MemoryRegion
+
+	// For address space extension.
+	Mu runtime.GosbMutex
 }
 
 const (
@@ -168,6 +171,7 @@ func (k *Machine) Replenish() {
 			k.EMR[i] = &mv.MemoryRegion{}
 		}
 	}
+	k.MemView.PTEAllocator.Replenish()
 }
 
 //go:nosplit

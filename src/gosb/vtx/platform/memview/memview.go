@@ -110,6 +110,9 @@ func (a *AddressSpace) ApplyDomain(d *commons.SandboxMemory) {
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
 		m.Finalize()
 	}
+
+	// From now on, we cannot rely on dynamic allocations inside PageTableAllocator
+	a.PTEAllocator.Danger = true
 }
 
 // Assign finds the memory region to which this vma belongs.

@@ -16,7 +16,8 @@ type sysHType = uint8
 const (
 	syshandlerErr1      sysHType = iota // something was wrong
 	syshandlerErr2      sysHType = iota // something was wrong
-	syshandlerErr3      sysHType = iota // page is mapped but not visible?
+	syshandlerPFW       sysHType = iota // page fault missing write
+	syshandlerPF        sysHType = iota // page fault missing not mapped
 	syshandlerException sysHType = iota
 	syshandlerValid     sysHType = iota // valid system call
 	syshandlerInvalid   sysHType = iota // unallowed system call
@@ -63,10 +64,16 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 	}
 
 	if vcpu.exceptionCode == int(ring0.PageFault) {
-		// TODO(check read then write)
+		// Lock as it might be modified
+		vcpu.machine.Mu.Lock()
 		if vcpu.machine.MemView.ValidAddress(uint64(vcpu.FaultAddr)) {
-			return syshandlerErr3
+			if vcpu.machine.MemView.HasRights(uint64(vcpu.FaultAddr), c.R_VAL) {
+				vcpu.machine.Mu.Unlock()
+				return syshandlerPFW
+			}
 		}
+		vcpu.machine.Mu.Unlock()
+		return syshandlerPF
 	}
 	if vcpu.exceptionCode != 0 {
 		return syshandlerException

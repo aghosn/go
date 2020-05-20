@@ -2,11 +2,11 @@ package kvm
 
 import (
 	"gosb/commons"
+	"gosb/debug"
 	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
 	"log"
 	"reflect"
-	"runtime"
 	"syscall"
 )
 
@@ -25,9 +25,6 @@ type KVM struct {
 
 	// Pointer to the sandbox memory
 	Sand *commons.SandboxMemory
-
-	// For address space extension.
-	Mu runtime.GosbMutex
 
 	// uregs is used to switch to user space.
 	uregs syscall.PtraceRegs
@@ -105,6 +102,9 @@ func (k *KVM) SwitchToUser() {
 	}
 	opts.Registers.Rip = bluepillretaddr //uint64(reflect.ValueOf(Bluepillret).Pointer())
 	GetFs(&opts.Registers.Fs_base)       // making sure we get the correct FS value.
+	debug.TakeValue(0x333)
+	debug.TakeValue(uintptr(opts.Registers.Fs_base))
+	debug.TakeValue(0x444)
 	if !c.entered {
 		c.SwitchToUser(opts, nil)
 		return

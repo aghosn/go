@@ -170,8 +170,11 @@ func bluepillHandler(context unsafe.Pointer) {
 			case syshandlerErr2:
 				c.die(bluepillArchContext(context), "Not a syscall")
 				return
-			case syshandlerErr3:
-				c.die(bluepillArchContext(context), "PF on a valid page")
+			case syshandlerPFW:
+				c.die(bluepillArchContext(context), "PF trying to do a write")
+				return
+			case syshandlerPF:
+				c.die(bluepillArchContext(context), "PF trying to do a read or exec")
 				return
 			case syshandlerException:
 				c.die(bluepillArchContext(context), "Received an exception")
