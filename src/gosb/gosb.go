@@ -261,6 +261,14 @@ func updateTrusted() {
 		globals.TrustedSpace.Unmap(s)
 	}
 
+	for _, p := range globals.AllPackages {
+		if p.Name == globals.TrustedPackages {
+			continue
+		}
+		// Make sure we remove the bloated packages.
+		globals.TrustedSpace.UnmapArea(commons.PackageToVMAs(p))
+	}
+
 	// Update trusted space package.
 	if pkg, ok := globals.NameToPkg[globals.TrustedPackages]; ok {
 		pkg.Sects = make([]commons.Section, 0)
