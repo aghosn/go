@@ -11,10 +11,12 @@ const (
 )
 
 var (
-	MRTRuntimeVals [60]uintptr
-	MRTRuntimeIdx  int   = 0
-	MRTId          int64 = -1
-	MRTBaddy       int   = 0
+	MRTRuntimeVals  [60]uintptr
+	MRTRuntimeIdx   int = 0
+	MRTRuntimeVals2 [60]uintptr
+	MRTRuntimeIdx2  int   = 0
+	MRTId           int64 = -1
+	MRTBaddy        int   = 0
 )
 
 var (
@@ -111,6 +113,15 @@ func TakeValue(a uintptr) {
 	}
 }
 
+//
+//go:nosplit
+func TakeValue2(a uintptr) {
+	if MRTRuntimeIdx2 < len(MRTRuntimeVals2) {
+		MRTRuntimeVals2[MRTRuntimeIdx2] = a
+		MRTRuntimeIdx2++
+	}
+}
+
 //go:nosplit
 func RegisterPthread() {
 	if !iscgo || runtimeGrowth == nil {
@@ -122,8 +133,8 @@ func RegisterPthread() {
 	TakeValue(0x111)
 	TakeValue(low)
 	TakeValue(high)
-	TakeValue(0x222)
 	runtimeGrowth(false, 0, low, high-low)
+	TakeValue(0x222)
 }
 
 //go:nosplit
