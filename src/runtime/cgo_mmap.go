@@ -35,7 +35,11 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
 			return nil, int(ret)
 		}
 		if runtimeGrowth != nil {
+			TakeValue(0x888)
+			TakeValue(uintptr(ret))
+			TakeValue(n)
 			runtimeGrowth(false, 0, uintptr(ret), n)
+			TakeValue(0x999)
 		}
 		return unsafe.Pointer(ret), 0
 	}
