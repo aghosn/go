@@ -110,12 +110,12 @@ func Register(id int, start, size uintptr) {
 		return
 	}
 
-	key, ok := pkgKeys[id]
-	if !ok {
-		println("[MPK BACKEND]: Register key not found")
-		return
-	}
-	PkeyMprotect(uintptr(section.Addr), section.Size, SysProtRW, key)
+	// key, ok := pkgKeys[id]
+	// if !ok {
+	// 	println("[MPK BACKEND]: Register key not found")
+	// 	return
+	// }
+	// PkeyMprotect(uintptr(section.Addr), section.Size, SysProtRW, key)
 }
 
 //TODO(charlyCst) implement this one.
@@ -168,12 +168,12 @@ func Transfer(oldid, newid int, start, size uintptr) {
 	// Add to new mapping
 	newPkg.Dynamic[len(newPkg.Dynamic)] = section
 
-	key, ok := pkgKeys[newid]
-	if !ok {
-		println("[MPK BACKEND]: Register key not found for transfer")
-		return
-	}
-	PkeyMprotect(uintptr(section.Addr), section.Size, SysProtRW, key)
+	// key, ok := pkgKeys[newid]
+	// if !ok {
+	// 	println("[MPK BACKEND]: Register key not found for transfer")
+	// 	return
+	// }
+	// PkeyMprotect(uintptr(section.Addr), section.Size, SysProtRW, key)
 }
 
 // allocateKey allocates MPK keys and tag sections with those keys
@@ -202,7 +202,7 @@ func tagPackage(id int, key Pkey) {
 
 	for _, section := range pkg.Sects {
 		if section.Size > 0 {
-			// fmt.Printf("section %06x + %06x -- pkg %02d\n", section.Addr, section.Addr+section.Size, id)
+			fmt.Printf("section %06x + %06x -- pkg %02d ~ %s\n", section.Addr, section.Addr+section.Size, id, pkg.Name)
 			sysProt := getSectionProt(section)
 			PkeyMprotect(uintptr(section.Addr), section.Size, sysProt, key)
 		}
@@ -210,7 +210,7 @@ func tagPackage(id int, key Pkey) {
 }
 
 func getSectionProt(section c.Section) SysProt {
-	prot := SysProtRX
+	prot := SysProtR
 	if section.Prot&c.W_VAL > 0 {
 		prot = prot | SysProtRW
 	}
@@ -250,8 +250,8 @@ func Init() {
 	fmt.Printf("Nb of packages:%d\n", n)
 
 	for sbID, sb := range g.Sandboxes {
-		fmt.Printf("//// Sandbox %s ////\n", sbID)
-		sb.Static.Print()
+		// fmt.Printf("//// Sandbox %s ////\n", sbID)
+		// sb.Static.Print()
 		for pkgID, _ := range sb.View {
 			if pkgID == 0 { // Runtime
 				continue
