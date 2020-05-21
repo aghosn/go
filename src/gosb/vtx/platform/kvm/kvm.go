@@ -2,7 +2,6 @@ package kvm
 
 import (
 	"gosb/commons"
-	"gosb/debug"
 	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
 	"log"
@@ -20,7 +19,6 @@ var (
 func Bluepillret()
 
 type KVM struct {
-	// TODO(aghosn) do we need extra info?
 	Machine *Machine
 
 	// Pointer to the sandbox memory
@@ -102,9 +100,6 @@ func (k *KVM) SwitchToUser() {
 	}
 	opts.Registers.Rip = bluepillretaddr //uint64(reflect.ValueOf(Bluepillret).Pointer())
 	GetFs(&opts.Registers.Fs_base)       // making sure we get the correct FS value.
-	debug.TakeValue(0x333)
-	debug.TakeValue(uintptr(opts.Registers.Fs_base))
-	debug.TakeValue(0x444)
 	if !c.entered {
 		c.SwitchToUser(opts, nil)
 		return
