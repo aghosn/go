@@ -431,7 +431,7 @@ func (ctxt *Link) fixingStupidSymbols() {
 		}
 
 		// itab symbols need to be made available too
-		if !bloated && noouter && strings.HasPrefix(s.Name, "go.itab.") {
+		if /*!bloated &&*/ noouter && strings.HasPrefix(s.Name, "go.itab.") {
 			s.File = "runtime"
 		}
 	}
