@@ -77,6 +77,10 @@ func LitterboxHooks(
 	bloatInitDone = true
 }
 
+func RegisterEmergencyGrowth(f func(bool, int, uintptr, uintptr)) {
+	runtimeGrowth = f
+}
+
 // AssignSbId acquires assigns g.sbid == m.sbid == id
 // This might change g0? Should we make it explicit?
 //

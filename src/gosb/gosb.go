@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"gosb/commons"
 	"gosb/globals"
+	"gosb/vtx"
 	"os"
 	"runtime"
 	"sort"
@@ -25,6 +26,8 @@ func Initialize(b Backend) {
 		updateTrusted()
 		initBackend(b)
 		initRuntime()
+		finalizeBackend(b)
+		runtime.Danger = false
 	})
 }
 
@@ -43,6 +46,12 @@ func initRuntime() {
 		backend.prolog,
 		backend.epilog,
 	)
+}
+func finalizeBackend(b Backend) {
+	if b != VTX_BACKEND {
+		// Nothing to do
+	}
+	vtx.UpdateAll()
 }
 
 // getPkgName is called by the runtime.

@@ -135,13 +135,6 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
 		// Round v+n down to a huge page boundary.
 		end := (uintptr(v) + n) &^ (physHugePageSize - 1)
 
-		if runtimeGrowth != nil {
-			TakeValue2(0x44)
-			TakeValue2(beg)
-			TakeValue2(end)
-			TakeValue2(0x55)
-		}
-
 		if beg < end {
 			madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)
 		}

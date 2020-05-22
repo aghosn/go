@@ -167,6 +167,14 @@ func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
 		})
 }
 
+// All the updates we might have missed
+func UpdateAll() {
+	for v := commons.ToVMA(mv.Updates.First); v != nil; v = commons.ToVMA(v.Next) {
+		isheap := runtime.IsThisTheHeap(uintptr(v.Addr))
+		RuntimeGrowth(isheap, 0, uintptr(v.Addr), uintptr(v.Size))
+	}
+}
+
 //go:nosplit
 func Execute(id commons.SandId) {
 	msbid := runtime.GetmSbIds()

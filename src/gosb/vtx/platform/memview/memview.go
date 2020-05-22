@@ -89,7 +89,6 @@ func (a *AddressSpace) Initialize(procmap *commons.VMAreas) {
 		// Update the loop.
 		v = tail
 	}
-	//a.Print()
 }
 
 // ApplyDomain changes the view of this address space to the one specified by
@@ -489,9 +488,8 @@ func guessTpe(head, tail *commons.VMArea) RegType {
 	isexec := head.Prot&commons.X_VAL == commons.X_VAL
 	isread := head.Prot&commons.R_VAL == commons.R_VAL
 	iswrit := head.Prot&commons.W_VAL == commons.W_VAL
-	// TODO should get that information from the runtime.
-	isheap := runtime.IsThisTheHeap(uintptr(head.Addr)) //head.Addr == HEAP_START
-	ismeta := head.Addr > HEAP_START && !isheap
+	isheap := runtime.IsThisTheHeap(uintptr(head.Addr))
+	ismeta := !isheap && head.Addr > HEAP_START
 
 	// executable and readonly sections do not change.
 	if !ismeta && (isexec || (isread && !iswrit)) {
