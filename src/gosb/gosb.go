@@ -27,7 +27,6 @@ func Initialize(b Backend) {
 		initBackend(b)
 		initRuntime()
 		finalizeBackend(b)
-		runtime.Danger = false
 	})
 }
 
