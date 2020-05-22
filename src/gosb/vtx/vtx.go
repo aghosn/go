@@ -63,8 +63,11 @@ func Prolog(id commons.SandId) {
 			fs = kvm.GetFs2()
 			commons.Check(sb.Machine.MemView.ValidAddress(fs) && sb.Machine.HasRights(fs, commons.W_VAL))
 		}
+		debug.TakeValue(0x1)
+		debug.TakeValue(uintptr(fs))
 		runtime.AssignSbId(id)
 		sb.SwitchToUser()
+		debug.TakeValue(0x2)
 		// From here, we made the switch to the VM
 		runtime.UnlockOSThread()
 		return
@@ -156,10 +159,7 @@ func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
 				for _, m := range lmap {
 					if vm, ok1 := machines[m]; ok1 {
 						vm.Machine.Mu.Lock()
-						debug.TakeValue(0x11)
-						debug.TakeValue(start)
 						vm.ExtendRuntime(isheap, start, size, commons.HEAP_VAL)
-						debug.TakeValue(0x12)
 						vm.Machine.Mu.Unlock()
 					}
 				}

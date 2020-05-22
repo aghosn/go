@@ -134,11 +134,7 @@ func RegisterPthread() {
 	_g_ := getg().m.g0
 	low := uintptr(_g_.stack.lo - _LOW_STACK_OFFSET)
 	high := uintptr(_g_.stack.hi + _HIGH_STACK_OFFSET)
-	TakeValue(0x111)
-	TakeValue(low)
-	TakeValue(high)
 	runtimeGrowth(false, 0, low, high-low)
-	TakeValue(0x222)
 }
 
 //go:nosplit

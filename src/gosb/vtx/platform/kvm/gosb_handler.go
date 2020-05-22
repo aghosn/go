@@ -17,11 +17,16 @@ const (
 	syshandlerErr1      sysHType = iota // something was wrong
 	syshandlerErr2      sysHType = iota // something was wrong
 	syshandlerPFW       sysHType = iota // page fault missing write
+	syshandlerSNF       sysHType = iota // TODO debugging
 	syshandlerPF        sysHType = iota // page fault missing not mapped
 	syshandlerException sysHType = iota
 	syshandlerValid     sysHType = iota // valid system call
 	syshandlerInvalid   sysHType = iota // unallowed system call
 	syshandlerBail      sysHType = iota // redpill
+)
+
+var (
+	MRTAddr, MRTFlags, MRTEntry uintptr
 )
 
 //go:nosplit
@@ -66,8 +71,20 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 	if vcpu.exceptionCode == int(ring0.PageFault) {
 		// Lock as it might be modified
 		vcpu.machine.Mu.Lock()
+
+		// Check if we have a concurrency issue.
+		// The thread as been reshuffled to service that thread and is not properly
+		// mapped and hence we should go back.
 		if vcpu.machine.MemView.ValidAddress(uint64(vcpu.FaultAddr)) {
+			if vcpu.machine.MemView.HasRights(uint64(vcpu.FaultAddr), c.R_VAL|c.USER_VAL|c.W_VAL) {
+				MRTAddr, MRTFlags, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(vcpu.FaultAddr)
+				vcpu.machine.Mu.Unlock()
+				vcpu.FaultAddr = 0
+				vcpu.exceptionCode = 0
+				return syshandlerValid
+			}
 			if vcpu.machine.MemView.HasRights(uint64(vcpu.FaultAddr), c.R_VAL) {
+				MRTAddr, MRTFlags, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(vcpu.FaultAddr)
 				vcpu.machine.Mu.Unlock()
 				return syshandlerPFW
 			}
