@@ -2,6 +2,7 @@ package vtx
 
 import (
 	"gosb/commons"
+	"gosb/debug"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
 	mv "gosb/vtx/platform/memview"
@@ -55,13 +56,18 @@ func Prolog(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
 		runtime.LockOSThread()
 		sb.Machine.Replenish()
-		var fs uint64
-		kvm.GetFs(&fs)
-		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs, commons.D_VAL) {
+		fs := kvm.GetFs2()
+		// Lock page tables??
+		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs) {
 			runtime.RegisterPthread()
+			fs = kvm.GetFs2()
+			commons.Check(sb.Machine.MemView.ValidAddress(fs) && sb.Machine.HasRights(fs, commons.W_VAL))
 		}
+		debug.TakeValue(0x1)
+		debug.TakeValue(uintptr(fs))
 		runtime.AssignSbId(id)
 		sb.SwitchToUser()
+		debug.TakeValue(0x2)
 		// From here, we made the switch to the VM
 		runtime.UnlockOSThread()
 		return
@@ -73,10 +79,12 @@ func Prolog(id commons.SandId) {
 func prolog_internal(id commons.SandId) {
 	if sb, ok := machines[id]; ok {
 		runtime.LockOSThread()
-		var fs uint64
-		kvm.GetFs(&fs)
-		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs, commons.D_VAL) {
+		fs := kvm.GetFs2()
+		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs) {
 			runtime.RegisterPthread()
+			fs2 := kvm.GetFs2()
+			commons.Check(fs == fs2)
+			commons.Check(sb.Machine.MemView.ValidAddress(fs))
 		}
 		runtime.AssignSbId(id)
 		sb.SwitchToUser()
@@ -100,17 +108,22 @@ func Transfer(oldid, newid int, start, size uintptr) {
 		if ok {
 			for _, u := range lunmap {
 				if vm, ok2 := machines[u]; ok2 {
-					//TODO correct this, we should change the view.
+					vm.Machine.Mu.Lock()
 					vm.Unmap(start, size)
+					vm.Machine.Mu.Unlock()
 				}
 			}
 		}
-		// Map the pages. Also probably need a lock.
+		// Map the pages.
 		if ok1 {
 			for _, m := range lmap {
 				if vm, ok2 := machines[m]; ok2 {
-					//TODO correct this, we should apply the view.
-					vm.Map(start, size, commons.HEAP_VAL)
+					// Map with the correct view.
+					if prot, ok := vm.Sand.View[newid]; ok {
+						vm.Machine.Mu.Lock()
+						vm.Map(start, size, prot&commons.HEAP_VAL)
+						vm.Machine.Mu.Unlock()
+					}
 				}
 			}
 		}
@@ -121,11 +134,14 @@ func Transfer(oldid, newid int, start, size uintptr) {
 func Register(id int, start, size uintptr) {
 	tryInHost(func() {
 		lmap, ok := globals.PkgDeps[id]
-		// TODO probably lock.
 		if ok {
 			for _, m := range lmap {
 				if vm, ok1 := machines[m]; ok1 {
-					vm.Map(start, size, commons.HEAP_VAL)
+					if prot, ok := vm.Sand.View[id]; ok {
+						vm.Machine.Mu.Lock()
+						vm.Map(start, size, prot&commons.HEAP_VAL)
+						vm.Machine.Mu.Unlock()
+					}
 				}
 			}
 		}
@@ -139,15 +155,24 @@ func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
 	tryInHost(
 		func() {
 			lmap, ok := globals.PkgDeps[id]
-			// TODO probably lock.
 			if ok {
 				for _, m := range lmap {
 					if vm, ok1 := machines[m]; ok1 {
+						vm.Machine.Mu.Lock()
 						vm.ExtendRuntime(isheap, start, size, commons.HEAP_VAL)
+						vm.Machine.Mu.Unlock()
 					}
 				}
 			}
 		})
+}
+
+// All the updates we might have missed
+func UpdateAll() {
+	for v := commons.ToVMA(mv.Updates.First); v != nil; v = commons.ToVMA(v.Next) {
+		isheap := runtime.IsThisTheHeap(uintptr(v.Addr))
+		RuntimeGrowth(isheap, 0, uintptr(v.Addr), uintptr(v.Size))
+	}
 }
 
 //go:nosplit

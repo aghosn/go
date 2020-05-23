@@ -9,6 +9,19 @@ const (
 	MAX_LEVEL  = 4
 )
 
+// Exposing runtime locks to the outside.
+type GosbMutex struct {
+	m mutex
+}
+
+func (g *GosbMutex) Lock() {
+	lock(&g.m)
+}
+
+func (g *GosbMutex) Unlock() {
+	unlock(&g.m)
+}
+
 func getpackageid(level int) int {
 	if !bloatInitDone || level <= 0 || level > MAX_LEVEL {
 		return -1

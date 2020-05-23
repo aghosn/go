@@ -29,11 +29,6 @@ type spanExtras struct {
 	tinyoffset uintptr
 }
 
-const (
-	_mallocing_register = -1
-	_mallocing_nested   = -2
-)
-
 // setId takes care of calling our backend if we want to switch a section.
 // The move boolean is true if we are moving the span from one section to another.
 // It is false for newly mmapped sections.

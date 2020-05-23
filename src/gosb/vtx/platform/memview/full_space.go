@@ -4,6 +4,7 @@ import (
 	"gosb/commons"
 	"io/ioutil"
 	"log"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -11,15 +12,49 @@ import (
 var (
 	FullAddressSpace     *commons.VMAreas = nil
 	AddressSpaceTemplate *AddressSpace    = nil
+
+	// Due to concurrency issue, we might have delayed updates between
+	// initialization of the full memory view, and setting up the hooks
+	// in the runtime.
+	EUpdates [10]*commons.VMArea
+	Updates  commons.VMAreas
 )
 
 func InitFullMemoryView() {
+	// Allocate the emergency VMArea
+	for i := range EUpdates {
+		EUpdates[i] = &commons.VMArea{}
+	}
 	fvmas := ParseProcessAddressSpace(commons.USER_VAL)
+
+	// Register the hook with the runtime.
+	runtime.RegisterEmergencyGrowth(EmergencyGrowth)
+
 	FullAddressSpace = commons.Convert(fvmas)
 
 	// Generate the address space.
 	AddressSpaceTemplate = &AddressSpace{}
 	AddressSpaceTemplate.Initialize(FullAddressSpace)
+}
+
+//go:nosplit
+func EmergencyGrowth(isheap bool, id int, start, size uintptr) {
+	v := acquireUpdate()
+	commons.Check(v != nil)
+	v.Addr, v.Size, v.Prot = uint64(start), uint64(size), commons.HEAP_VAL
+	Updates.AddBack(v.ToElem())
+}
+
+//go:nosplit
+func acquireUpdate() *commons.VMArea {
+	for i, v := range EUpdates {
+		if v != nil {
+			res := EUpdates[i]
+			EUpdates[i] = nil
+			return res
+		}
+	}
+	return nil
 }
 
 // ParseProcessAddressSpace parses the self proc map to get the entire address space.

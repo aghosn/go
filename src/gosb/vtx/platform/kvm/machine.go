@@ -43,11 +43,13 @@ type Machine struct {
 	// maxVCPUs is the maximum number of vCPUs supported by the machine.
 	maxVCPUs int
 
-	// TODO(aghosn) remove afterwards.
 	Start uintptr
 
 	// Used for emergency runtime growth
 	EMR [10]*mv.MemoryRegion
+
+	// For address space extension.
+	Mu runtime.GosbMutex
 }
 
 const (
@@ -169,6 +171,7 @@ func (k *Machine) Replenish() {
 			k.EMR[i] = &mv.MemoryRegion{}
 		}
 	}
+	k.MemView.PTEAllocator.Replenish()
 }
 
 //go:nosplit
@@ -183,6 +186,16 @@ func (k *Machine) AcquireEMR() *mv.MemoryRegion {
 	}
 	panic("Unable to acquire a new memory region :(")
 	return nil
+}
+
+//go:nosplit
+func (m *Machine) ValidAddress(addr uint64) bool {
+	return m.MemView.ValidAddress(addr)
+}
+
+//go:nosplit
+func (m *Machine) HasRights(addr uint64, prot uint8) bool {
+	return m.MemView.HasRights(addr, prot)
 }
 
 func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {

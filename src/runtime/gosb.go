@@ -11,10 +11,12 @@ const (
 )
 
 var (
-	MRTRuntimeVals [60]uintptr
-	MRTRuntimeIdx  int   = 0
-	MRTId          int64 = -1
-	MRTBaddy       int   = 0
+	MRTRuntimeVals  [60]uintptr
+	MRTRuntimeIdx   int = 0
+	MRTRuntimeVals2 [60]uintptr
+	MRTRuntimeIdx2  int   = 0
+	MRTId           int64 = -1
+	MRTBaddy        int   = 0
 )
 
 var (
@@ -75,6 +77,10 @@ func LitterboxHooks(
 	bloatInitDone = true
 }
 
+func RegisterEmergencyGrowth(f func(bool, int, uintptr, uintptr)) {
+	runtimeGrowth = f
+}
+
 // AssignSbId acquires assigns g.sbid == m.sbid == id
 // This might change g0? Should we make it explicit?
 //
@@ -108,6 +114,15 @@ func TakeValue(a uintptr) {
 	if MRTRuntimeIdx < len(MRTRuntimeVals) {
 		MRTRuntimeVals[MRTRuntimeIdx] = a
 		MRTRuntimeIdx++
+	}
+}
+
+//
+//go:nosplit
+func TakeValue2(a uintptr) {
+	if MRTRuntimeIdx2 < len(MRTRuntimeVals2) {
+		MRTRuntimeVals2[MRTRuntimeIdx2] = a
+		MRTRuntimeIdx2++
 	}
 }
 

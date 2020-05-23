@@ -89,7 +89,6 @@ func (a *AddressSpace) Initialize(procmap *commons.VMAreas) {
 		// Update the loop.
 		v = tail
 	}
-	//a.Print()
 }
 
 // ApplyDomain changes the view of this address space to the one specified by
@@ -110,6 +109,9 @@ func (a *AddressSpace) ApplyDomain(d *commons.SandboxMemory) {
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
 		m.Finalize()
 	}
+
+	// From now on, we cannot rely on dynamic allocations inside PageTableAllocator
+	a.PTEAllocator.Danger = true
 }
 
 // Assign finds the memory region to which this vma belongs.
@@ -164,16 +166,20 @@ func (a *AddressSpace) CreateMemoryRegion(head *commons.VMArea, tail *commons.VM
 }
 
 //go:nosplit
-func (a *AddressSpace) ValidAddress(addr uint64, prot uint8) bool {
+func (a *AddressSpace) ValidAddress(addr uint64) bool {
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
 		if addr >= m.Span.Start && addr < m.Span.Start+m.Span.Size {
-			if prot&m.Span.Prot != prot {
-				return false
-			}
 			return m.ValidAddress(addr)
 		}
 	}
 	return false
+}
+
+//go:nosplit
+func (a *AddressSpace) HasRights(addr uint64, prot uint8) bool {
+	prots := pg.ConvertOpts(prot)
+	_, pte, _ := a.Tables.FindMapping(uintptr(addr))
+	return (pte&prots == prots)
 }
 
 //go:nosplit
@@ -482,9 +488,8 @@ func guessTpe(head, tail *commons.VMArea) RegType {
 	isexec := head.Prot&commons.X_VAL == commons.X_VAL
 	isread := head.Prot&commons.R_VAL == commons.R_VAL
 	iswrit := head.Prot&commons.W_VAL == commons.W_VAL
-	// TODO should get that information from the runtime.
-	isheap := runtime.IsThisTheHeap(uintptr(head.Addr)) //head.Addr == HEAP_START
-	ismeta := head.Addr > HEAP_START && !isheap
+	isheap := runtime.IsThisTheHeap(uintptr(head.Addr))
+	ismeta := !isheap && head.Addr > HEAP_START
 
 	// executable and readonly sections do not change.
 	if !ismeta && (isexec || (isread && !iswrit)) {

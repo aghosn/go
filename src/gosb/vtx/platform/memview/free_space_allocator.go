@@ -27,6 +27,13 @@ type PageTableAllocator struct {
 	All       commons.List        // all used arenas.
 	Current   *Arena              // current arena to obtain page tables.
 	Allocator *FreeSpaceAllocator // Physical memory allocator.
+
+	// Page allocation can happen durin a register
+	// which prevents dynamic allocation.
+	// If danger is on, that means the VM has been entered
+	// and new Arenas should be taken from these.
+	Danger  bool
+	EMArena [10]*Arena
 }
 
 type Arena struct {
@@ -91,6 +98,9 @@ func (pga *PageTableAllocator) Initialize(allocator *FreeSpaceAllocator) {
 	pga.All.Init()
 	pga.Current = nil
 	pga.Allocator = allocator
+	for i := range pga.EMArena {
+		pga.EMArena[i] = new(Arena)
+	}
 }
 
 //go:nosplit
@@ -105,7 +115,13 @@ func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 		start, err := commons.Mmap(0, ARENA_TOTAL_SIZE, _DEFAULT_PROTS, _DEFAULT_FLAGS, -1, 0)
 		commons.Check(err == 0 && (start >= commons.Limit39bits))
 		gpstart := pga.Allocator.Malloc(uint64(ARENA_TOTAL_SIZE))
-		current := &Arena{HVA: uint64(start), GPA: gpstart, Slot: ^uint32(0)}
+		var current *Arena = nil
+		if !pga.Danger {
+			current = &Arena{HVA: uint64(start), GPA: gpstart, Slot: ^uint32(0)}
+		} else {
+			current = pga.AcquireEMArena()
+			current.HVA, current.GPA, current.Slot = uint64(start), gpstart, ^uint32(0)
+		}
 		pga.All.AddBack(current.ToElem())
 		pga.Current = current
 	}
@@ -114,6 +130,28 @@ func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 		pga.Current = nil
 	}
 	return pte, addr
+}
+
+//go:nosplit
+func (pga *PageTableAllocator) AcquireEMArena() *Arena {
+	for i := range pga.EMArena {
+		if pga.EMArena[i] != nil {
+			res := pga.EMArena[i]
+			pga.EMArena[i] = nil
+			return res
+		}
+	}
+	panic("Unable to find a free Arena :(")
+	return nil
+}
+
+//go:nosplit
+func (pga *PageTableAllocator) Replenish() {
+	for i := range pga.EMArena {
+		if pga.EMArena[i] == nil {
+			pga.EMArena[i] = new(Arena)
+		}
+	}
 }
 
 //go:nosplit
