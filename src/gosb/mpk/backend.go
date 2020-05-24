@@ -18,22 +18,8 @@ var (
 	pkgKeys map[int]Pkey
 )
 
-// TODO(CharlyCst) fix allocation in mpkRegister
-var sectionFreeList []*c.Section
-var freeListIdx = 0
-
-func getSectionWithoutAlloc() *c.Section {
-	section := sectionFreeList[freeListIdx]
-	freeListIdx++
-	return section
-}
-
-var debugMPK = 0
-
 // MStart initializes PKRU of new threads
 func MStart() {
-	debugMPK++
-	panic("Test")
 	WritePKRU(AllRightsPKRU)
 }
 
@@ -56,6 +42,7 @@ func Execute(id c.SandId) {
 func Prolog(id c.SandId) {
 	entrerProlog()
 	runtime.AssignSbId(id)
+	fmt.Printf("## Sandbox %s ##\n", id)
 	pkru, ok := sbPKRU[id]
 	if !ok {
 		println("[MPK BACKEND]: Sandbox PKRU not found in prolog")
@@ -82,40 +69,15 @@ func Register(id int, start, size uintptr) {
 		return
 	}
 	enterRegister()
-	defer exitRegister()
 
-	pkg, ok := g.IdToPkg[id]
+	// println(id)
+	key, ok := pkgKeys[id]
 	if !ok {
-		println("[MPK BACKEND]: Register package not found")
+		println("[MPK BACKEND]: Register key not found")
 		return
 	}
-
-	for _, section := range pkg.Sects {
-		if section.Addr == uint64(start) {
-			println("[MPK BACKEND]: Register section not found")
-			return
-		}
-	}
-
-	// Pop a section from the free list
-	section := getSectionWithoutAlloc()
-	section.Addr = uint64(start)
-	section.Size = uint64(size)
-	section.Prot = c.R_VAL | c.W_VAL
-
-	pkg.Dynamic = append(pkg.Dynamic, *section)
-
-	// Updating protection key
-	if id == 0 { // Runtime
-		return
-	}
-
-	// key, ok := pkgKeys[id]
-	// if !ok {
-	// 	println("[MPK BACKEND]: Register key not found")
-	// 	return
-	// }
-	// PkeyMprotect(uintptr(section.Addr), section.Size, SysProtRW, key)
+	PkeyMprotect(start, uint64(size), SysProtRW, key)
+	exitRegister()
 }
 
 //TODO(charlyCst) implement this one.
@@ -123,57 +85,29 @@ func Register(id int, start, size uintptr) {
 //We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
 //The same should apply for the previous function.
 func Transfer(oldid, newid int, start, size uintptr) {
-	if newid == 0 || oldid == 0 {
-		return
-	}
-	if oldid == newid {
-		println("[MPK BACKEND]: Transfer from a package to itself")
-		return
-	}
 	enterTransfer()
-	defer exitTransfer()
-	oldPkg, ok := g.IdToPkg[oldid]
+	// println("transfer")
+	// println(oldid)
+	// println(newid)
+
+	if oldid == newid {
+		exitTransfer()
+		return
+	}
+
+	if newid == 0 { // Runtime
+		PkeyMprotect(start, uint64(size), SysProtRW, 0)
+		exitTransfer()
+		return
+	}
+	key, ok := pkgKeys[newid]
 	if !ok {
-		println("[MPK BACKEND]: Transfer old package not found")
+		// println("[MPK BACKEND]: Register key not found for transfer")
+		exitTransfer()
 		return
 	}
-	newPkg, ok := g.IdToPkg[newid]
-	if !ok {
-		println("[MPK BACKEND]: Transfer new package not found")
-		return
-	}
-
-	// Find in old mapping, linear scan
-	found := false
-	var idx int
-	for i, section := range oldPkg.Dynamic {
-		if section.Addr == uint64(start) && section.Size == uint64(size) {
-			found = true
-			idx = i
-			break
-		}
-	}
-	if !found {
-		println("[MPK BACKEND]: Transfer section not found in old package")
-		return
-	}
-
-	section := oldPkg.Dynamic[idx]
-
-	// Removing from old mapping
-	n := len(oldPkg.Dynamic) - 1
-	oldPkg.Dynamic[idx] = oldPkg.Dynamic[n]
-	oldPkg.Dynamic = oldPkg.Dynamic[:n]
-
-	// Add to new mapping
-	newPkg.Dynamic[len(newPkg.Dynamic)] = section
-
-	// key, ok := pkgKeys[newid]
-	// if !ok {
-	// 	println("[MPK BACKEND]: Register key not found for transfer")
-	// 	return
-	// }
-	// PkeyMprotect(uintptr(section.Addr), section.Size, SysProtRW, key)
+	PkeyMprotect(start, uint64(size), SysProtRW, key)
+	exitTransfer()
 }
 
 // allocateKey allocates MPK keys and tag sections with those keys
@@ -324,12 +258,6 @@ func Init() {
 	fmt.Println("PKRUs:", sbPKRU)
 	//fmt.Println("PkgSbProt:", pkgSbProt)
 	fmt.Println("///// Done /////")
-
-	// Pre-allocate free list for mpkTransfer and mpkRegister
-	sectionFreeList = make([]*c.Section, 1000)
-	for i := 0; i < 1000; i++ {
-		sectionFreeList[i] = &c.Section{}
-	}
 }
 
 func testCompatibility(aID, bID int, a, b []c.SandId, pkgSbProt map[int]map[c.SandId]Prot) bool {
