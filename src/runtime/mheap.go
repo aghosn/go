@@ -1098,6 +1098,9 @@ func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero b
 
 	if s != nil {
 		if needzero && s.needzero != 0 {
+			if transferSection != nil && s.spanExtras.id != 0 {
+				transferSection(s.spanExtras.id, 0, s.base(), s.npages<<_PageShift)
+			}
 			memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
 		}
 		s.needzero = 0
@@ -1328,6 +1331,9 @@ func (h *mheap) growAddSpan(v unsafe.Pointer, size uintptr) {
 // large must match the value of large passed to mheap.alloc. This is
 // used for accounting.
 func (h *mheap) freeSpan(s *mspan, large bool) {
+	// if transferSection != nil && s.spanExtras.id != 0 {
+	// 	transferSection(s.spanExtras.id, 0, s.base(), s.npages<<_PageShift)
+	// }
 	systemstack(func() {
 		mp := getg().m
 		lock(&h.lock)

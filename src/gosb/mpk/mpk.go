@@ -92,7 +92,7 @@ func PkeyFree(pkey Pkey) error {
 // Permission on page table can also be update at the same time.
 // Note that addr must be aligned to a page boundary.
 func PkeyMprotect(addr uintptr, len uint64, sysProt SysProt, pkey Pkey) error {
-	result, _, _ := syscall.Syscall6(sysPkeyMprotect, addr, uintptr(len), uintptr(sysProt), uintptr(pkey), 0, 0)
+	result, _, _ := syscall.RawSyscall6(sysPkeyMprotect, addr, uintptr(len), uintptr(sysProt), uintptr(pkey), 0, 0)
 	if result != 0 {
 		return errors.New("Could not update memory access rights")
 	}
