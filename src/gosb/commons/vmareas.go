@@ -130,6 +130,9 @@ func (s *VMAreas) MapAreaCopy(vm *VMAreas) {
 }
 
 func (s *VMAreas) UnmapArea(vm *VMAreas) {
+	if vm == nil {
+		return
+	}
 	for v := ToVMA(vm.First); v != nil; v = ToVMA(v.Next) {
 		s.Unmap(v)
 	}

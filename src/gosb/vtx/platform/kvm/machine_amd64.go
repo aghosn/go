@@ -13,19 +13,6 @@ import (
 
 // initArchState initializes architecture-specific state.
 func (m *Machine) initArchState() error {
-	// Set the legacy TSS address. This address is covered by the reserved
-	// range (up to 4GB). In fact, this is a main reason it exists.
-	//	if m.TssGpa == 0 {
-	//		panic("I forgot to set the tss?")
-	//	}
-
-	//	log.Printf("Physical tss %x\n", m.TssGpa)
-	//	if _, errno := commons.Ioctl(
-	//		m.fd,
-	//		_KVM_SET_TSS_ADDR, m.TssGpa); /*uintptr(commons.ReservedMemory-(3*_PageSize)))*/ errno != 0 {
-	//		return errno
-	//	}
-
 	// Enable CPUID faulting, if possible. Note that this also serves as a
 	// basic platform sanity tests, since we will enter guest mode for the
 	// first time here. The recovery is necessary, since if we fail to read
@@ -147,7 +134,7 @@ func (c *vCPU) fault(signal int32, info *arch.SignalInfo) (usermem.AccessType, e
 
 // SwitchToUser unpacks architectural-details.
 //go:nosplit
-func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts, info *arch.SignalInfo) {
+func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts) {
 	// Past this point, stack growth can cause system calls (and a break
 	// from guest mode). So we need to ensure that between the bluepill
 	// call here and the switch call immediately below, no additional

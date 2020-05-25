@@ -50,9 +50,6 @@ func bluepillHandler(context unsafe.Pointer) {
 	// Sanitize the registers; interrupts must always be disabled.
 	c := bluepillArchEnter(bluepillArchContext(context))
 
-	// Increment the number of switches.
-	//atomic.AddUint32(&c.switches, 1)
-
 	// Mark this as guest mode.
 	switch atomic.SwapUint32(&c.state, vCPUGuest|vCPUUser) {
 	case vCPUUser: // Expected case.

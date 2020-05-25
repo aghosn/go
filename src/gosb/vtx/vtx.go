@@ -2,7 +2,6 @@ package vtx
 
 import (
 	"gosb/commons"
-	"gosb/debug"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
 	mv "gosb/vtx/platform/memview"
@@ -53,43 +52,17 @@ func Init() {
 
 //go:nosplit
 func Prolog(id commons.SandId) {
-	if sb, ok := machines[id]; ok {
-		runtime.LockOSThread()
-		sb.Machine.Replenish()
-		fs := kvm.GetFs2()
-		// Lock page tables??
-		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs) {
-			runtime.RegisterPthread()
-			fs = kvm.GetFs2()
-			commons.Check(sb.Machine.MemView.ValidAddress(fs) && sb.Machine.HasRights(fs, commons.W_VAL))
-		}
-		debug.TakeValue(0x1)
-		debug.TakeValue(uintptr(fs))
-		runtime.AssignSbId(id)
-		sb.SwitchToUser()
-		debug.TakeValue(0x2)
-		// From here, we made the switch to the VM
-		runtime.UnlockOSThread()
-		return
-	}
-	throw("error finding sandbox vtx machine: '" + id + "'")
+	prolog_internal(id, true)
 }
 
 //go:nosplit
-func prolog_internal(id commons.SandId) {
+func prolog_internal(id commons.SandId, replenish bool) {
 	if sb, ok := machines[id]; ok {
-		runtime.LockOSThread()
-		fs := kvm.GetFs2()
-		if runtime.Iscgo() && !sb.Machine.MemView.ValidAddress(fs) {
-			runtime.RegisterPthread()
-			fs2 := kvm.GetFs2()
-			commons.Check(fs == fs2)
-			commons.Check(sb.Machine.MemView.ValidAddress(fs))
+		if replenish {
+			sb.Machine.Replenish()
 		}
-		runtime.AssignSbId(id)
 		sb.SwitchToUser()
 		// From here, we made the switch to the VM
-		runtime.UnlockOSThread()
 		return
 	}
 	throw("error finding sandbox vtx machine: '" + id + "'")
@@ -185,15 +158,13 @@ func Execute(id commons.SandId) {
 	// We are inside the VM, scheduling something else.
 	// Redpill out.
 	if id == "" {
-		runtime.LockOSThread()
 		kvm.Redpill()
 		runtime.AssignSbId(id)
-		runtime.UnlockOSThread()
 		return
 	}
 	// We are outside the VM, scheduling something outside.
 	if msbid == "" && id != "" {
-		prolog_internal(id)
+		prolog_internal(id, false)
 		return
 	}
 	// nested VMs? Or just the scheduler?
@@ -207,15 +178,12 @@ func Execute(id commons.SandId) {
 //
 //go:nosplit
 func tryRedpill() (bool, string) {
-	runtime.LockOSThread()
 	msbid := runtime.GetmSbIds()
 	if msbid == "" {
-		runtime.UnlockOSThread()
 		return false, msbid
 	}
 	kvm.Redpill()
 	runtime.AssignSbId("")
-	runtime.UnlockOSThread()
 	return true, msbid
 }
 
@@ -227,7 +195,7 @@ func tryBluepill(do bool, id string) {
 	if !do || id == "" {
 		return
 	}
-	prolog_internal(id)
+	prolog_internal(id, false)
 }
 
 //go:nosplit

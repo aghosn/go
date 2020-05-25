@@ -21,12 +21,12 @@ func Ioctl(fd int, op, arg uintptr) (int, sc.Errno) {
 }
 
 func Mmap(addr, size, prot, flags uintptr, fd int, off uintptr) (uintptr, sc.Errno) {
-	r1, _, err := sc.Syscall6(sc.SYS_MMAP, addr, size, prot, flags, uintptr(fd), off)
+	r1, _, err := sc.RawSyscall6(sc.SYS_MMAP, addr, size, prot, flags, uintptr(fd), off)
 	return r1, err
 }
 
 func Munmap(addr, size uintptr) sc.Errno {
-	_, _, err := sc.Syscall(sc.SYS_MUNMAP, addr, size, 0)
+	_, _, err := sc.RawSyscall(sc.SYS_MUNMAP, addr, size, 0)
 	return err
 }
 

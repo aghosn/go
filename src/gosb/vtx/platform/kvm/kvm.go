@@ -6,6 +6,7 @@ import (
 	"gosb/vtx/platform/ring0"
 	"log"
 	"reflect"
+	"runtime"
 	"syscall"
 )
 
@@ -23,9 +24,6 @@ type KVM struct {
 
 	// Pointer to the sandbox memory
 	Sand *commons.SandboxMemory
-
-	// uregs is used to switch to user space.
-	uregs syscall.PtraceRegs
 }
 
 // New creates a VM with KVM, and initializes its machine and pagetables.
@@ -91,17 +89,23 @@ func (k *KVM) Unmap(start, size uintptr) {
 
 //go:nosplit
 func (k *KVM) SwitchToUser() {
-	c := k.Machine.Get()
+	c := k.Machine.Get2()
 	opts := ring0.SwitchOpts{
-		Registers:   &k.uregs,
+		Registers:   &c.uregs,
 		PageTables:  k.Machine.MemView.Tables,
 		Flush:       true,
 		FullRestore: true,
 	}
 	opts.Registers.Rip = bluepillretaddr //uint64(reflect.ValueOf(Bluepillret).Pointer())
 	GetFs(&opts.Registers.Fs_base)       // making sure we get the correct FS value.
+	runtime.UnlockOSThread()
+	// Now we are at the boundary were things should be stable.
+	if runtime.Iscgo() && !k.Machine.MemView.ValidAddress(opts.Registers.Fs_base) {
+		runtime.RegisterPthread()
+	}
+	runtime.AssignSbId(k.Sand.Config.Id)
 	if !c.entered {
-		c.SwitchToUser(opts, nil)
+		c.SwitchToUser(opts)
 		return
 	}
 	// The vcpu was already entered, we just return to it.

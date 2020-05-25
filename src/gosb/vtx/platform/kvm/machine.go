@@ -29,6 +29,9 @@ type Machine struct {
 	// mu protects vCPUs
 	mu sync.RWMutex
 
+	// @aghosn mutex for us
+	my_mu runtime.GosbMutex
+
 	// available is notified when vCPUs are available.
 	available sync.Cond
 
@@ -115,6 +118,8 @@ type vCPU struct {
 
 	// fault information
 	Info arch.SignalInfo
+
+	uregs syscall.PtraceRegs
 }
 
 type dieState struct {
@@ -165,18 +170,32 @@ func (m *Machine) newVCPU() *vCPU {
 }
 
 //go:nosplit
-func (k *Machine) Replenish() {
-	for i := range k.EMR {
-		if k.EMR[i] == nil {
-			k.EMR[i] = &mv.MemoryRegion{}
+func (m *Machine) Replenish() {
+	m.MemView.PTEAllocator.Replenish()
+	for i := range m.EMR {
+		if m.EMR[i] == nil {
+			m.EMR[i] = &mv.MemoryRegion{}
 		}
 	}
-	k.MemView.PTEAllocator.Replenish()
+
+	m.my_mu.Lock()
+	runtime.LockOSThread()
+	tid := procid.Current()
+	if len(m.vCPUs) < m.maxVCPUs {
+		c := m.newVCPU()
+		c.lock()
+		m.vCPUs[tid] = c
+		m.my_mu.Unlock()
+		c.loadSegments(tid)
+		goto unlock
+	}
+	m.my_mu.Unlock()
+unlock:
+	runtime.UnlockOSThread()
 }
 
 //go:nosplit
 func (k *Machine) AcquireEMR() *mv.MemoryRegion {
-	//TODO(aghosn) probably need a lock
 	for i := range k.EMR {
 		if k.EMR[i] != nil {
 			result := k.EMR[i]
@@ -218,9 +237,10 @@ func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {
 	} else {
 		m.maxVCPUs = int(maxVCPUs)
 	}
-
+	if n := runtime.GOMAXPROCS(0); n < m.maxVCPUs {
+		m.maxVCPUs = n
+	}
 	// Register the memory address range.
-	// @aghosn, for the moment let's try to map the entire memory space.
 	m.SetAllEPTSlots()
 
 	// Initialize architecture state.
@@ -228,6 +248,33 @@ func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {
 		log.Fatalf("Error initializing machine %v\n", err)
 	}
 	return m, nil
+}
+
+// returns with os thread locked.
+func (m *Machine) Get2() *vCPU {
+	m.my_mu.Lock()
+	runtime.LockOSThread()
+	tid := procid.Current()
+
+	if c := m.vCPUs[tid]; c != nil {
+		c.lock()
+		m.my_mu.Unlock()
+		return c
+	}
+
+	// Scan for an available vCPU.
+	for origTID, c := range m.vCPUs {
+		if atomic.CompareAndSwapUint32(&c.state, vCPUReady, vCPUUser) {
+			delete(m.vCPUs, origTID)
+			m.vCPUs[tid] = c
+			m.my_mu.Unlock()
+			c.loadSegments(tid)
+			return c
+		}
+	}
+
+	panic("Unable to acquire a vcpu")
+	return nil
 }
 
 // Get gets an available vCPU.

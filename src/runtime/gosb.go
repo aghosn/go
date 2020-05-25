@@ -42,7 +42,6 @@ var (
 
 //go:nosplit
 func sandbox_prolog(id, mem, syscalls string) {
-	//getg().m.curg.sbid = id
 	prologHook(id)
 }
 
@@ -107,7 +106,6 @@ func GetmSbIds() string {
 	return _g_.m.sbid
 }
 
-// TODO(aghosn) debugging functions. Remove afterwards
 //
 //go:nosplit
 func TakeValue(a uintptr) {
@@ -161,7 +159,6 @@ func TakeValueTrace(a uintptr) {
 }
 
 // This locks out apparently apparently
-//TODO won't work for the newly created span...
 //go:nosplit
 func IsThisTheHeap(p uintptr) bool {
 	result := false
@@ -187,12 +184,6 @@ func CheckIsM(addr uintptr) bool {
 		}
 	}
 	return false
-}
-
-//go:nosplit
-func TakeMValue() {
-	m := getm()
-	TakeValue(m)
 }
 
 //go:nosplit
