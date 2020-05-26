@@ -29,13 +29,11 @@ func Init() {
 		if err != nil {
 			log.Fatalf("error opening /dev/kvm: %v\n", err)
 		}
-
 		// Initialize the kvm specific state.
 		err = kvm.UpdateGlobalOnce(int(kvmFd.Fd()))
 		if err != nil {
 			log.Fatalf("error updating globals: %v\n", err)
 		}
-
 		// Initialize the different sandboxes.
 		machines = make(map[commons.SandId]*kvm.KVM)
 		for _, d := range globals.Sandboxes {
@@ -43,7 +41,6 @@ func Init() {
 			if d.Config.Id == "-1" {
 				continue
 			}
-			//d.Static.Print()
 			machines[d.Config.Id] = kvm.New(int(kvmFd.Fd()), d)
 		}
 		kvmFd.Close()

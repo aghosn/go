@@ -89,7 +89,7 @@ func (k *KVM) Unmap(start, size uintptr) {
 
 //go:nosplit
 func (k *KVM) SwitchToUser() {
-	c := k.Machine.Get2()
+	c := k.Machine.Get()
 	opts := ring0.SwitchOpts{
 		Registers:   &c.uregs,
 		PageTables:  k.Machine.MemView.Tables,

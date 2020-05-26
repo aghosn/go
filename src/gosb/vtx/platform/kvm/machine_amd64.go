@@ -7,6 +7,7 @@ import (
 	"gosb/vtx/usermem"
 	"log"
 	"reflect"
+	"runtime"
 	"runtime/debug"
 	"unsafe"
 )
@@ -23,6 +24,7 @@ func (m *Machine) initArchState() error {
 		recover()
 		debug.SetPanicOnFault(old)
 	}()
+	m.CreateVCPU()
 	m.retryInGuest(func() {
 		ring0.SetCPUIDFaulting(true)
 	})
@@ -163,6 +165,7 @@ func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts) {
 func (m *Machine) retryInGuest(fn func()) {
 	c := m.Get()
 	defer m.Put(c)
+	defer runtime.UnlockOSThread()
 	for {
 		c.ClearErrorCode() // See below.
 		bluepill(c)        // Force guest mode.
