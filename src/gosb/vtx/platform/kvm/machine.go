@@ -124,7 +124,6 @@ func (m *Machine) newVCPU() *vCPU {
 	id := len(m.vcpus)
 
 	// Create the vCPU.
-	atomic.AddUint32(&MRTCounter, 1)
 	fd, errno := commons.Ioctl(m.fd, _KVM_CREATE_VCPU, uintptr(id))
 	if errno != 0 {
 		log.Printf("error creating new vCPU: %v\n", errno)
