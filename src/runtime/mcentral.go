@@ -263,7 +263,7 @@ func (c *mcentral) grow(id int) *mspan {
 	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
 	size := uintptr(class_to_size[c.spanclass.sizeclass()])
 
-	s := mheap_.alloc(npages, c.spanclass, false, true)
+	s := mheap_.alloc(npages, c.spanclass, false, true, id)
 	if s == nil {
 		return nil
 	}
