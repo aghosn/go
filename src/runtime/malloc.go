@@ -1170,7 +1170,7 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 	// pays the debt down to npage pages.
 	deductSweepCredit(npages*_PageSize, npages)
 
-	s := mheap_.alloc(npages, makeSpanClass(0, noscan), true, needzero)
+	s := mheap_.alloc(npages, makeSpanClass(0, noscan), true, needzero, 0)
 	if s == nil {
 		throw("out of memory")
 	}

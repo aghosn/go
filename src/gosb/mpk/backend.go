@@ -68,9 +68,10 @@ func Register(id int, start, size uintptr) {
 	if id == 0 || id == -1 { // Runtime
 		return
 	}
+	println("register")
+	println(id)
 	enterRegister()
 
-	// println(id)
 	key, ok := pkgKeys[id]
 	if !ok {
 		println("[MPK BACKEND]: Register key not found")
@@ -86,9 +87,9 @@ func Register(id int, start, size uintptr) {
 //The same should apply for the previous function.
 func Transfer(oldid, newid int, start, size uintptr) {
 	enterTransfer()
-	// println("transfer")
-	// println(oldid)
-	// println(newid)
+	println("transfer")
+	println(oldid)
+	println(newid)
 
 	if oldid == newid {
 		exitTransfer()

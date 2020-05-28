@@ -1087,7 +1087,7 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 // size class and scannability.
 //
 // If needzero is true, the memory for the returned span will be zeroed.
-func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero bool) *mspan {
+func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero bool, id int) *mspan {
 	// Don't do any operations that lock the heap on the G stack.
 	// It might trigger stack growth, and the stack growth code needs
 	// to be able to allocate heap.
@@ -1098,8 +1098,8 @@ func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero b
 
 	if s != nil {
 		if needzero && s.needzero != 0 {
-			if transferSection != nil && s.spanExtras.id != 0 {
-				transferSection(s.spanExtras.id, 0, s.base(), s.npages<<_PageShift)
+			if transferSection != nil && s.spanExtras.id != id {
+				transferSection(s.spanExtras.id, id, s.base(), s.npages<<_PageShift)
 			}
 			memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
 		}
