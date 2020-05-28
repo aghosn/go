@@ -1184,7 +1184,16 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 //go:nosplit
 //go:nowritebarrierrec
 func mstart() {
-	WritePKRU(0)
+	if isMPK == 1 || isMPK == -1 {
+		if isMPK == 1 {
+			WritePKRU(0)
+		} else if gogetenv("GOSB_BACKEND") == "MPK" {
+			isMPK = 1
+			WritePKRU(0)
+		} else {
+			isMPK = 0
+		}
+	}
 	_g_ := getg()
 
 	osStack := _g_.stack.lo == 0
