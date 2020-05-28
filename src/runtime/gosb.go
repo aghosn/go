@@ -4,14 +4,11 @@ import (
 	"unsafe"
 )
 
-//////// DEBUG /////////
+// Set to 1 if env var GOSB_BACKEND=MPK, set to 0 otherwise
+var isMPK = -1
+
 // WritePKRU updates the value of the PKRU
 func WritePKRU(prot uint32)
-
-// ReadPKRU returns the value of the PKRU
-func ReadPKRU() uint32
-
-///// END DEBUG ///////
 
 // Constant to fix pthread create tls situation.
 const (
