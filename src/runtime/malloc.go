@@ -1183,6 +1183,9 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 // compiler (both frontend and SSA backend) knows the signature
 // of this function
 func newobject(typ *_type, id int) unsafe.Pointer {
+	if id == -2 {
+		id = gosbInterpose(CALLER_LVL)
+	}
 	p := mallocgc(typ.size, typ, true, filterPkgId(id))
 	return p
 }
