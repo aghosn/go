@@ -2,7 +2,9 @@ package kvm
 
 import (
 	c "gosb/commons"
+	"gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -27,6 +29,16 @@ const (
 
 var (
 	MRTAddr, MRTFlags, MRTEntry uintptr
+	MRTMarker                   int    = 0
+	MRTRip                      uint64 = 0
+	MRTFsbase                   uint64 = 0
+	MRTURegisters               userRegs
+	MRTKRegisters               systemRegs
+	MRTMemoryRegion             *memview.MemoryRegion = nil
+	MRTValidOther               bool                  = false
+	MRTFault                    uintptr               = 0
+	MRTId                       int                   = -1
+	MRTCounter                  uint32                = 0
 )
 
 //go:nosplit
@@ -77,18 +89,34 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 		// mapped and hence we should go back.
 		if vcpu.machine.MemView.ValidAddress(uint64(vcpu.FaultAddr)) {
 			if vcpu.machine.MemView.HasRights(uint64(vcpu.FaultAddr), c.R_VAL|c.USER_VAL|c.W_VAL) {
+				atomic.AddUint32(&MRTCounter, 1)
+				MRTMarker = 1
+				MRTRip = vcpu.Registers().Rip
+				MRTFsbase = vcpu.Registers().Fs_base
+				MRTMemoryRegion = vcpu.machine.MemView.FindMemoryRegion(uint64(vcpu.FaultAddr))
+				MRTFault = vcpu.FaultAddr
+				MRTId = vcpu.id
+				MRTValidOther = vcpu.machine.MemView.ValidAddress(MRTMemoryRegion.Span.Start)
 				MRTAddr, MRTFlags, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(vcpu.FaultAddr)
+				if errno := vcpu.getUserRegisters(&MRTURegisters); errno != 0 {
+					throw("Damn 1")
+				}
+				if errno := vcpu.getSystemRegisters(&MRTKRegisters); errno != nil {
+					throw("Damn 2")
+				}
+				for {
+				}
 				vcpu.machine.Mu.Unlock()
-				vcpu.FaultAddr = 0
-				vcpu.exceptionCode = 0
-				return syshandlerValid
+				return syshandlerSNF
 			}
 			if vcpu.machine.MemView.HasRights(uint64(vcpu.FaultAddr), c.R_VAL) {
+				MRTMarker = 2
 				MRTAddr, MRTFlags, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(vcpu.FaultAddr)
 				vcpu.machine.Mu.Unlock()
 				return syshandlerPFW
 			}
 		}
+		MRTMarker = 3
 		vcpu.machine.Mu.Unlock()
 		return syshandlerPF
 	}

@@ -59,6 +59,7 @@ func prolog_internal(id commons.SandId, replenish bool) {
 			sb.Machine.Replenish()
 		}
 		sb.SwitchToUser()
+		runtime.UnlockOSThread()
 		// From here, we made the switch to the VM
 		return
 	}

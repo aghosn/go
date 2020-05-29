@@ -87,6 +87,7 @@ func (k *KVM) Unmap(start, size uintptr) {
 	k.Machine.MemView.Toggle(false, start, size, commons.UNMAP_VAL)
 }
 
+// Returns with os thread locked.
 //go:nosplit
 func (k *KVM) SwitchToUser() {
 	c := k.Machine.Get()
@@ -98,10 +99,9 @@ func (k *KVM) SwitchToUser() {
 	}
 	opts.Registers.Rip = bluepillretaddr //uint64(reflect.ValueOf(Bluepillret).Pointer())
 	GetFs(&opts.Registers.Fs_base)       // making sure we get the correct FS value.
-	runtime.UnlockOSThread()
 	// Now we are at the boundary were things should be stable.
 	if runtime.Iscgo() && !k.Machine.MemView.ValidAddress(opts.Registers.Fs_base) {
-		runtime.RegisterPthread()
+		runtime.RegisterPthread(c.id)
 	}
 	runtime.AssignSbId(k.Sand.Config.Id)
 	if !c.entered {
