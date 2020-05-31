@@ -3,6 +3,7 @@ package kvm
 import (
 	c "gosb/commons"
 	"gosb/vtx/platform/ring0"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -29,6 +30,7 @@ var (
 	MRTRip    uint64  = 0
 	MRTFsbase uint64  = 0
 	MRTFault  uintptr = 0
+	MRTSpanId int     = 0
 )
 
 //go:nosplit
@@ -90,6 +92,7 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 				return syshandlerPFW
 			}
 		}
+		MRTSpanId = runtime.SpanIdOf(vcpu.FaultAddr)
 		vcpu.machine.Mu.Unlock()
 		return syshandlerPF
 	}

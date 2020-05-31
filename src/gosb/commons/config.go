@@ -51,9 +51,9 @@ const (
 	USER_VAL  = uint8(3 << 4)
 	SUPER_VAL = uint8(1 << 4)
 	P_VAL     = uint8(1 << 6)
+	UNMAP_VAL = uint8(1 << 7)
 	D_VAL     = R_VAL | W_VAL | X_VAL | USER_VAL // default set
 	HEAP_VAL  = R_VAL | W_VAL | USER_VAL
-	UNMAP_VAL = R_VAL | W_VAL | SUPER_VAL
 )
 
 func ParseMemoryView(memc string) ([]Entry, error) {

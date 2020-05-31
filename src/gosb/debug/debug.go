@@ -60,6 +60,6 @@ func TakeInc(a int) {
 func DumpValues() {
 	fmt.Printf("Dumping values: (%v)\n", MRTIndex)
 	for i := 0; i < MRTIndex; i++ {
-		fmt.Printf("%v: %v\n", i, MRTValues[i])
+		fmt.Printf("%v: %x\n", i, MRTValues[i])
 	}
 }

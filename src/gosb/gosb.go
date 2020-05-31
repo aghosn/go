@@ -3,6 +3,7 @@ package gosb
 import (
 	"debug/elf"
 	"encoding/json"
+	"fmt"
 	"gosb/commons"
 	"gosb/globals"
 	"gosb/vtx"
@@ -15,7 +16,8 @@ import (
 )
 
 var (
-	once sync.Once
+	once    sync.Once
+	SbPkgId int = -10
 )
 
 // Initialize loads the sandbox and package information from the binary.
@@ -55,7 +57,6 @@ func finalizeBackend(b Backend) {
 
 // getPkgName is called by the runtime.
 // As a result it should not be call printf.
-//TODO(aghosn) implement it by hand and add a nosplit condition.
 func getPkgName(name string) string {
 	idx := strings.LastIndex(name, "/")
 	if idx == -1 {
@@ -103,7 +104,6 @@ func loadPackages() {
 				v.Sects[i].Addr = commons.Round(s.Addr, false)
 				v.Sects[i].Size = commons.Round(s.Size, true)
 				v.Sects[i].Prot = s.Prot | commons.USER_VAL
-				// TODO(aghosn) can maybe move that to the end.
 				globals.TrustedSpace.Map(&commons.VMArea{
 					commons.ListElem{},
 					commons.Section{
@@ -181,6 +181,11 @@ func loadSandboxes() {
 	err = json.Unmarshal(data, &globals.Configurations)
 	commons.CheckE(err)
 
+	// Use the configurations to create fake packages
+	for _, d := range globals.Configurations {
+		createFakePackage(d)
+	}
+
 	// Generate internal data
 	for _, d := range globals.Configurations {
 		_, ok := globals.Sandboxes[d.Id]
@@ -193,25 +198,10 @@ func loadSandboxes() {
 		// Create the sbox memory
 		sbox := &commons.SandboxMemory{
 			new(commons.VMAreas),
-			new(commons.VMAreas),
 			d,
 			make(map[int]uint8),
 		}
 		var statics []*commons.VMArea = nil
-		var dynamics []*commons.VMArea = nil
-
-		// Add the sandbox function itself
-		if d.Id != globals.TrustedSandbox {
-			sf, ok := globals.NameToSym[d.Func]
-			commons.Check(ok)
-			function := commons.SectVMA(&commons.Section{
-				commons.Round(sf.Value, false),
-				commons.Round(sf.Size, true),
-				commons.X_VAL | commons.R_VAL | commons.USER_VAL,
-			})
-			statics = append(statics, function)
-			globals.SandboxFuncs[d.Id] = function.Copy()
-		}
 
 		// Go through each package.
 		for _, v := range d.Pkgs {
@@ -231,16 +221,6 @@ func loadSandboxes() {
 					statics = append(statics, vma)
 				}
 			}
-
-			// Do the dynamics
-			for _, section := range p.Dynamic {
-				if vma := commons.SectVMA(&section); vma != nil {
-					commons.Check(vma.Prot&commons.USER_VAL != 0)
-					vma.Prot &= view
-					dynamics = append(dynamics, vma)
-				}
-			}
-
 			//Update package deps for runtime memory updates.
 			l, _ := globals.PkgDeps[p.Id]
 			globals.PkgDeps[p.Id] = append(l, d.Id)
@@ -248,7 +228,6 @@ func loadSandboxes() {
 
 		// Finalize
 		sbox.Static = commons.Convert(statics)
-		sbox.Dynamic = commons.Convert(dynamics)
 
 		// Add common parts
 		if sbox.Config.Id != globals.TrustedSandbox {
@@ -288,5 +267,38 @@ func updateTrusted() {
 				vma.Prot,
 			})
 		})
+	}
+}
+
+func createFakePackage(d *commons.SandboxDomain) {
+	if d.Id == globals.TrustedSandbox {
+		return
+	}
+	p := &commons.Package{d.Func, SbPkgId, nil, nil}
+	SbPkgId--
+	sf, ok := globals.NameToSym[d.Func]
+	commons.Check(ok)
+	p.Sects = make([]commons.Section, 1)
+	p.Sects[0] = commons.Section{
+		commons.Round(sf.Value, false),
+		commons.Round(sf.Size, true),
+		commons.X_VAL | commons.R_VAL | commons.USER_VAL,
+	}
+	d.Pkgs = append(d.Pkgs, d.Func)
+	globals.NameToPkg[d.Func] = p
+	globals.IdToPkg[p.Id] = p
+
+	// Register the SandboxFuncs too
+	function := commons.SectVMA(&p.Sects[0])
+	globals.SandboxFuncs[d.Id] = function
+}
+
+func PrintInformation() {
+	for _, s := range globals.Sandboxes {
+		fmt.Printf("Sandbox %v: ", s.Config.Id)
+		for _, p := range s.Config.Pkgs {
+			fmt.Printf("%v ", p)
+		}
+		fmt.Println("")
 	}
 }

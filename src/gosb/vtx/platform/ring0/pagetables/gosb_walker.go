@@ -92,6 +92,14 @@ func ConvertOpts(prot uint8) uintptr {
 	return uintptr(val)
 }
 
+// CleanFlags removes runtime information to return only access rights
+//
+//go:nosplit
+func CleanFlags(flags uintptr) uintptr {
+	mask := uintptr(present | executeDisable | writable | user)
+	return (flags & mask)
+}
+
 //go:nosplit
 func (p *PageTables) FindMapping(addr uintptr) (uintptr, uintptr, uintptr) {
 	addr = addr - (addr % gc.PageSize)

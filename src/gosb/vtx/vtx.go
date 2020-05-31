@@ -116,6 +116,17 @@ func Register(id int, start, size uintptr) {
 				}
 			}
 		}
+		if id == -1 {
+			for _, s := range globals.Sandboxes {
+				m, ok := machines[s.Config.Id]
+				if s.Config.Id == "-1" || !ok {
+					continue
+				}
+				m.Machine.Mu.Lock()
+				m.Unmap(start, size)
+				m.Machine.Mu.Unlock()
+			}
+		}
 	})
 }
 

@@ -151,7 +151,7 @@ havespan:
 	// Adjust the allocCache so that s.freeindex corresponds to the low bit in
 	// s.allocCache.
 	s.allocCache >>= s.freeindex % 64
-	if s.id != id && s == &emptymspan {
+	if s.id != id && s != &emptymspan {
 		throw("Obtained a span with the wrong id")
 	}
 	return s

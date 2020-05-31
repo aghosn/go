@@ -436,16 +436,6 @@ func (m *MemoryRegion) Toggle(on bool, start, size uint64, prot uint8) {
 	} else if m.Tpe != HEAP_REG {
 		panic("What are you then?!!")
 	}
-
-	/*s := m.Coordinates(start)
-	e := m.Coordinates(start + size - 1)
-	for i := s; i <= e; i++ {
-		if on {
-			m.Bitmap[idX(i)] |= uint64(1 << idY(i))
-		} else {
-			m.Bitmap[idX(i)] &= ^uint64(1 << idY(i))
-		}
-	}*/
 	deflags := pg.ConvertOpts(prot)
 	// Now apply to pagetable.
 	visit := func(pte *pg.PTE, lvl int) {
@@ -457,13 +447,13 @@ func (m *MemoryRegion) Toggle(on bool, start, size uint64, prot uint8) {
 			// Should have the same flags
 			pte.Map()
 			flags := pte.Flags()
-			commons.Check(flags == deflags)
+			commons.Check(pg.CleanFlags(flags) == pg.CleanFlags(deflags))
 		} else {
 			pte.Unmap()
 		}
 	}
 	visitor := pg.Visitor{
-		Applies: [4]bool{false, false, false, true},
+		Applies: [4]bool{true, false, false, false},
 		Create:  false,
 		Alloc:   nil,
 		Visit:   visit,

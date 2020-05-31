@@ -42,7 +42,18 @@ func getpackageid(level int) int {
 	if !f.valid() {
 		panic("Invalid function in stack unwind")
 	}
-	return pkgToId[nameToPkg(funcnameFromNameoff(f, f.nameoff))]
+	fullname := funcnameFromNameoff(f, f.nameoff)
+	name := nameToPkg(fullname)
+	id, ok := pkgToId[name]
+	if !ok {
+		// Check if it is the sandbox itself
+		id, ok = pkgToId[fullname]
+		if ok {
+			return id
+		}
+		return -1
+	}
+	return id
 }
 
 func filterPkgId(id int) int {
@@ -59,6 +70,9 @@ func filterPkgId(id int) int {
 }
 
 func gosbInterpose(lvl int) int {
+	if !bloatInitDone {
+		return 0
+	}
 	id := -1
 	mp := acquirem()
 	if mp.tracingAlloc == 1 {

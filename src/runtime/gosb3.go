@@ -32,9 +32,7 @@ type spanExtras struct {
 // setId takes care of calling our backend if we want to switch a section.
 // The move boolean is true if we are moving the span from one section to another.
 // It is false for newly mmapped sections.
-// TODO(aghosn) we could optimize that such that -1 (non-sandbox) does not require
-// tagging.
-// TODO(aghosn) can we have race conditions on the id?
+//go:nosplit
 func (e *mspan) setId(id int, move bool) {
 	mp := acquirem()
 	if e.id == id || transferSection == nil || registerSection == nil {

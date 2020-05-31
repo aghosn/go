@@ -191,3 +191,12 @@ func GetTLSValue() uintptr {
 func Iscgo() bool {
 	return iscgo
 }
+
+//go:nosplit
+func SpanIdOf(addr uintptr) int {
+	span := spanOf(addr)
+	if span == nil {
+		return -10
+	}
+	return span.id
+}
