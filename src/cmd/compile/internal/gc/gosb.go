@@ -171,10 +171,20 @@ func dumpSandbox(s *Node, bout *bio.Writer) {
 	// dump the sandbox configuration
 	fmt.Fprintf(bout, "%v;%v;%v\n", s.Id, s.Mem, s.Sys)
 	// dump package dependencies
-	pkgs, _ := sandboxToPkgs[s]
+	unfilteredpkgs, _ := sandboxToPkgs[s]
+
+	// filter unwanted packages
+	pkgs := make([]string, 0)
+	for _, p := range unfilteredpkgs {
+		if p.Path == "go.builtin" {
+			continue
+		}
+		pkgs = append(pkgs, p.Path)
+	}
+
 	fmt.Fprintf(bout, "%v\n", len(pkgs))
 	for _, p := range pkgs {
-		fmt.Fprintf(bout, "%v\n", p.Path)
+		fmt.Fprintf(bout, "%v\n", p)
 	}
 }
 

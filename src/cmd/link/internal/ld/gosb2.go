@@ -59,16 +59,10 @@ func (ctxt *Link) computeBloats() {
 	}
 	// Add an entry for non-bloated packages, and shared stmps
 	nonbloat = &lb.Package{lb.TrustedPkgName, -1, make([]lb.Section, sym.SABIALIAS), nil}
-	//stmps = &lb.Package{lb.StmpPkgName, -2, make([]lb.Section, sym.SABIALIAS), nil}
 
 	for i := range nonbloat.Sects {
 		nonbloat.Sects[i].Prot = symKindtoProt(sym.SymKind(i))
-		//stmps.Sects[i].Prot = symKindtoProt(sym.SymKind(i))
 	}
-	// Add the stmp only if we have sandboxes.
-	/*if HasSandboxes() {
-		//Bloats[lb.StmpPkgName] = stmps
-	}*/
 	// For all the sandboxes, we get the transitive dependencies & generate
 	// the sandboxes informations.
 	ctxt.gosb_generateDomains()
@@ -79,7 +73,6 @@ func (ctxt *Link) computeBloats() {
 func registerExtraPackages() {
 	if objfile.SegregatedPkgs != nil {
 		objfile.SegregatedPkgs["gosb"] = true
-		//objfile.SegregatedPkgs[lb.StmpPkgName] = true
 		// cgo does not track dependencies well. maybe relocate into runtime.
 		objfile.SegregatedPkgs["runtime/cgo"] = true
 	}
@@ -419,6 +412,5 @@ func (ctxt *Link) fixingStupidSymbols() {
 		if !bloated && noouter && strings.HasPrefix(s.Name, "go.itab.") {
 			s.File = "runtime"
 		}
-
 	}
 }
