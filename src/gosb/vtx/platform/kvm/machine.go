@@ -36,7 +36,7 @@ type Machine struct {
 	Start uintptr
 
 	// Used for emergency runtime growth
-	EMR [10]*mv.MemoryRegion
+	EMR [50]*mv.MemoryRegion
 
 	// For address space extension.
 	Mu runtime.GosbMutex

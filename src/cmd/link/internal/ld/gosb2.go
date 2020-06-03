@@ -138,15 +138,6 @@ func (ctxt *Link) gosb_generateDomains() {
 		memView := make(map[string]uint8)
 		for _, p := range v.Extras {
 			memView[p.Name] = p.Perm
-			// Add the view package to the sandbox
-			// if we do not want transitive deps.
-			/*if _, ok := visited[p.Name]; !ok {
-				p, ok1 := Bloats[p.Name]
-				if !ok1 {
-					panic("Package from view is not inside bloats.")
-				}
-				visited[p.Name] = Bloats[p.Name]
-			}*/
 		}
 		// Finally, we set the packages and the memory view
 		for _, pack := range visited {
