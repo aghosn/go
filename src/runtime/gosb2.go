@@ -38,7 +38,8 @@ func getpackageid(level int) int {
 	if n != level {
 		panic("Unable to unwind the stack")
 	}
-	f := findfunc(pcbuf[n-1])
+	return pcToPkg(pcbuf[n-1])
+	/*f := findfunc(pcbuf[n-1])
 	if !f.valid() {
 		panic("Invalid function in stack unwind")
 	}
@@ -53,7 +54,7 @@ func getpackageid(level int) int {
 		}
 		return -1
 	}
-	return id
+	return id*/
 }
 
 func filterPkgId(id int) int {

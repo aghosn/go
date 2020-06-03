@@ -29,6 +29,9 @@ var (
 	AllPackages     []*c.Package
 	BackendPackages []*c.Package
 
+	// PC to package sorted list
+	PcToPkg []*c.Package
+
 	// VMareas
 	CommonVMAs       *c.VMAreas
 	FullAddressSpace *c.VMAreas

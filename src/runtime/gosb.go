@@ -28,6 +28,7 @@ var (
 
 	// Helper function that parses function names
 	nameToPkg func(string) string = nil
+	pcToPkg   func(uintptr) int   = nil
 
 	// Hooks for the backend
 	registerSection   func(id int, start, size uintptr)              = nil
@@ -51,7 +52,8 @@ func sandbox_epilog(id, mem, syscalls string) {
 
 func LitterboxHooks(
 	m map[string]int,
-	f func(string) string,
+	f func(uintptr) int,
+	ff func(string) string,
 	t func(int, int, uintptr, uintptr),
 	r func(int, uintptr, uintptr),
 	g func(bool, int, uintptr, uintptr),
@@ -65,7 +67,8 @@ func LitterboxHooks(
 		idToPkg[v] = k
 		pkgToId[k] = v
 	}
-	nameToPkg = f
+	pcToPkg = f
+	nameToPkg = ff
 	transferSection = t
 	registerSection = r
 	runtimeGrowth = g

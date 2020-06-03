@@ -27,6 +27,7 @@ func Initialize(b Backend) {
 		loadSandboxes()
 		updateTrusted()
 		initBackend(b)
+		initPcToPkg()
 		initRuntime()
 		finalizeBackend(b)
 	})
@@ -39,6 +40,7 @@ func initRuntime() {
 	}
 	runtime.LitterboxHooks(
 		globals.NameToId,
+		PcToId,
 		getPkgName,
 		backend.transfer,
 		backend.register,
@@ -287,10 +289,36 @@ func createFakePackage(d *commons.SandboxDomain) {
 	d.Pkgs = append(d.Pkgs, d.Func)
 	globals.NameToPkg[d.Func] = p
 	globals.IdToPkg[p.Id] = p
+	globals.AllPackages = append(globals.AllPackages, p)
 
 	// Register the SandboxFuncs too
 	function := commons.SectVMA(&p.Sects[0])
 	globals.SandboxFuncs[d.Id] = function
+}
+
+func initPcToPkg() {
+	for _, p := range globals.AllPackages {
+		for _, s := range p.Sects {
+			if s.Prot&commons.X_VAL == 0 || (s.Addr == 0 && s.Size == 0) {
+				continue
+			}
+			fp := &commons.Package{p.Name, p.Id, []commons.Section{s}, nil}
+			globals.PcToPkg = append(globals.PcToPkg, fp)
+		}
+	}
+	sort.Slice(globals.PcToPkg, func(i, j int) bool {
+		return globals.PcToPkg[i].Sects[0].Addr < globals.PcToPkg[j].Sects[0].Addr
+	})
+}
+
+func PcToId(pc uintptr) int {
+	for _, p := range globals.PcToPkg {
+		sec := p.Sects[0]
+		if sec.Addr <= uint64(pc) && sec.Addr+sec.Size > uint64(pc) {
+			return p.Id
+		}
+	}
+	return -1
 }
 
 func PrintInformation() {
