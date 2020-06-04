@@ -329,4 +329,9 @@ func PrintInformation() {
 		}
 		fmt.Println("")
 	}
+
+	fmt.Println("Packages")
+	for _, p := range globals.AllPackages {
+		fmt.Printf("%v: %v\n", p.Name, p.Id)
+	}
 }

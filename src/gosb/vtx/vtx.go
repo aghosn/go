@@ -93,6 +93,7 @@ func Transfer(oldid, newid int, start, size uintptr) {
 					if prot, ok := vm.Sand.View[newid]; ok {
 						vm.Machine.Mu.Lock()
 						vm.Map(start, size, prot&commons.HEAP_VAL)
+						//commons.Check(vm.Machine.ValidAddress(uint64(start)))
 						vm.Machine.Mu.Unlock()
 					}
 				}

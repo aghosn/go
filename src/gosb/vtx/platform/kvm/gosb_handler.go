@@ -79,7 +79,7 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 		// Check if we have a concurrency issue.
 		// The thread as been reshuffled to service that thread and is not properly
 		// mapped and hence we should go back.
-		if vcpu.machine.MemView.ValidAddress(uint64(vcpu.FaultAddr)) {
+		if vcpu.machine.ValidAddress(uint64(vcpu.FaultAddr)) {
 			if vcpu.machine.MemView.HasRights(uint64(vcpu.FaultAddr), c.R_VAL|c.USER_VAL|c.W_VAL) {
 				MRTRip = vcpu.Registers().Rip
 				MRTFsbase = vcpu.Registers().Fs_base

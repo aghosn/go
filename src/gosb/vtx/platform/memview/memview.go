@@ -455,6 +455,7 @@ func (m *MemoryRegion) Toggle(on bool, start, size uint64, prot uint8) {
 	visitor := pg.Visitor{
 		Applies: [4]bool{true, false, false, false},
 		Create:  false,
+		Toogle:  true,
 		Alloc:   nil,
 		Visit:   visit,
 	}

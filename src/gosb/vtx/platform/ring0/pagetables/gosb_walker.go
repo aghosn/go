@@ -20,6 +20,9 @@ type Visitor struct {
 	// Create is true if the mapper should install a mapping for an absent entry.
 	Create bool
 
+	// Toggle is a used to say that we want to visit a page that is not valid
+	Toogle bool
+
 	// Alloc is an allocator function.
 	// This can come from the allocator itself, and is used to either allocate
 	// a new PTEs or to insert the address mapping.
@@ -55,7 +58,10 @@ func (p *PageTables) pageWalk(root *PTEs, start, end uintptr, lvl int, v *Visito
 		}
 		if entry.Valid() && v.Applies[lvl] {
 			v.Visit(entry, lvl)
+		} else if !entry.Valid() && v.Applies[lvl] && v.Toogle {
+			v.Visit(entry, lvl)
 		}
+
 		nstart, nend := start, end
 		if i != sfirst {
 			nstart = curVa
