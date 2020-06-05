@@ -443,8 +443,9 @@ func (m *MemoryRegion) Toggle(on bool, start, size uint64, prot uint8) {
 			return
 		}
 		if on {
-			commons.Check(prot == m.Span.Prot)
-			// Should have the same flags
+			// @aghosn the new prots can only be a subset of the default ones
+			commons.Check(prot <= m.Span.Prot)
+			pte.SetFlags(deflags)
 			pte.Map()
 			flags := pte.Flags()
 			commons.Check(pg.CleanFlags(flags) == pg.CleanFlags(deflags))
