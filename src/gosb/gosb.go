@@ -30,6 +30,7 @@ func Initialize(b Backend) {
 		initPcToPkg()
 		initRuntime()
 		finalizeBackend(b)
+		//PrintInformation()
 	})
 }
 

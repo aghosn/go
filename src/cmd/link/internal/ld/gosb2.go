@@ -111,7 +111,7 @@ func (ctxt *Link) gosb_generateDomains() {
 				panic("We said we ignored go.runtime and go.itab")
 			}
 			if !ok {
-				log.Fatalf("Error %v should have a package by now.\n", s)
+				log.Fatalf("Error '%v' should have a package by now.\n", s)
 			}
 			visited[s] = pack
 			return false

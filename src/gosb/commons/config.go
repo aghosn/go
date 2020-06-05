@@ -86,11 +86,11 @@ func parseEntry(entry string) (Entry, error) {
 	if len(split) != 2 {
 		return Entry{}, fmt.Errorf("Parsing error: expected 2 values, got %v: [%v]\n", len(split), entry)
 	}
-	name := split[0]
+	name := strings.TrimSpace(split[0])
 	if len(name) == 0 {
 		return Entry{}, fmt.Errorf("Invalid package name of length 0\n")
 	}
-	perm, err := parsePerm(split[1])
+	perm, err := parsePerm(strings.TrimSpace(split[1]))
 	if err != nil {
 		return Entry{}, err
 	}
