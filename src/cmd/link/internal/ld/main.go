@@ -235,6 +235,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.addexport()
 	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
 	ctxt.textbuildid()
+	ctxt.StupidText()
 	ctxt.textaddress()
 	ctxt.pclntab()
 	ctxt.findfunctab()

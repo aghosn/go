@@ -53,7 +53,7 @@ func (ctxt *Link) computeBloats() {
 	}
 
 	// Get the transitive dependencies for each package
-	registerExtraPackages()
+	ctxt.registerExtraPackages()
 	for k := range objfile.SegregatedPkgs {
 		ctxt.gosb_walkTransDeps(k, create, check)
 	}
@@ -70,11 +70,15 @@ func (ctxt *Link) computeBloats() {
 
 // addExtraPackages registers packages that are not sandbox dependencies
 // but that we still want to bloat.
-func registerExtraPackages() {
+func (ctxt *Link) registerExtraPackages() {
 	if objfile.SegregatedPkgs != nil {
 		objfile.SegregatedPkgs["gosb"] = true
 		// cgo does not track dependencies well. maybe relocate into runtime.
 		objfile.SegregatedPkgs["runtime/cgo"] = true
+		objfile.SegregatedPkgs["runtime/cgo2"] = true
+		if _, ok := ctxt.PackageDecl["runtime/cgo"]; ok {
+			Bloats["runtime/cgo2"] = &lb.Package{"runtime/cgo2", -3, make([]lb.Section, sym.SABIALIAS), nil}
+		}
 	}
 }
 
@@ -83,6 +87,7 @@ func (ctxt *Link) extraDependencies() []string {
 	copy(res, lb.ExtraDependencies)
 	if _, ok := ctxt.PackageDecl["runtime/cgo"]; ok {
 		res = append(res, "runtime/cgo")
+		res = append(res, "runtime/cgo2")
 	}
 	return res
 }
@@ -201,11 +206,17 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		if s.File == "go.runtime" || s.File == "go.itab" {
 			panic("We have a symbol that belongs to go.[itab|runtime]")
 		}
-
 		// Sandbox symbol itself needs to be seggragated
 		if _, ok := objfile.SBMap[s.Name]; ok {
 			sandSyms = append(sandSyms, s)
 			s.Align = 0x1000
+		} else if isSandboxStkObj(s.Name) {
+			// Isolate stack object for sandbox code
+			sandSyms = append(sandSyms, s)
+			s.Align = 0x1000
+			if s.Size < 0x1000 {
+				s.Size = 0x1000
+			}
 		} else if _, ok := Bloats[s.File]; ok {
 			e, ok1 := bloated[s.File]
 			if !ok1 {
@@ -262,6 +273,15 @@ func gosb_generateContent(sect string) []byte {
 		panic("Unknown value for gosb_generateContent")
 	}
 	return nil
+}
+
+func isSandboxStkObj(name string) bool {
+	split := strings.Split(name, ".stkobj")
+	if len(split) == 0 {
+		return false
+	}
+	_, ok := objfile.SBMap[split[0]]
+	return ok
 }
 
 // gosb_dumpPackages returns the marshalled json bytes that correspond
@@ -404,6 +424,8 @@ func (ctxt *Link) fixingStupidSymbols() {
 		if s.Outer != nil {
 			if _, relocate := lb.SymToFix[s.Outer.Name]; relocate {
 				s.File = "runtime"
+			} else if strings.HasPrefix(s.Name, "x_cgo") && s.File == "" {
+				s.File = "runtime/cgo"
 			}
 			continue
 		}
@@ -411,6 +433,16 @@ func (ctxt *Link) fixingStupidSymbols() {
 		// itab symbols need to be made available too
 		if !bloated && noouter && strings.HasPrefix(s.Name, "go.itab.") {
 			s.File = "runtime"
+		}
+	}
+}
+
+func (ctxt *Link) StupidText() {
+	// Fixing cgo functions
+	for _, s := range ctxt.Textp {
+		if s.File == "" && (strings.HasPrefix(s.Name, "runtime/cgo(.text") ||
+			(s.Outer != nil && strings.HasPrefix(s.Outer.Name, "runtime/cgo(.text"))) {
+			s.File = "runtime/cgo2"
 		}
 	}
 }

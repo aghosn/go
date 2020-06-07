@@ -279,6 +279,7 @@ func createFakePackage(d *commons.SandboxDomain) {
 	}
 	p := &commons.Package{d.Func, SbPkgId, nil, nil}
 	SbPkgId--
+	// sandbox function
 	sf, ok := globals.NameToSym[d.Func]
 	commons.Check(ok)
 	p.Sects = make([]commons.Section, 1)
@@ -287,6 +288,16 @@ func createFakePackage(d *commons.SandboxDomain) {
 		commons.Round(sf.Size, true),
 		commons.X_VAL | commons.R_VAL | commons.USER_VAL,
 	}
+
+	// stack object
+	if stkobj, ok := globals.NameToSym[d.Func+".stkobj"]; ok {
+		p.Sects = append(p.Sects, commons.Section{
+			commons.Round(stkobj.Value, false),
+			commons.Round(sf.Size, true),
+			commons.R_VAL | commons.USER_VAL,
+		})
+	}
+
 	d.Pkgs = append(d.Pkgs, d.Func)
 	globals.NameToPkg[d.Func] = p
 	globals.IdToPkg[p.Id] = p
@@ -324,15 +335,18 @@ func PcToId(pc uintptr) int {
 
 func PrintInformation() {
 	for _, s := range globals.Sandboxes {
-		fmt.Printf("Sandbox %v: ", s.Config.Id)
-		for _, p := range s.Config.Pkgs {
-			fmt.Printf("%v ", p)
-		}
-		fmt.Println("")
+		fmt.Println(s.Config.Func)
+		s.Static.Print()
 	}
-
-	fmt.Println("Packages")
-	for _, p := range globals.AllPackages {
-		fmt.Printf("%v: %v\n", p.Name, p.Id)
+	pkgs, ok := globals.NameToPkg["runtime/cgo2"]
+	if ok {
+		fmt.Println("runtime/cgo2")
+		for _, s := range pkgs.Sects {
+			if s.Addr != 0 {
+				fmt.Printf("%x -- %x[%x]\n", s.Addr, s.Addr+s.Size, s.Prot)
+			}
+		}
+	} else {
+		fmt.Println("No cgo2?")
 	}
 }
