@@ -57,9 +57,10 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 			uintptr(regs.Rdi), uintptr(regs.Rsi), uintptr(regs.Rdx),
 			uintptr(regs.R10), uintptr(regs.R8), uintptr(regs.R9))
 		if err != 0 {
-			regs.Rax = uint64(r1)
+			regs.Rax = uint64(-err)
 		} else {
 			regs.Rax = uint64(r1)
+			regs.Rdx = uint64(r2)
 		}
 		regs.Rdx = uint64(r2)
 		return syshandlerValid
