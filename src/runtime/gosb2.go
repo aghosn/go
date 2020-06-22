@@ -1,7 +1,5 @@
 package runtime
 
-import ()
-
 const (
 	INCR_LVL   = 1
 	CALLER_LVL = 2

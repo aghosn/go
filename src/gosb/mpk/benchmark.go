@@ -64,8 +64,8 @@ func Benchmark() {
 	fmt.Printf("Initialization: %dμs\n", bench.initDuration.Microseconds())
 	fmt.Printf("Number of prolog: %d\n", bench.prolog)
 	fmt.Printf("Number of execute: %d\n", bench.execute)
-	fmt.Printf("Number of register: %d runing for %dμs\n", bench.register, toμs(bench.registerDuration))
-	fmt.Printf("Number of transfer: %d runing for %dμs\n", bench.transfer, toμs(bench.transferDuration))
+	fmt.Printf("Number of register: %d running for %dμs\n", bench.register, toμs(bench.registerDuration))
+	fmt.Printf("Number of transfer: %d running for %dμs\n", bench.transfer, toμs(bench.transferDuration))
 }
 
 func toμs(ns int64) int64 {
