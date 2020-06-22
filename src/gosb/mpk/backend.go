@@ -7,7 +7,7 @@ package mpk
 
 import (
 	"errors"
-	"fmt"
+	// "fmt"
 	c "gosb/commons"
 	g "gosb/globals"
 	"runtime"
@@ -42,7 +42,6 @@ func Execute(id c.SandId) {
 func Prolog(id c.SandId) {
 	entrerProlog()
 	runtime.AssignSbId(id)
-	fmt.Printf("## Sandbox %s ##\n", id)
 	pkru, ok := sbPKRU[id]
 	if !ok {
 		println("[MPK BACKEND]: Sandbox PKRU not found in prolog")
@@ -58,18 +57,11 @@ func Epilog(id c.SandId) {
 	WritePKRU(AllRightsPKRU)
 }
 
-//TODO(CharlyCst) implement this one.
-//The goal is to go and look at sections, see if it already exists.
-//If not, we create and add a new one and tag it with the correct key
-//(i.e., the one that corresponds to the package id).
-//If the section did not exist, it must be a dynamic library and hence should
-//be added to the package as such.
+// Register a page for a given package
 func Register(id int, start, size uintptr) {
 	if id == 0 || id == -1 { // Runtime
 		return
 	}
-	println("register")
-	println(id)
 	enterRegister()
 
 	key, ok := pkgKeys[id]
@@ -81,15 +73,9 @@ func Register(id int, start, size uintptr) {
 	exitRegister()
 }
 
-//TODO(charlyCst) implement this one.
-//Apparently the section should already exist somewhere (we should keep a map of them with start address to make things easier).
-//We need to transfer it from oldid to new id. Maybe fault if the oldid == newid or if we have an invalid id.
-//The same should apply for the previous function.
+// Transfer a page from one package to another
 func Transfer(oldid, newid int, start, size uintptr) {
 	enterTransfer()
-	println("transfer")
-	println(oldid)
-	println(newid)
 
 	if oldid == newid {
 		exitTransfer()
@@ -103,11 +89,13 @@ func Transfer(oldid, newid int, start, size uintptr) {
 	}
 	key, ok := pkgKeys[newid]
 	if !ok {
-		// println("[MPK BACKEND]: Register key not found for transfer")
 		exitTransfer()
 		return
 	}
-	PkeyMprotect(start, uint64(size), SysProtRW, key)
+	oldKey, ok := pkgKeys[oldid]
+	if !ok || oldKey != key {
+		PkeyMprotect(start, uint64(size), SysProtRW, key)
+	}
 	exitTransfer()
 }
 
@@ -121,8 +109,8 @@ func allocateKey(sandboxKeys map[c.SandId][]int, pkgGroups [][]int) []Pkey {
 		}
 		keys = append(keys, key)
 
-		for _, pkgId := range pkgGroup {
-			tagPackage(pkgId, key)
+		for _, pkgID := range pkgGroup {
+			tagPackage(pkgID, key)
 		}
 	}
 
@@ -137,7 +125,7 @@ func tagPackage(id int, key Pkey) {
 
 	for _, section := range pkg.Sects {
 		if section.Size > 0 {
-			fmt.Printf("section %06x + %06x -- pkg %02d ~ %s\n", section.Addr, section.Addr+section.Size, id, pkg.Name)
+			// fmt.Printf("section %06x + %06x -- pkg %02d ~ %s\n", section.Addr, section.Addr+section.Size, id, pkg.Name)
 			sysProt := getSectionProt(section)
 			PkeyMprotect(uintptr(section.Addr), section.Size, sysProt, key)
 		}
@@ -181,13 +169,10 @@ func Init() {
 	pkgAppearsIn := make(map[int][]c.SandId, n)
 	pkgSbProt := make(map[int]map[c.SandId]Prot) // PkgID -> sbID -> mpk prot
 
-	// fmt.Println("Initilizing GOSB with MPK backend")
-	fmt.Printf("Nb of packages:%d\n", n)
-
 	for sbID, sb := range g.Sandboxes {
 		// fmt.Printf("//// Sandbox %s ////\n", sbID)
 		// sb.Static.Print()
-		for pkgID, _ := range sb.View {
+		for pkgID := range sb.View {
 			if pkgID == 0 { // Runtime
 				continue
 			}
@@ -253,12 +238,12 @@ func Init() {
 		}
 	}
 
-	fmt.Println("Sandbox keys:", sbKeys)
-	fmt.Println("Package groups:", pkgGroups)
-	fmt.Println("Keys:", keys)
-	fmt.Println("PKRUs:", sbPKRU)
+	// fmt.Println("Sandbox keys:", sbKeys)
+	// fmt.Println("Package groups:", pkgGroups)
+	// fmt.Println("Keys:", keys)
+	// fmt.Println("PKRUs:", sbPKRU)
 	//fmt.Println("PkgSbProt:", pkgSbProt)
-	fmt.Println("///// Done /////")
+	// fmt.Println("///// Done /////")
 }
 
 func testCompatibility(aID, bID int, a, b []c.SandId, pkgSbProt map[int]map[c.SandId]Prot) bool {
