@@ -28,6 +28,9 @@ type PageTableAllocator struct {
 	Current   *Arena              // current arena to obtain page tables.
 	Allocator *FreeSpaceAllocator // Physical memory allocator.
 
+	// Callback to register growth with KVM
+	Register func(uint64, uint64, uint64, uint32)
+
 	// Page allocation can happen durin a register
 	// which prevents dynamic allocation.
 	// If danger is on, that means the VM has been entered
@@ -77,12 +80,9 @@ func (f *FreeSpaceAllocator) Malloc(size uint64) uint64 {
 		f.Used.AddBack(candidate.ToElem())
 		return candidate.Addr
 	}
-	//used := &VMArea{}
-	//used.Addr, used.Size = candidate.Addr, size
 	result := candidate.Addr
-	//f.Used.AddBack(used.ToElem())
 	candidate.Addr, candidate.Size = candidate.Addr+size, candidate.Size-size
-	return result //used.Addr
+	return result
 }
 
 func (f *FreeSpaceAllocator) Copy() *FreeSpaceAllocator {
@@ -121,6 +121,8 @@ func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 		} else {
 			current = pga.AcquireEMArena()
 			current.HVA, current.GPA, current.Slot = uint64(start), gpstart, ^uint32(0)
+			// register this region with KVM.
+			pga.Register(gpstart, uint64(ARENA_TOTAL_SIZE), uint64(start), 0)
 		}
 		pga.All.AddBack(current.ToElem())
 		pga.Current = current

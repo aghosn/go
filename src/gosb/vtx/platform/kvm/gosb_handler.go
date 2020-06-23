@@ -31,6 +31,8 @@ var (
 	MRTFsbase uint64  = 0
 	MRTFault  uintptr = 0
 	MRTSpanId int     = 0
+	MRTEntry  uintptr = 0
+	MRTAddr   uintptr = 0
 )
 
 //go:nosplit
@@ -85,6 +87,7 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 				MRTRip = vcpu.Registers().Rip
 				MRTFsbase = vcpu.Registers().Fs_base
 				MRTFault = vcpu.FaultAddr
+				MRTAddr, _, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(MRTFault)
 				vcpu.machine.Mu.Unlock()
 				return syshandlerSNF
 			}

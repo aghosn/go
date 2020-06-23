@@ -295,8 +295,17 @@ func createFakePackage(d *commons.SandboxDomain) {
 		commons.X_VAL | commons.R_VAL | commons.USER_VAL,
 	}
 
-	// stack object
+	// stack object for sandbox
 	if stkobj, ok := globals.NameToSym[d.Func+".stkobj"]; ok {
+		p.Sects = append(p.Sects, commons.Section{
+			commons.Round(stkobj.Value, false),
+			commons.Round(sf.Size, true),
+			commons.R_VAL | commons.USER_VAL,
+		})
+	}
+
+	// stack object from main
+	if stkobj, ok := globals.NameToSym["main.main.stkobj"]; ok {
 		p.Sects = append(p.Sects, commons.Section{
 			commons.Round(stkobj.Value, false),
 			commons.Round(sf.Size, true),

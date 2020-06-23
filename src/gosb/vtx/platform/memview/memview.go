@@ -109,7 +109,15 @@ func (a *AddressSpace) ApplyDomain(d *commons.SandboxMemory) {
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
 		m.Finalize()
 	}
+}
 
+// RegisterGrowth registers the callback to let KVM know about new mappings.
+func (a *AddressSpace) RegisterGrowth(f func(uint64, uint64, uint64, uint32)) {
+	a.PTEAllocator.Register = f
+}
+
+func (a *AddressSpace) Seal() {
+	commons.Check(a.PTEAllocator.Danger == false)
 	// From now on, we cannot rely on dynamic allocations inside PageTableAllocator
 	a.PTEAllocator.Danger = true
 }

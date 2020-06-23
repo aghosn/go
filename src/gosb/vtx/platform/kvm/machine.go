@@ -199,6 +199,12 @@ func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {
 		MemView: memview,
 		vcpus:   make(map[int]*vCPU),
 	}
+	memview.RegisterGrowth(
+		//go:nosplit
+		func(p, l, v uint64, f uint32) {
+			m.setEPTRegion(&memview.NextSlot, p, l, v, f)
+		})
+	memview.Seal()
 	m.Start = reflect.ValueOf(ring0.Start).Pointer()
 	m.kernel.Init(ring0.KernelOpts{PageTables: memview.Tables})
 	m.maxVCPUs = runtime.GOMAXPROCS(0)

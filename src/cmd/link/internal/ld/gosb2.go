@@ -210,7 +210,7 @@ func gosb_reorderSymbols(sel int, syms []*sym.Symbol) []*sym.Symbol {
 		if _, ok := objfile.SBMap[s.Name]; ok {
 			sandSyms = append(sandSyms, s)
 			s.Align = 0x1000
-		} else if isSandboxStkObj(s.Name) {
+		} else if isSandboxStkObj(s.Name, s) || s.Name == "main.main.stkobj" {
 			// Isolate stack object for sandbox code
 			sandSyms = append(sandSyms, s)
 			s.Align = 0x1000
@@ -275,7 +275,10 @@ func gosb_generateContent(sect string) []byte {
 	return nil
 }
 
-func isSandboxStkObj(name string) bool {
+func isSandboxStkObj(name string, s *sym.Symbol) bool {
+	if !strings.Contains(name, ".stkobj") {
+		return false
+	}
 	split := strings.Split(name, ".stkobj")
 	if len(split) == 0 {
 		return false
