@@ -29,6 +29,7 @@ type Entry struct {
 const (
 	DELIMITER_PKGS  = ","
 	DELIMITER_ENTRY = ":"
+	SELF_IDENTIFIER = "self"
 
 	// Permissions
 	UNMAP    = "U"
@@ -56,29 +57,39 @@ const (
 	HEAP_VAL  = R_VAL | W_VAL | USER_VAL
 )
 
-func ParseMemoryView(memc string) ([]Entry, error) {
+func ParseMemoryView(memc string) ([]Entry, bool, error) {
+	pristine := false
 	mem, err := strconv.Unquote(memc)
 	if err != nil {
 		mem = memc
 	}
 	if len(mem) == 0 {
-		return []Entry{}, nil
+		return []Entry{}, false, nil
 	}
 	entries := strings.Split(mem, DELIMITER_PKGS)
-	res := make([]Entry, len(entries))
+	res := make([]Entry, 0)
 	uniq := make(map[string]bool)
-	for i, v := range entries {
+	for _, v := range entries {
 		e, err := parseEntry(v)
 		if err != nil {
-			return res, err
+			return res, false, err
 		}
 		if _, ok := uniq[e.Name]; ok {
-			return nil, fmt.Errorf("Duplicated entry for %v\n", e.Name)
+			return nil, false, fmt.Errorf("Duplicated entry for %v\n", e.Name)
 		}
+		if e.Name == SELF_IDENTIFIER && e.Perm != P_VAL {
+			return nil, false, fmt.Errorf("self can only be pristine %v\n", e.Perm)
+		}
+
+		if e.Name == SELF_IDENTIFIER {
+			pristine = true
+			continue
+		}
+
 		uniq[e.Name] = true
-		res[i] = e
+		res = append(res, e)
 	}
-	return res, nil
+	return res, pristine, nil
 }
 
 func parseEntry(entry string) (Entry, error) {
@@ -94,8 +105,10 @@ func parseEntry(entry string) (Entry, error) {
 	if err != nil {
 		return Entry{}, err
 	}
+	if perm == P_VAL && name != SELF_IDENTIFIER {
+		return Entry{}, fmt.Errorf("Pristine applied to non self package")
+	}
 	return Entry{name, perm}, nil
-
 }
 
 func parsePerm(entry string) (uint8, error) {

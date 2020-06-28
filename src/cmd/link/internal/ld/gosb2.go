@@ -97,6 +97,7 @@ func (ctxt *Link) gosb_generateDomains() {
 		sb := &lb.SandboxDomain{}
 		sb.Id = v.Id
 		sb.Func = v.Func
+		sb.Pristine = v.Pristine
 		var err error
 		sb.Sys, err = lb.ParseSyscalls(v.Sys)
 		sb.View = nil

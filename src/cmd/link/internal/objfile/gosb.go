@@ -14,6 +14,7 @@ type SBObjEntry struct {
 	Sys      string
 	Packages []string
 	Extras   []gosb.Entry
+	Pristine bool
 }
 
 const (
@@ -88,12 +89,12 @@ func registerSandboxes(sbs []string) {
 			assert(err == nil, "Error parsing number of packages")
 			content = content[1:]
 			// Parse memory view
-			extras, err := gosb.ParseMemoryView(config[1])
+			extras, pristine, err := gosb.ParseMemoryView(config[1])
 			if err != nil {
 				panic(err.Error())
 			}
 			pkgs, content := content[:nbPkgs], content[nbPkgs:]
-			Sandboxes = append(Sandboxes, SBObjEntry{name, config[0], config[1], config[2], pkgs, extras})
+			Sandboxes = append(Sandboxes, SBObjEntry{name, config[0], config[1], config[2], pkgs, extras, pristine})
 			// Finally add these packages to the ones that need to be bloated
 			for _, e := range extras {
 				pkgs = append(pkgs, e.Name)

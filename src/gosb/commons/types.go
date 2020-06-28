@@ -3,11 +3,12 @@ package commons
 type SandId = string
 
 type SandboxDomain struct {
-	Id   SandId
-	Func string
-	Sys  SyscallMask
-	View map[string]uint8
-	Pkgs []string
+	Id       SandId
+	Func     string
+	Sys      SyscallMask
+	View     map[string]uint8
+	Pkgs     []string
+	Pristine bool
 }
 
 type Package struct {
