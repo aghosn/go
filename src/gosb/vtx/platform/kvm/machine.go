@@ -36,7 +36,7 @@ type Machine struct {
 	Start uintptr
 
 	// Used for emergency runtime growth
-	EMR [50]*mv.MemoryRegion
+	EMR [20]*mv.MemoryRegion
 
 	// For address space extension.
 	Mu runtime.GosbMutex
@@ -163,6 +163,7 @@ func (m *Machine) Replenish() {
 	for i := range m.EMR {
 		if m.EMR[i] == nil {
 			m.EMR[i] = &mv.MemoryRegion{}
+			m.EMR[i].Bitmap = make([]uint64, mv.HEAP_BITMAP)
 		}
 	}
 }
@@ -190,8 +191,13 @@ func (m *Machine) HasRights(addr uint64, prot uint8) bool {
 	return m.MemView.HasRights(addr, prot)
 }
 
-func newMachine(vm int, d *commons.SandboxMemory) (*Machine, error) {
-	memview := mv.AddressSpaceTemplate.Copy()
+//go:nosplit
+func (m *Machine) Fd() int {
+	return m.fd
+}
+
+func newMachine(vm int, d *commons.SandboxMemory, template *mv.AddressSpace) (*Machine, error) {
+	memview := template.Copy()
 	memview.ApplyDomain(d)
 	// Create the machine.
 	m := &Machine{

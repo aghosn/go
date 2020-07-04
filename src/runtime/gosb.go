@@ -95,7 +95,7 @@ func RegisterEmergencyGrowth(f func(bool, int, uintptr, uintptr)) {
 // This might change g0? Should we make it explicit?
 //
 //go:nosplit
-func AssignSbId(id string) {
+func AssignSbId(id string, pid int) {
 	_g_ := getg()
 	if _g_ == nil || _g_.m == nil || _g_.m.g0 == nil {
 		throw("g, m, or g0 is nil")
@@ -103,6 +103,13 @@ func AssignSbId(id string) {
 	_g_.sbid = id
 	_g_.m.sbid = id
 	_g_.m.g0.sbid = id
+	_g_.pristineid = 0
+	_g_.pristine = false
+	if pid != 0 {
+		_g_.pristine = true
+		_g_.m.g0.pristine = true
+		_g_.pristineid = pid
+	}
 }
 
 // GetmSbIds returns the m ids

@@ -16,7 +16,8 @@ var (
 	// Due to concurrency issue, we might have delayed updates between
 	// initialization of the full memory view, and setting up the hooks
 	// in the runtime.
-	EUpdates [10]*commons.VMArea
+	EUpdates [50]*commons.VMArea
+	CurrE    int = 0
 	Updates  commons.VMAreas
 )
 
@@ -47,13 +48,19 @@ func EmergencyGrowth(isheap bool, id int, start, size uintptr) {
 
 //go:nosplit
 func acquireUpdate() *commons.VMArea {
-	for i, v := range EUpdates {
-		if v != nil {
-			res := EUpdates[i]
-			EUpdates[i] = nil
-			return res
-		}
+	if CurrE < len(EUpdates) {
+		i := CurrE
+		CurrE++
+		return EUpdates[i]
 	}
+	/*
+		for i, v := range EUpdates {
+			if v != nil {
+				res := EUpdates[i]
+				EUpdates[i] = nil
+				return res
+			}
+		}*/
 	return nil
 }
 

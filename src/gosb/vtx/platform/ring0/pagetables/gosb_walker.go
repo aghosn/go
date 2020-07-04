@@ -30,7 +30,7 @@ type Visitor struct {
 	Alloc func(curr uintptr, lvl int) uintptr
 
 	// Visit is a function called upon visiting an entry.
-	Visit func(pte *PTE, lvl int)
+	Visit func(va uintptr, pte *PTE, lvl int)
 }
 
 // Map iterates over the provided range of address and applies the visitor.
@@ -57,9 +57,9 @@ func (p *PageTables) pageWalk(root *PTEs, start, end uintptr, lvl int, v *Visito
 			entry.SetAddr(newPteGpa)
 		}
 		if entry.Valid() && v.Applies[lvl] {
-			v.Visit(entry, lvl)
+			v.Visit(curVa, entry, lvl)
 		} else if !entry.Valid() && v.Applies[lvl] && v.Toogle {
-			v.Visit(entry, lvl)
+			v.Visit(curVa, entry, lvl)
 		}
 
 		nstart, nend := start, end
@@ -112,9 +112,32 @@ func (p *PageTables) FindMapping(addr uintptr) (uintptr, uintptr, uintptr) {
 	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
 	s2, s1 := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
 	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())
+	gc.Check(pdpte != nil)
 	pte := p.Allocator.LookupPTEs(pdpte[s3].Address())
+	gc.Check(pte != nil)
 	page := p.Allocator.LookupPTEs(pte[s2].Address())
+	gc.Check(page != nil)
 	return page[s1].Address(), page[s1].Flags(), uintptr(page[s1])
+}
+
+//go:nosplit
+func (p *PageTables) IsMapped(addr uintptr) bool {
+	addr = addr - (addr % gc.PageSize)
+	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
+	s2, s1 := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
+	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())
+	if !p.root[s4].Valid() || pdpte == nil {
+		return false
+	}
+	pte := p.Allocator.LookupPTEs(pdpte[s3].Address())
+	if !pdpte[s3].Valid() || pte == nil {
+		return false
+	}
+	page := p.Allocator.LookupPTEs(pte[s2].Address())
+	if !pte[s2].Valid() || page == nil {
+		return false
+	}
+	return page[s1].Valid()
 }
 
 //go:nosplit

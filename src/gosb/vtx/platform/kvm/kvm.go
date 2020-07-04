@@ -2,6 +2,7 @@ package kvm
 
 import (
 	"gosb/commons"
+	"gosb/globals"
 	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
 	"log"
@@ -19,15 +20,35 @@ var (
 //go:nosplit
 func Bluepillret()
 
+const (
+	VM_UNLOCKED = uint32(0)
+	VM_LOCKED   = uint32(1)
+)
+
 type KVM struct {
 	Machine *Machine
 
 	// Pointer to the sandbox memory
 	Sand *commons.SandboxMemory
+
+	// For pristine sandboxes, tells whether it can be acquired atomically
+	Locked uint32
+
+	// Id for the sandbox, this is important for pristine
+	Id  commons.SandId
+	Pid int
+}
+
+// Copy allows to duplicate a sandbox for pristine execution.
+// TODO(@aghosn) probably lock
+func (k *KVM) Copy(fd int) *KVM {
+	v := New(fd, k.Sand, k.Machine.MemView)
+	v.Id, v.Pid = globals.PristineId(v.Sand.Config.Id)
+	return v
 }
 
 // New creates a VM with KVM, and initializes its machine and pagetables.
-func New(fd int, d *commons.SandboxMemory) *KVM {
+func New(fd int, d *commons.SandboxMemory, template *mv.AddressSpace) *KVM {
 	// Create a new VM fd.
 	var (
 		vm    int
@@ -43,13 +64,14 @@ func New(fd int, d *commons.SandboxMemory) *KVM {
 		}
 		break
 	}
-	machine, err := newMachine(vm, d)
+	machine, err := newMachine(vm, d, template)
 	if err != nil {
 		log.Fatalf("error creating the machine: %v\n", err)
 	}
-	kvm := &KVM{Machine: machine, Sand: d}
+	kvm := &KVM{Machine: machine, Sand: d, Id: d.Config.Id}
 	for i := range kvm.Machine.EMR {
 		kvm.Machine.EMR[i] = &mv.MemoryRegion{}
+		kvm.Machine.EMR[i].Bitmap = make([]uint64, mv.HEAP_BITMAP)
 	}
 	return kvm
 }
@@ -103,7 +125,8 @@ func (k *KVM) SwitchToUser() {
 	if runtime.Iscgo() && !k.Machine.MemView.ValidAddress(opts.Registers.Fs_base) {
 		runtime.RegisterPthread(c.id)
 	}
-	runtime.AssignSbId(k.Sand.Config.Id)
+	commons.Check(k.Id != "")
+	runtime.AssignSbId(k.Id, k.Pid)
 	if !c.entered {
 		c.SwitchToUser(opts)
 		return

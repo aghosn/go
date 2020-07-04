@@ -274,6 +274,6 @@ func (c *mcentral) grow(id int) *mspan {
 	s.limit = s.base() + size*n
 	heapBitsForAddr(s.base()).initSpan(s)
 	// @aghosn The span is supposed to be fresh, we can just set the id
-	s.setId(id, false)
+	s.setId(id, true /*false*/)
 	return s
 }

@@ -100,7 +100,13 @@ func loadPackages() {
 	globals.NameToPkg = make(map[string]*commons.Package)
 	globals.IdToPkg = make(map[int]*commons.Package)
 
+	// Find the max package id
+	nextPkgId := -1000
+
 	for _, v := range globals.AllPackages {
+		if nextPkgId <= v.Id {
+			nextPkgId = v.Id + 1
+		}
 
 		// Map information for trusted address space.
 		if v.Name == globals.TrustedPackages {
@@ -138,6 +144,11 @@ func loadPackages() {
 			globals.BackendPackages = append(globals.BackendPackages, v)
 		}
 	}
+
+	// Verify there is no package named this way.
+	_, ok := globals.IdToPkg[nextPkgId]
+	commons.Check(!ok && nextPkgId > 0)
+	globals.NextPkgId = uint32(nextPkgId)
 
 	// Generate backend VMAreas.
 	globals.CommonVMAs = new(commons.VMAreas)
@@ -184,6 +195,7 @@ func loadSandboxes() {
 	globals.SandboxFuncs = make(map[commons.SandId]*commons.VMArea)
 	globals.Configurations = make([]*commons.SandboxDomain, 0)
 	globals.Sandboxes = make(map[commons.SandId]*commons.SandboxMemory)
+	globals.IsPristine = make(map[commons.SandId]bool)
 
 	data, err := section.Data()
 	commons.CheckE(err)
@@ -243,6 +255,9 @@ func loadSandboxes() {
 			sbox.Static.MapAreaCopy(globals.CommonVMAs)
 		}
 		globals.Sandboxes[sbox.Config.Id] = sbox
+		if sbox.Config.Pristine {
+			globals.IsPristine[sbox.Config.Id] = true
+		}
 	}
 }
 

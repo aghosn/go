@@ -36,23 +36,11 @@ func getpackageid(level int) int {
 	if n != level {
 		panic("Unable to unwind the stack")
 	}
-	return pcToPkg(pcbuf[n-1])
-	/*f := findfunc(pcbuf[n-1])
-	if !f.valid() {
-		panic("Invalid function in stack unwind")
+	id := pcToPkg(pcbuf[n-1])
+	if id != 0 && gp.pristine {
+		return gp.pristineid
 	}
-	fullname := funcnameFromNameoff(f, f.nameoff)
-	name := nameToPkg(fullname)
-	id, ok := pkgToId[name]
-	if !ok {
-		// Check if it is the sandbox itself
-		id, ok = pkgToId[fullname]
-		if ok {
-			return id
-		}
-		return -1
-	}
-	return id*/
+	return id
 }
 
 func filterPkgId(id int) int {

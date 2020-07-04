@@ -8,7 +8,9 @@ package globals
  */
 import (
 	"debug/elf"
+	"fmt"
 	c "gosb/commons"
+	"sync/atomic"
 )
 
 const (
@@ -19,8 +21,8 @@ const (
 	TrustedPackages = "non-bloat"
 )
 
-// Refactoring.
 var (
+
 	// Symbols
 	Symbols   []elf.Symbol
 	NameToSym map[string]*elf.Symbol
@@ -28,6 +30,7 @@ var (
 	// Packages
 	AllPackages     []*c.Package
 	BackendPackages []*c.Package
+	NextPkgId       uint32
 
 	// PC to package sorted list
 	PcToPkg []*c.Package
@@ -47,6 +50,15 @@ var (
 	SandboxFuncs   map[c.SandId]*c.VMArea
 	Sandboxes      map[c.SandId]*c.SandboxMemory
 
+	// Pristine Information
+	IsPristine map[c.SandId]bool
+
 	// Dependencies
 	PkgDeps map[int][]c.SandId
 )
+
+// PristineId generates a new pristine id for the sandbox.
+func PristineId(id string) (string, int) {
+	pid := atomic.AddUint32(&NextPkgId, 1)
+	return fmt.Sprintf("p:%v:%v", pid, id), int(pid)
+}

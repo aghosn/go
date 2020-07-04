@@ -175,7 +175,7 @@ func (pga *PageTableAllocator) LookupPTEs(gpa uintptr) *pg.PTEs {
 			return v.GPA2HVA(uint64(gpa))
 		}
 	}
-	panic("Error looking up a page table.")
+	//panic("Error looking up a page table.")
 	return nil
 }
 

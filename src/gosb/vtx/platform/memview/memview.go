@@ -18,7 +18,9 @@ const (
 
 // TODO replace with runtime information.
 const (
-	HEAP_START = uint64(0xc000000000)
+	HEAP_START    = uint64(0xc000000000)
+	HEAP_REG_SIZE = uint64(0x4000000)
+	HEAP_BITMAP   = 256
 )
 
 // MemorySpan represents a contiguous memory region and the corresponding GPA.
@@ -37,7 +39,8 @@ type MemoryRegion struct {
 	commons.ListElem // ALlows to put the Memory region inside a list
 	Tpe              RegType
 	Span             MemorySpan
-	Bitmap           []uint64      // Presence bitmap
+	Bitmap           []uint64 // Presence bitmap
+	BitmapInit       bool
 	Owner            *AddressSpace // The owner AddressSpace
 	View             commons.VMAreas
 	finalized        bool
@@ -230,13 +233,19 @@ func (a *AddressSpace) Extend(heap bool, m *MemoryRegion, start, size uint64, pr
 		m = &MemoryRegion{}
 	}
 	m.Tpe = EXTENSIBLE_REG
-	if heap {
-		m.Tpe = HEAP_REG
-	}
 	m.Span.Start, m.Span.Size, m.Span.Prot = start, size, prot
 	m.Owner = a
 	m.Span.Slot = a.NextSlot
 	a.NextSlot++
+	if heap {
+		m.Tpe = HEAP_REG
+		commons.Check(size <= HEAP_REG_SIZE)
+		s := m.Coordinates(start)
+		e := m.Coordinates(start + size - 1)
+		for c := s; c <= e; c++ {
+			m.Bitmap[idX(c)] |= uint64(1 << idY(c))
+		}
+	}
 	if m.Span.Start+m.Span.Size <= uint64(commons.Limit39bits) {
 		m.Span.GPA = m.Span.Start
 	} else {
@@ -280,14 +289,16 @@ func (m *MemoryRegion) Assign(vma *commons.VMArea) {
 func (m *MemoryRegion) Map(start, size uint64, prot uint8, apply bool) {
 	s := m.Coordinates(start)
 	e := m.Coordinates(start + size - 1)
-	if m.Tpe == EXTENSIBLE_REG || m.Tpe == HEAP_REG {
+	if m.Tpe == EXTENSIBLE_REG /*|| m.Tpe == HEAP_REG*/ {
 		// The entire bitmap is at one
 		goto skip
 	}
+	commons.Check(m.Bitmap != nil)
 	// toggle bits in the bitmap
-	for c := s; c <= e; c++ {
+	for c := s; c <= e && !m.BitmapInit; c++ {
 		m.Bitmap[idX(c)] |= uint64(1 << idY(c))
 	}
+	m.BitmapInit = true
 skip:
 	if !apply {
 		return
@@ -309,9 +320,17 @@ func (m *MemoryRegion) ApplyRange(start, size uint64, prot uint8) {
 		gpa := (addr - uintptr(m.Span.Start)) + uintptr(m.Span.GPA)
 		return gpa
 	}
-	visit := func(pte *pg.PTE, lvl int) {
+	visit := func(va uintptr, pte *pg.PTE, lvl int) {
 		if lvl == 0 {
 			pte.SetFlags(eflags)
+			if m.Tpe == HEAP_REG {
+				commons.Check(m.Bitmap != nil)
+				s := m.Coordinates(uint64(va))
+				b := m.Bitmap[idX(s)] & uint64(1<<idY(s))
+				if b == 0 {
+					pte.Unmap()
+				}
+			}
 			return
 		}
 		pte.SetFlags(deflags)
@@ -404,6 +423,10 @@ func (m *MemoryRegion) Copy() *MemoryRegion {
 	doppler.Span = m.Span
 	if m.Bitmap != nil {
 		doppler.Bitmap = make([]uint64, len(m.Bitmap))
+		for i := range m.Bitmap {
+			doppler.Bitmap[i] = m.Bitmap[i]
+		}
+		doppler.BitmapInit = true
 	}
 	return doppler
 }
@@ -444,9 +467,20 @@ func (m *MemoryRegion) Toggle(on bool, start, size uint64, prot uint8) {
 	} else if m.Tpe != HEAP_REG {
 		panic("What are you then?!!")
 	}
+	// Update the bitmap
+	commons.Check(m.Bitmap != nil)
+	s := m.Coordinates(start)
+	e := m.Coordinates(start + size - 1)
+	for c := s; c <= e; c++ {
+		if on {
+			m.Bitmap[idX(c)] |= uint64(1 << idY(c))
+		} else {
+			m.Bitmap[idX(c)] &= ^(uint64(1 << idY(c)))
+		}
+	}
 	deflags := pg.ConvertOpts(prot)
 	// Now apply to pagetable.
-	visit := func(pte *pg.PTE, lvl int) {
+	visit := func(va uintptr, pte *pg.PTE, lvl int) {
 		if lvl != 0 {
 			return
 		}

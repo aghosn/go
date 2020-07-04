@@ -879,6 +879,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 		throw("mallocgc called with gcphase == _GCmarktermination")
 	}
 
+	// Check if we are in a pristine sandbox
+	if g := getg(); g.pristine && g.pristineid != 0 && id != 0 {
+		id = g.pristineid
+	}
+
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
 	}
@@ -1185,8 +1190,8 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 func newobject(typ *_type, id int) unsafe.Pointer {
 	id1 := filterPkgId(id)
 	if gp := getg(); gp.sbid != "" && id1 == -1 {
-		id = gosbInterpose(CALLER_LVL)
-		id1 = filterPkgId(id)
+		id1 = gosbInterpose(CALLER_LVL)
+		//id1 = filterPkgId(id)
 	}
 	p := mallocgc(typ.size, typ, true, id1 /*filterPkgId(id)*/)
 	return p

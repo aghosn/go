@@ -437,6 +437,8 @@ type g struct {
 	timer          *timer         // cached timer for time.Sleep
 	selectDone     uint32         // are we participating in a select and did someone win the race?
 	sbid           string         // gosb sandbox ID
+	pristine       bool
+	pristineid     int
 
 	// Per-G GC state
 
