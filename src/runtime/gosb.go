@@ -17,14 +17,6 @@ const (
 )
 
 var (
-	MRTRuntimeVals [60]uintptr
-	MRTRuntimeIdx  int   = 0
-	MRTId          int64 = -1
-	MRTBaddy       int   = 0
-	Lock           GosbMutex
-)
-
-var (
 	bloatInitDone bool = false
 	mainInitDone  bool = false
 
@@ -124,17 +116,6 @@ func GetmSbIds() string {
 	return _g_.m.sbid
 }
 
-//
-//go:nosplit
-func TakeValue(a uintptr) {
-	Lock.Lock()
-	if MRTRuntimeIdx < len(MRTRuntimeVals) {
-		MRTRuntimeVals[MRTRuntimeIdx] = a
-		MRTRuntimeIdx++
-	}
-	Lock.Unlock()
-}
-
 //go:nosplit
 func RegisterPthread(id int) {
 	if !iscgo || runtimeGrowth == nil {
@@ -144,29 +125,6 @@ func RegisterPthread(id int) {
 	low := uintptr(_g_.stack.lo - _LOW_STACK_OFFSET)
 	high := uintptr(_g_.stack.hi + _HIGH_STACK_OFFSET)
 	runtimeGrowth(false, 0, low, high-low)
-}
-
-//go:nosplit
-func Reset() {
-	MRTBaddy = 0
-}
-
-//go:nosplit
-func StartCapture() {
-	_g_ := getg()
-	MRTId = _g_.goid
-	Reset()
-}
-
-//go:nosplit
-func TakeValueTrace(a uintptr) {
-	_g_ := getg()
-	if _g_ == nil {
-		return
-	}
-	if _g_.goid == MRTId {
-		TakeValue(a)
-	}
 }
 
 // This locks out apparently apparently

@@ -1,52 +1,39 @@
 package gosb
 
 import (
-	c "gosb/commons"
+	be "gosb/backend"
+	"gosb/benchmark"
 	"gosb/mpk"
 	"gosb/sim"
 	"gosb/vtx"
 )
 
-type Backend = int
-
-type backendConfig struct {
-	tpe Backend
-	//Functions for hooks in the runtime
-	init          func()
-	prolog        func(id c.SandId)
-	epilog        func(id c.SandId)
-	transfer      func(oldid, newid int, start, size uintptr)
-	register      func(id int, start, size uintptr)
-	execute       func(id c.SandId)
-	mstart        func()
-	runtimeGrowth func(isheap bool, id int, start, size uintptr)
-	benchmark     func()
-}
-
-const (
-	SIM_BACKEND    Backend = iota
-	VTX_BACKEND    Backend = iota
-	MPK_BACKEND    Backend = iota
-	__BACKEND_SIZE Backend = iota
-)
-
 // Configurations
 var (
-	configBackends = [__BACKEND_SIZE]backendConfig{
-		backendConfig{SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute, nil, nil, nil},
-		backendConfig{VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, nil, vtx.RuntimeGrowth, nil},
-		backendConfig{MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute, mpk.MStart, nil, mpk.Benchmark},
+	configBackends = [be.BACKEND_SIZE]be.BackendConfig{
+		be.BackendConfig{be.SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute, nil, nil},
+		be.BackendConfig{be.VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, nil, vtx.RuntimeGrowth},
+		be.BackendConfig{be.MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute, mpk.MStart, nil},
 	}
 )
 
 // The actual backend that we use in this session
 var (
-	backend *backendConfig
+	currBackend  *be.BackendConfig
+	benchmarking bool = false
+	bench        *benchmark.Benchmark
 )
 
-func initBackend(b Backend) {
-	backend = &configBackends[b]
-	if backend.init != nil {
-		backend.init()
+func EnableBenchmarks() {
+	benchmarking = true
+}
+
+func initBackend(b be.Backend) {
+	currBackend = &configBackends[b]
+	if benchmarking {
+		currBackend, bench = benchmark.InitBenchWrapper(currBackend)
+	}
+	if currBackend.Init != nil {
+		currBackend.Init()
 	}
 }

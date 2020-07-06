@@ -4,6 +4,7 @@ import (
 	"debug/elf"
 	"encoding/json"
 	"fmt"
+	"gosb/backend"
 	"gosb/commons"
 	"gosb/globals"
 	"gosb/vtx"
@@ -21,7 +22,7 @@ var (
 )
 
 // Initialize loads the sandbox and package information from the binary.
-func Initialize(b Backend) {
+func Initialize(b backend.Backend) {
 	once.Do(func() {
 		loadPackages()
 		loadSandboxes()
@@ -34,11 +35,6 @@ func Initialize(b Backend) {
 	})
 }
 
-// Benchmark prints statistics about gosb
-func Benchmark() {
-	backend.benchmark()
-}
-
 func initRuntime() {
 	globals.NameToId = make(map[string]int)
 	for k, d := range globals.NameToPkg {
@@ -48,17 +44,17 @@ func initRuntime() {
 		globals.NameToId,
 		PcToId,
 		getPkgName,
-		backend.transfer,
-		backend.register,
-		backend.runtimeGrowth,
-		backend.execute,
-		backend.prolog,
-		backend.epilog,
-		backend.mstart,
+		currBackend.Transfer,
+		currBackend.Register,
+		currBackend.RuntimeGrowth,
+		currBackend.Execute,
+		currBackend.Prolog,
+		currBackend.Epilog,
+		currBackend.Mstart,
 	)
 }
-func finalizeBackend(b Backend) {
-	if b != VTX_BACKEND {
+func finalizeBackend(b backend.Backend) {
+	if b != backend.VTX_BACKEND {
 		// Nothing to do
 	}
 	vtx.UpdateAll()

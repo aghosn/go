@@ -25,7 +25,6 @@ func MStart() {
 
 // Execute turns on sandbox isolation
 func Execute(id c.SandId) {
-	enterExecute()
 	if id == "" {
 		WritePKRU(AllRightsPKRU)
 		return
@@ -40,7 +39,6 @@ func Execute(id c.SandId) {
 
 // Prolog initialize isolation of the sandbox
 func Prolog(id c.SandId) {
-	entrerProlog()
 	runtime.AssignSbId(id, 0)
 	pkru, ok := sbPKRU[id]
 	if !ok {
@@ -62,7 +60,6 @@ func Register(id int, start, size uintptr) {
 	if id == 0 || id == -1 { // Runtime
 		return
 	}
-	enterRegister()
 
 	key, ok := pkgKeys[id]
 	if !ok {
@@ -70,33 +67,26 @@ func Register(id int, start, size uintptr) {
 		return
 	}
 	PkeyMprotect(start, uint64(size), SysProtRW, key)
-	exitRegister()
 }
 
 // Transfer a page from one package to another
 func Transfer(oldid, newid int, start, size uintptr) {
-	enterTransfer()
-
 	if oldid == newid {
-		exitTransfer()
 		return
 	}
 
 	if newid == 0 { // Runtime
 		PkeyMprotect(start, uint64(size), SysProtRW, 0)
-		exitTransfer()
 		return
 	}
 	key, ok := pkgKeys[newid]
 	if !ok {
-		exitTransfer()
 		return
 	}
 	oldKey, ok := pkgKeys[oldid]
 	if !ok || oldKey != key {
 		PkeyMprotect(start, uint64(size), SysProtRW, key)
 	}
-	exitTransfer()
 }
 
 // allocateKey allocates MPK keys and tag sections with those keys
@@ -162,8 +152,6 @@ func computePKRU(sandboxKeys map[c.SandId][]int, sandboxProt map[c.SandId][]Prot
 
 // Init relies on domains and packages, they must be initialized before the call
 func Init() {
-	startInit()
-	defer stopInit()
 	WritePKRU(AllRightsPKRU)
 	n := len(g.AllPackages)
 	pkgAppearsIn := make(map[int][]c.SandId, n)
@@ -237,13 +225,6 @@ func Init() {
 			pkgKeys[pkg] = key
 		}
 	}
-
-	// fmt.Println("Sandbox keys:", sbKeys)
-	// fmt.Println("Package groups:", pkgGroups)
-	// fmt.Println("Keys:", keys)
-	// fmt.Println("PKRUs:", sbPKRU)
-	//fmt.Println("PkgSbProt:", pkgSbProt)
-	// fmt.Println("///// Done /////")
 }
 
 func testCompatibility(aID, bID int, a, b []c.SandId, pkgSbProt map[int]map[c.SandId]Prot) bool {
