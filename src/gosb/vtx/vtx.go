@@ -289,3 +289,15 @@ func GetTable() uintptr {
 	commons.Check(ok)
 	return uintptr(unsafe.Pointer(vm.Machine.MemView.Tables))
 }
+
+// For benchmarks
+
+//go:nosplit
+func VTXEntry(do bool, id string) {
+	tryBluepill(do, id)
+}
+
+//go:nosplit
+func VTXExit() (bool, string) {
+	return tryRedpill()
+}
