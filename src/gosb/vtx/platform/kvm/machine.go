@@ -107,6 +107,11 @@ type vCPU struct {
 	Info arch.SignalInfo
 
 	uregs syscall.PtraceRegs
+
+	// Counters for statistics
+	Entries uint64 // # of calls to bluepill
+	Exits   uint64 // # of calls to redpill
+	Escapes uint64 // # of unvoluntary exits, e.g., syscalls
 }
 
 type dieState struct {
@@ -286,4 +291,14 @@ func (c *vCPU) lock() {
 //go:nosplit
 func (c *vCPU) unlock() {
 	atomic.SwapUint32(&c.state, vCPUReady)
+}
+
+func (m *Machine) CollectStats() (uint64, uint64, uint64) {
+	e, ex, es := uint64(0), uint64(0), uint64(0)
+	for _, v := range m.vcpus {
+		e += v.Entries
+		ex += v.Exits
+		es += v.Escapes
+	}
+	return e, ex, es
 }

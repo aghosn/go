@@ -179,6 +179,5 @@ func (m *Machine) retryInGuest(fn func()) {
 			break
 		}
 	}
-	//TODO(aghosn) this or halt?
 	redpill()
 }

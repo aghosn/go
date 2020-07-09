@@ -51,6 +51,7 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 	if *instr == _SYSCALL_INSTR {
 		// It is a redpill.
 		if regs.Rax == ^uint64(0) {
+			vcpu.Exits++
 			return syshandlerBail
 		}
 
@@ -66,6 +67,7 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 			regs.Rdx = uint64(r2)
 		}
 		regs.Rdx = uint64(r2)
+		vcpu.Escapes++
 		return syshandlerValid
 	}
 

@@ -1,6 +1,8 @@
 package vtx
 
 import (
+	"fmt"
+	"gosb/benchmark"
 	"gosb/commons"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
@@ -89,6 +91,7 @@ func Epilog(id commons.SandId) {
 //go:nosplit
 func Transfer(oldid, newid int, start, size uintptr) {
 	tryInHost(func() {
+		benchmark.Bench.BenchEnterTransfer()
 		lunmap, ok := globals.PkgDeps[oldid]
 		lmap, ok1 := globals.PkgDeps[newid]
 		if ok {
@@ -117,6 +120,7 @@ func Transfer(oldid, newid int, start, size uintptr) {
 				}
 			}
 		}
+		benchmark.Bench.BenchExitTransfer()
 	})
 }
 
@@ -300,4 +304,21 @@ func VTXEntry(do bool, id string) {
 //go:nosplit
 func VTXExit() (bool, string) {
 	return tryRedpill()
+}
+
+func Stats() {
+	var (
+		entries uint64 = 0
+		exits   uint64 = 0
+		escapes uint64 = 0
+	)
+
+	// Collect per vcpu statistics
+	for _, m := range machines {
+		e, ex, es := m.Machine.CollectStats()
+		entries += e
+		exits += ex
+		escapes += es
+	}
+	fmt.Printf("entries: %v, exits: %v, escapes: %v\n", entries, exits, escapes)
 }

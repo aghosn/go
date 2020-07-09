@@ -9,8 +9,14 @@ import (
 	"syscall"
 )
 
+// bluepille1 asm to enter guest mode.
+func bluepill1(*vCPU)
+
 // bluepill enters guest mode.
-func bluepill(*vCPU)
+func bluepill(v *vCPU) {
+	v.Entries++
+	bluepill1(v)
+}
 
 // sighandler is the signal entry point.
 func sighandler()

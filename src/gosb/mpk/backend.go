@@ -16,6 +16,11 @@ import (
 var (
 	sbPKRU  map[c.SandId]PKRU
 	pkgKeys map[int]Pkey
+
+	// Statistics
+	entries uint64
+	exits   uint64
+	escapes uint64
 )
 
 // MStart initializes PKRU of new threads
@@ -25,8 +30,13 @@ func MStart() {
 
 // Execute turns on sandbox isolation
 func Execute(id c.SandId) {
+	cid := runtime.GetmSbIds()
 	if id == "" {
+		if cid != id {
+			escapes++
+		}
 		WritePKRU(AllRightsPKRU)
+		runtime.AssignSbId(id, 0)
 		return
 	}
 	pkru, ok := sbPKRU[id]
@@ -34,17 +44,20 @@ func Execute(id c.SandId) {
 		println("[MPK BACKEND]: Could not find pkru")
 		return
 	}
+	entries++
 	WritePKRU(pkru)
+	runtime.AssignSbId(id, 0)
 }
 
 // Prolog initialize isolation of the sandbox
 func Prolog(id c.SandId) {
-	runtime.AssignSbId(id, 0)
 	pkru, ok := sbPKRU[id]
 	if !ok {
 		println("[MPK BACKEND]: Sandbox PKRU not found in prolog")
 		return
 	}
+	entries++
+	runtime.AssignSbId(id, 0)
 	WritePKRU(pkru)
 }
 
@@ -53,6 +66,7 @@ func Epilog(id c.SandId) {
 	runtime.AssignSbId("", 0)
 	// Clean PKRU
 	WritePKRU(AllRightsPKRU)
+	exits++
 }
 
 // Register a page for a given package

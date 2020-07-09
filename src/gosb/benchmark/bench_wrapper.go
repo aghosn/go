@@ -15,16 +15,17 @@ func InitBenchWrapper(b *backend.BackendConfig) (*backend.BackendConfig, *Benchm
 		bench.BenchStopInit()
 	}
 	config.Prolog = func(id c.SandId) {
-		bench.BenchEntrerProlog()
+		bench.BenchProlog(id)
 		b.Prolog(id)
 	}
 	config.Epilog = func(id c.SandId) {
 		b.Epilog(id)
+		bench.BenchEpilog(id)
 	}
 	config.Transfer = func(oldid, newid int, start, size uintptr) {
-		bench.BenchEnterTransfer()
+		//bench.BenchEnterTransfer()
 		b.Transfer(oldid, newid, start, size)
-		bench.BenchExitTransfer()
+		//bench.BenchExitTransfer()
 	}
 	config.Register = func(id int, start, size uintptr) {
 		bench.BenchEnterRegister()
@@ -39,7 +40,16 @@ func InitBenchWrapper(b *backend.BackendConfig) (*backend.BackendConfig, *Benchm
 		b.Mstart()
 	}
 	config.RuntimeGrowth = func(isheap bool, id int, start, size uintptr) {
+		if b.RuntimeGrowth == nil {
+			return
+		}
 		b.RuntimeGrowth(isheap, id, start, size)
+	}
+	config.Stats = func() {
+		if b.Stats == nil {
+			return
+		}
+		b.Stats()
 	}
 
 	return config, bench

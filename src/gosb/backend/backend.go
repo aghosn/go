@@ -17,6 +17,7 @@ type BackendConfig struct {
 	Execute       func(id c.SandId)
 	Mstart        func()
 	RuntimeGrowth func(isheap bool, id int, start, size uintptr)
+	Stats         func()
 }
 
 const (

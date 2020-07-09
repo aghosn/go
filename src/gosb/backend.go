@@ -11,9 +11,9 @@ import (
 // Configurations
 var (
 	configBackends = [be.BACKEND_SIZE]be.BackendConfig{
-		be.BackendConfig{be.SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute, nil, nil},
-		be.BackendConfig{be.VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, nil, vtx.RuntimeGrowth},
-		be.BackendConfig{be.MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute, mpk.MStart, nil},
+		be.BackendConfig{be.SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute, nil, nil, nil},
+		be.BackendConfig{be.VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, nil, vtx.RuntimeGrowth, vtx.Stats},
+		be.BackendConfig{be.MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute, mpk.MStart, nil, nil},
 	}
 )
 
@@ -21,7 +21,6 @@ var (
 var (
 	currBackend  *be.BackendConfig
 	benchmarking bool = false
-	bench        *benchmark.Benchmark
 )
 
 func EnableBenchmarks() {
@@ -31,9 +30,26 @@ func EnableBenchmarks() {
 func initBackend(b be.Backend) {
 	currBackend = &configBackends[b]
 	if benchmarking {
-		currBackend, bench = benchmark.InitBenchWrapper(currBackend)
+		currBackend, benchmark.Bench = benchmark.InitBenchWrapper(currBackend)
 	}
 	if currBackend.Init != nil {
 		currBackend.Init()
 	}
+}
+
+func DumpBenchmarks() {
+	if benchmark.Bench == nil {
+		return
+	}
+	benchmark.Bench.Dump()
+	if currBackend.Stats != nil {
+		currBackend.Stats()
+	}
+}
+
+func ResetBenchmarks() {
+	if benchmark.Bench == nil {
+		return
+	}
+	benchmark.Bench.Reset()
 }

@@ -3,6 +3,7 @@ package benchmark
 import (
 	"fmt"
 	"gosb/backend"
+	"gosb/commons"
 	"os"
 	"strconv"
 	"sync/atomic"
@@ -10,9 +11,10 @@ import (
 )
 
 const (
-	BE_FLAG   = "LITTER"
-	ARG1_FLAG = "ARG1"
-	ARG2_FLAG = "ARG2"
+	BE_FLAG    = "LITTER"
+	BENCH_FLAG = "BENCH"
+	ARG1_FLAG  = "ARG1"
+	ARG2_FLAG  = "ARG2"
 )
 
 type Benchmark struct {
@@ -30,10 +32,12 @@ type Benchmark struct {
 
 var (
 	backends = [backend.BACKEND_SIZE]string{"SIM", "VTX", "MPK"}
+	Bench    *Benchmark
 )
 
-func ParseBenchConfig() (backend.Backend, int, int) {
+func ParseBenchConfig() (backend.Backend, bool, int, int) {
 	befl := os.Getenv(BE_FLAG)
+	bench := os.Getenv(BENCH_FLAG)
 	arg1 := os.Getenv(ARG1_FLAG)
 	arg2 := os.Getenv(ARG2_FLAG)
 	be := backend.BACKEND_SIZE
@@ -51,7 +55,21 @@ func ParseBenchConfig() (backend.Backend, int, int) {
 	if err != nil || err2 != nil {
 		panic("error with arg1 or arg2")
 	}
-	return be, a1, a2
+	instr := false
+	if bench != "" {
+		instr = true
+	}
+	return be, instr, a1, a2
+}
+
+//go:nosplit
+func (b *Benchmark) Reset() {
+	b.transfer = 0
+	b.register = 0
+	b.execute = 0
+	b.prolog = 0
+	b.transferDuration = 0
+	b.registerDuration = 0
 }
 
 //go:nosplit
@@ -70,18 +88,28 @@ func (b *Benchmark) BenchEnterExecute() {
 }
 
 //go:nosplit
-func (b *Benchmark) BenchEntrerProlog() {
+func (b *Benchmark) BenchProlog(id commons.SandId) {
 	atomic.AddUint64(&b.prolog, 1)
 }
 
 //go:nosplit
+func (b *Benchmark) BenchEpilog(id commons.SandId) {
+}
+
+//go:nosplit
 func (b *Benchmark) BenchEnterTransfer() {
+	if b == nil {
+		return
+	}
 	atomic.AddUint64(&b.transfer, 1)
 	b.transferStart = time.Now()
 }
 
 //go:nosplit
 func (b *Benchmark) BenchExitTransfer() {
+	if b == nil {
+		return
+	}
 	b.transferDuration += time.Now().Sub(b.transferStart).Nanoseconds()
 }
 
@@ -98,12 +126,12 @@ func (b *Benchmark) BenchExitRegister() {
 
 // Benchmark prints benchmark results
 func (b *Benchmark) Dump() {
-	fmt.Println("/// MPK backend benchmark ///")
+	fmt.Println("/// Benchmarks ///")
 	fmt.Printf("Initialization: %dμs\n", b.initDuration.Microseconds())
-	fmt.Printf("Number of prolog: %d\n", b.prolog)
-	fmt.Printf("Number of execute: %d\n", b.execute)
-	fmt.Printf("Number of register: %d running for %dμs\n", b.register, toμs(b.registerDuration))
-	fmt.Printf("Number of transfer: %d running for %dμs\n", b.transfer, toμs(b.transferDuration))
+	fmt.Printf("#prolog: %d\n", b.prolog)
+	fmt.Printf("#execute: %d\n", b.execute)
+	fmt.Printf("#register: %d running for %dμs\n", b.register, toμs(b.registerDuration))
+	fmt.Printf("#transfer: %d running for %dμs\n", b.transfer, toμs(b.transferDuration))
 }
 
 //go:nosplit

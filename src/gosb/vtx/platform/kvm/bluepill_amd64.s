@@ -38,7 +38,7 @@
 #define CLI $0xfa
 
 // See bluepill.go.
-TEXT ·bluepill(SB),NOSPLIT,$0
+TEXT ·bluepill1(SB),NOSPLIT,$0
 begin:
 	MOVQ vcpu+0(FP), AX
 	LEAQ VCPU_CPU(AX), BX
