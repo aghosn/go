@@ -28,6 +28,7 @@ type Benchmark struct {
 	registerDuration int64 // ns
 	execute          uint64
 	prolog           uint64
+	growth           uint64
 }
 
 var (
@@ -132,6 +133,7 @@ func (b *Benchmark) Dump() {
 	fmt.Printf("#execute: %d\n", b.execute)
 	fmt.Printf("#register: %d running for %dμs\n", b.register, toμs(b.registerDuration))
 	fmt.Printf("#transfer: %d running for %dμs\n", b.transfer, toμs(b.transferDuration))
+	fmt.Printf("#growth: %d\n", b.growth)
 }
 
 //go:nosplit

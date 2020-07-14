@@ -31,12 +31,15 @@ type PageTableAllocator struct {
 	// Callback to register growth with KVM
 	Register func(uint64, uint64, uint64, uint32)
 
-	// Page allocation can happen durin a register
+	// Page allocation can happen during a register
 	// which prevents dynamic allocation.
 	// If danger is on, that means the VM has been entered
 	// and new Arenas should be taken from these.
 	Danger  bool
 	EMArena [10]*Arena
+
+	// Statistics about the page table allocator
+	NbMMaps uint64
 }
 
 type Arena struct {
@@ -113,6 +116,7 @@ func (pga *PageTableAllocator) NewPTEs() *pg.PTEs {
 func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 	if pga.Current == nil {
 		start, err := commons.Mmap(0, ARENA_TOTAL_SIZE, _DEFAULT_PROTS, _DEFAULT_FLAGS, -1, 0)
+		pga.NbMMaps++
 		commons.Check(err == 0 && (start >= commons.Limit39bits))
 		gpstart := pga.Allocator.Malloc(uint64(ARENA_TOTAL_SIZE))
 		var current *Arena = nil

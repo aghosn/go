@@ -34,6 +34,8 @@ var (
 	MRTEntry  uintptr = 0
 	MRTAddr   uintptr = 0
 	MRTFd     int     = 0
+	MRTMaped  bool    = false
+	MRTValid  bool    = false
 )
 
 //go:nosplit
@@ -103,6 +105,8 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 		MRTAddr, _, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(MRTFault)
 		MRTSpanId = runtime.SpanIdOf(vcpu.FaultAddr)
 		MRTFd = vcpu.machine.fd
+		MRTMaped = vcpu.machine.MemView.Tables.IsMapped(MRTFault)
+		MRTValid = vcpu.machine.ValidAddress(uint64(MRTFault))
 		vcpu.machine.Mu.Unlock()
 		return syshandlerPF
 	}

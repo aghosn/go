@@ -40,6 +40,7 @@ func InitBenchWrapper(b *backend.BackendConfig) (*backend.BackendConfig, *Benchm
 		b.Mstart()
 	}
 	config.RuntimeGrowth = func(isheap bool, id int, start, size uintptr) {
+		bench.growth++
 		if b.RuntimeGrowth == nil {
 			return
 		}
