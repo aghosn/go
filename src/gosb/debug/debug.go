@@ -8,7 +8,7 @@ import (
 // time stamps to see where the code goes. Voila voila.
 
 var (
-	MRTValues  [50]uintptr
+	MRTValues  [100]uintptr
 	MRTIndex   int
 	MRTValues2 [50]uintptr
 	MRTIndex2  int
@@ -21,7 +21,7 @@ var (
 //
 //go:nosplit
 func Reset() {
-	MRTValues = [50]uintptr{}
+	MRTValues = [100]uintptr{}
 	MRTIndex = 0
 }
 

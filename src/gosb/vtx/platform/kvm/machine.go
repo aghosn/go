@@ -163,7 +163,6 @@ func (m *Machine) newVCPU() *vCPU {
 
 //go:nosplit
 func (m *Machine) Replenish() {
-	m.MemView.PTEAllocator.Replenish()
 	m.CreateVCPU()
 	for i := range m.EMR {
 		if m.EMR[i] == nil {

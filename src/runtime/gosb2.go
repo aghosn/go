@@ -12,10 +12,12 @@ type GosbMutex struct {
 	m mutex
 }
 
+//go:nosplit
 func (g *GosbMutex) Lock() {
 	lock(&g.m)
 }
 
+//go:nosplit
 func (g *GosbMutex) Unlock() {
 	unlock(&g.m)
 }

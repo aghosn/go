@@ -1,5 +1,9 @@
 package pagetables
 
+import (
+	"gosb/commons"
+)
+
 // PageTables is a set of page tables.
 type PageTables struct {
 	// Allocator is used to allocate nodes.
@@ -28,4 +32,5 @@ func (p *PageTables) Init(allocator Allocator) {
 	p.Allocator = allocator
 	p.root = p.Allocator.NewPTEs()
 	p.rootPhysical = p.Allocator.PhysicalFor(p.root)
+	commons.Check(p.rootPhysical != ^uintptr(0))
 }

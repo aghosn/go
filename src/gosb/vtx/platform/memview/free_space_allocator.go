@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	ARENA_SIZE       = 10
+	ARENA_SIZE       = 30
 	ARENA_TOTAL_SIZE = uintptr(ARENA_SIZE * commons.PageSize)
 
 	// Handy for mmap
@@ -31,15 +31,24 @@ type PageTableAllocator struct {
 	// Callback to register growth with KVM
 	Register func(uint64, uint64, uint64, uint32)
 
+	// Arenas from other machines, as OArena.
+	Others commons.List
+
 	// Page allocation can happen during a register
 	// which prevents dynamic allocation.
 	// If danger is on, that means the VM has been entered
 	// and new Arenas should be taken from these.
-	Danger  bool
-	EMArena [10]*Arena
+	Danger bool
 
 	// Statistics about the page table allocator
 	NbMMaps uint64
+}
+
+type OArena struct {
+	commons.ListElem
+	A    *Arena
+	GPA  uint64
+	Slot uint32
 }
 
 type Arena struct {
@@ -101,9 +110,6 @@ func (pga *PageTableAllocator) Initialize(allocator *FreeSpaceAllocator) {
 	pga.All.Init()
 	pga.Current = nil
 	pga.Allocator = allocator
-	for i := range pga.EMArena {
-		pga.EMArena[i] = new(Arena)
-	}
 }
 
 //go:nosplit
@@ -116,48 +122,27 @@ func (pga *PageTableAllocator) NewPTEs() *pg.PTEs {
 func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 	if pga.Current == nil {
 		start, err := commons.Mmap(0, ARENA_TOTAL_SIZE, _DEFAULT_PROTS, _DEFAULT_FLAGS, -1, 0)
-		pga.NbMMaps++
 		commons.Check(err == 0 && (start >= commons.Limit39bits))
 		gpstart := pga.Allocator.Malloc(uint64(ARENA_TOTAL_SIZE))
 		var current *Arena = nil
 		if !pga.Danger {
 			current = &Arena{HVA: uint64(start), GPA: gpstart, Slot: ^uint32(0)}
 		} else {
-			current = pga.AcquireEMArena()
-			current.HVA, current.GPA, current.Slot = uint64(start), gpstart, ^uint32(0)
+			panic("Oupsy")
+			//current = pga.AcquireEMArena()
+			//current.HVA, current.GPA, current.Slot = uint64(start), gpstart, ^uint32(0)
 			// register this region with KVM.
-			pga.Register(gpstart, uint64(ARENA_TOTAL_SIZE), uint64(start), 0)
+			//pga.Register(gpstart, uint64(ARENA_TOTAL_SIZE), uint64(start), 0)
 		}
 		pga.All.AddBack(current.ToElem())
 		pga.Current = current
+
 	}
 	pte, addr := pga.Current.Allocate()
 	if pga.Current.Full {
 		pga.Current = nil
 	}
 	return pte, addr
-}
-
-//go:nosplit
-func (pga *PageTableAllocator) AcquireEMArena() *Arena {
-	for i := range pga.EMArena {
-		if pga.EMArena[i] != nil {
-			res := pga.EMArena[i]
-			pga.EMArena[i] = nil
-			return res
-		}
-	}
-	panic("Unable to find a free Arena :(")
-	return nil
-}
-
-//go:nosplit
-func (pga *PageTableAllocator) Replenish() {
-	for i := range pga.EMArena {
-		if pga.EMArena[i] == nil {
-			pga.EMArena[i] = new(Arena)
-		}
-	}
 }
 
 //go:nosplit
@@ -168,8 +153,7 @@ func (pga *PageTableAllocator) PhysicalFor(ptes *pg.PTEs) uintptr {
 			return uintptr(v.HVA2GPA(hva))
 		}
 	}
-	panic("Invalid hva pte.")
-	return 0
+	return ^uintptr(0)
 }
 
 //go:nosplit
@@ -186,6 +170,11 @@ func (pga *PageTableAllocator) LookupPTEs(gpa uintptr) *pg.PTEs {
 //go:nosplit
 func (pga *PageTableAllocator) FreePTEs(ptes *pg.PTEs) {
 	// Nothing to do, we do not free them.
+}
+
+func (pga *PageTableAllocator) AddOArena(o *OArena) {
+	o.GPA = pga.Allocator.Malloc(uint64(ARENA_TOTAL_SIZE))
+	pga.Others.AddBack(o.ToElem())
 }
 
 /*				Arena methods				*/
@@ -247,4 +236,16 @@ func (a *Arena) GPA2HVA(gpa uint64) *pg.PTEs {
 		panic("Index is too damn high!")
 	}
 	return a.PTEs[idx]
+}
+
+/*				OArena methods				*/
+
+//go:nosplit
+func (o *OArena) ToElem() *commons.ListElem {
+	return (*commons.ListElem)(unsafe.Pointer(o))
+}
+
+//go:nosplit
+func ToOArena(e *commons.ListElem) *OArena {
+	return (*OArena)(unsafe.Pointer(e))
 }

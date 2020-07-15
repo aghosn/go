@@ -53,7 +53,7 @@ func Init() {
 			m.Id = d.Config.Id
 			machines[d.Config.Id] = m
 		}
-		//kvmFd.Close()
+		mapAllArenas()
 	})
 }
 
@@ -89,11 +89,19 @@ func Epilog(id commons.SandId) {
 }
 
 //go:nosplit
+func justexec(f func()) {
+	f()
+}
+
+//go:nosplit
 func Transfer(oldid, newid int, start, size uintptr) {
-	tryInHost(func() {
+	justexec(func() {
 		benchmark.Bench.BenchEnterTransfer()
 		lunmap, ok := globals.PkgDeps[oldid]
 		lmap, ok1 := globals.PkgDeps[newid]
+		if !ok && !ok1 {
+			return
+		}
 		if ok {
 			for _, u := range lunmap {
 				if vm, ok2 := machines[u]; ok2 {

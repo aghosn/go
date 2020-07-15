@@ -256,6 +256,45 @@ func (a *AddressSpace) Extend(heap bool, m *MemoryRegion, start, size uint64, pr
 	m.finalized = true
 }
 
+func (a *AddressSpace) MapArenas() {
+	a.PTEAllocator.Danger = true
+	a.PTEAllocator.All.Foreach(func(e *commons.ListElem) {
+		arena := ToArena(e)
+		a.DefaultMap(uintptr(arena.HVA), ARENA_TOTAL_SIZE, uintptr(arena.GPA))
+	})
+	a.PTEAllocator.Others.Foreach(func(e *commons.ListElem) {
+		o := ToOArena(e)
+		a.DefaultMap(uintptr(o.A.HVA), ARENA_TOTAL_SIZE, uintptr(o.GPA))
+	})
+}
+
+func (a *AddressSpace) DefaultMap(start, size, gpa uintptr) {
+	flags := pg.ConvertOpts(commons.R_VAL | commons.USER_VAL | commons.W_VAL)
+	deflags := pg.ConvertOpts(commons.D_VAL)
+	alloc := func(addr uintptr, lvl int) uintptr {
+		if lvl > 0 {
+			_, addr := a.PTEAllocator.NewPTEs2()
+			return uintptr(addr)
+		}
+		gpa := (addr - uintptr(start)) + uintptr(gpa)
+		return gpa
+	}
+	visit := func(va uintptr, pte *pg.PTE, lvl int) {
+		if lvl == 0 {
+			pte.SetFlags(flags)
+			return
+		}
+		pte.SetFlags(deflags)
+	}
+	visitor := pg.Visitor{
+		Applies: [4]bool{true, true, true, true},
+		Create:  true,
+		Alloc:   alloc,
+		Visit:   visit,
+	}
+	a.Tables.Map(start, size, &visitor)
+}
+
 /*				MemoryRegion methods				*/
 
 //go:nosplit
