@@ -23,6 +23,7 @@ var (
 	// Useful maps for quick access
 	idToPkg map[int]string = nil
 	pkgToId map[string]int = nil
+	rtIds   map[int]int    = nil
 
 	// Helper function that parses function names
 	nameToPkg func(string) string = nil
@@ -50,6 +51,7 @@ func sandbox_epilog(id, mem, syscalls string) {
 }
 
 func LitterboxHooks(
+	rt map[int]int,
 	m map[string]int,
 	f func(uintptr) int,
 	ff func(string) string,
@@ -63,9 +65,13 @@ func LitterboxHooks(
 ) {
 	idToPkg = make(map[int]string)
 	pkgToId = make(map[string]int)
+	rtIds = make(map[int]int)
 	for k, v := range m {
 		idToPkg[v] = k
 		pkgToId[k] = v
+	}
+	for k, v := range rt {
+		rtIds[k] = v
 	}
 	pcToPkg = f
 	nameToPkg = ff

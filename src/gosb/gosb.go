@@ -27,6 +27,7 @@ func Initialize(b backend.Backend) {
 		loadPackages()
 		loadSandboxes()
 		updateTrusted()
+		globals.AggregatePackages()
 		initBackend(b)
 		initPcToPkg()
 		initRuntime()
@@ -41,6 +42,7 @@ func initRuntime() {
 		globals.NameToId[k] = d.Id
 	}
 	runtime.LitterboxHooks(
+		globals.RtIds,
 		globals.NameToId,
 		PcToId,
 		getPkgName,
@@ -360,7 +362,7 @@ func PcToId(pc uintptr) int {
 }
 
 func PrintInformation() {
-	for _, s := range globals.Sandboxes {
+	/*for _, s := range globals.Sandboxes {
 		fmt.Println(s.Config.Func)
 		s.Static.Print()
 	}
@@ -374,5 +376,12 @@ func PrintInformation() {
 		}
 	} else {
 		fmt.Println("No cgo2?")
+	}*/
+	for _, s := range globals.Sandboxes {
+		fmt.Printf("%v: ", s.Config.Id)
+		fmt.Printf("%v\n", s.View)
+	}
+	for _, s := range globals.AllPackages {
+		fmt.Println(s.Name, "-->", s.Id)
 	}
 }

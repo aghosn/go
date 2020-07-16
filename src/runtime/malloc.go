@@ -879,6 +879,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 		throw("mallocgc called with gcphase == _GCmarktermination")
 	}
 
+	// Aggregate packages
+	if bloatInitDone && rtIds != nil {
+		id2, ok := rtIds[id]
+		if ok {
+			id = id2
+		}
+	}
+
 	// Check if we are in a pristine sandbox
 	if g := getg(); g.pristine && g.pristineid != 0 && id != 0 {
 		id = g.pristineid

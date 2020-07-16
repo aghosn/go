@@ -128,7 +128,7 @@ func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 		if !pga.Danger {
 			current = &Arena{HVA: uint64(start), GPA: gpstart, Slot: ^uint32(0)}
 		} else {
-			panic("Oupsy")
+			panic("Ran out of arenas for page tables")
 			//current = pga.AcquireEMArena()
 			//current.HVA, current.GPA, current.Slot = uint64(start), gpstart, ^uint32(0)
 			// register this region with KVM.
