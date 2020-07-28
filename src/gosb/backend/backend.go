@@ -26,3 +26,11 @@ const (
 	MPK_BACKEND  Backend = iota
 	BACKEND_SIZE Backend = iota
 )
+
+var (
+	BackendNames = []string{
+		"SIM",
+		"VTX",
+		"MPK",
+	}
+)

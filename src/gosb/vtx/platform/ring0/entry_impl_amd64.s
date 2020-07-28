@@ -257,8 +257,8 @@ user:
 	MOVQ CPU_SELF(GS), AX   // Load vCPU.
 	PUSHQ AX                // First argument (vCPU).
 	CALL ·kernelSyscall(SB) // Call the trampoline.
-	MOVQ CR3, AX
-	MOVQ AX, CR3
+	//MOVQ CR3, AX
+	//MOVQ AX, CR3
 	POPQ AX                 // Pop vCPU.
 	JMP ·resumeUser(SB)
 kernel:
@@ -278,8 +278,8 @@ kernel:
 	MOVQ CPU_SELF(GS), AX   // Load vCPU.
 	PUSHQ AX                // First argument (vCPU).
 	CALL ·kernelSyscall(SB) // Call the trampoline.
-	MOVQ CR3, AX
-	MOVQ AX, CR3
+	//MOVQ CR3, AX
+	//MOVQ AX, CR3
 	POPQ AX                 // Pop vCPU.
 	JMP ·resume(SB)
 
@@ -333,8 +333,8 @@ user:
 	PUSHQ BX                  // Second argument (vector).
 	PUSHQ AX                  // First argument (vCPU).
 	CALL ·kernelException(SB) // Call the trampoline.
-	MOVQ CR3, AX
-	MOVQ AX, CR3
+	//MOVQ CR3, AX
+	//MOVQ AX, CR3
 	POPQ BX                   // Pop vector.
 	POPQ AX                   // Pop vCPU.
 	JMP ·resumeUser(SB)
@@ -361,8 +361,8 @@ kernel:
 	PUSHQ BX                  // Second argument (vector).
 	PUSHQ AX                  // First argument (vCPU).
 	CALL ·kernelException(SB) // Call the trampoline.
-	MOVQ CR3, AX
-	MOVQ AX, CR3
+	//MOVQ CR3, AX
+	//MOVQ AX, CR3
 	POPQ BX                   // Pop vector.
 	POPQ AX                   // Pop vCPU.
 	JMP ·resume(SB)

@@ -105,9 +105,9 @@ func Transfer(oldid, newid int, start, size uintptr) {
 		if ok {
 			for _, u := range lunmap {
 				if vm, ok2 := machines[u]; ok2 {
-					vm.Machine.Mu.Lock()
+					//vm.Machine.Mu.Lock()
 					vm.Unmap(start, size)
-					vm.Machine.Mu.Unlock()
+					//vm.Machine.Mu.Unlock()
 				}
 			}
 		}
@@ -117,13 +117,13 @@ func Transfer(oldid, newid int, start, size uintptr) {
 				if vm, ok2 := machines[m]; ok2 {
 					// Map with the correct view.
 					if prot, ok := vm.Sand.View[newid]; ok {
-						vm.Machine.Mu.Lock()
+						//vm.Machine.Mu.Lock()
 						vm.Map(start, size, prot&commons.HEAP_VAL)
-						vm.Machine.Mu.Unlock()
+						//vm.Machine.Mu.Unlock()
 					} else if newid != 0 && newid == vm.Pid {
-						vm.Machine.Mu.Lock()
+						//vm.Machine.Mu.Lock()
 						vm.Map(start, size, commons.HEAP_VAL)
-						vm.Machine.Mu.Unlock()
+						//vm.Machine.Mu.Unlock()
 					}
 				}
 			}
@@ -169,15 +169,16 @@ func Register(id int, start, size uintptr) {
 //
 //go:nosplit
 func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
-	tryInHost(
+	//tryInHost(
+	justexec(
 		func() {
 			lmap, ok := globals.PkgDeps[id]
 			if ok {
 				for _, m := range lmap {
 					if vm, ok1 := machines[m]; ok1 {
-						vm.Machine.Mu.Lock()
+						//vm.Machine.Mu.Lock()
 						vm.ExtendRuntime(isheap, start, size, commons.HEAP_VAL)
-						vm.Machine.Mu.Unlock()
+						//vm.Machine.Mu.Unlock()
 					}
 				}
 			}
@@ -206,7 +207,7 @@ func Execute(id commons.SandId) {
 		runtime.AssignSbId(id, 0)
 		return
 	}
-	// We are outside the VM, scheduling something outside.
+	// We are outside the VM, scheduling something inside.
 	if msbid == "" && id != "" {
 		prolog_internal(id, false)
 		return

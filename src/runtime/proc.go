@@ -3488,6 +3488,10 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 		casgstatus(newg, _Gidle, _Gdead)
 		allgadd(newg) // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
 	}
+	// @aghosn transitivity of environment.
+	newg.sbid = _g_.sbid
+	newg.pristine = _g_.pristine
+	newg.pristineid = _g_.pristineid
 	if newg.stack.hi == 0 {
 		throw("newproc1: newg missing stack")
 	}

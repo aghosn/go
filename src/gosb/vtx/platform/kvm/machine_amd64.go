@@ -24,7 +24,9 @@ func (m *Machine) initArchState() error {
 		recover()
 		debug.SetPanicOnFault(old)
 	}()
-	m.CreateVCPU()
+	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+		m.CreateVCPU()
+	}
 	m.retryInGuest(func() {
 		ring0.SetCPUIDFaulting(true)
 	})

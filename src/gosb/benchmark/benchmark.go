@@ -5,6 +5,7 @@ import (
 	"gosb/backend"
 	"gosb/commons"
 	"os"
+	"sort"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -122,7 +123,7 @@ func (b *Benchmark) BenchEnterRegister() {
 
 //go:nosplit
 func (b *Benchmark) BenchExitRegister() {
-	b.registerDuration += time.Now().Sub(b.registerStart).Nanoseconds()
+	b.registerDuration += time.Since(b.registerStart).Nanoseconds()
 }
 
 // Benchmark prints benchmark results
@@ -139,4 +140,24 @@ func (b *Benchmark) Dump() {
 //go:nosplit
 func toμs(ns int64) int64 {
 	return ns / 1000
+}
+
+func ComputeMedian(vals []time.Duration, repeat float64) string {
+	if vals == nil || len(vals) == 0 {
+		return ""
+	}
+	values := toValues(vals, repeat, true)
+	mid := len(values) / 2
+	return fmt.Sprintf("median: %v, min: %v, max: %v (us)\n", values[mid], values[0], values[len(values)-1])
+}
+
+func toValues(vals []time.Duration, repeat float64, srt bool) []float64 {
+	values := make([]float64, len(vals))
+	for i := range vals {
+		values[i] = float64(vals[i].Microseconds()) / repeat
+	}
+	if srt {
+		sort.Float64s(values)
+	}
+	return values
 }

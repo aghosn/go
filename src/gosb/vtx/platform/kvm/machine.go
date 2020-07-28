@@ -127,7 +127,6 @@ type dieState struct {
 
 func (m *Machine) newVCPU() *vCPU {
 	id := len(m.vcpus)
-
 	// Create the vCPU.
 	fd, errno := commons.Ioctl(m.fd, _KVM_CREATE_VCPU, uintptr(id))
 	if errno != 0 {
@@ -163,7 +162,6 @@ func (m *Machine) newVCPU() *vCPU {
 
 //go:nosplit
 func (m *Machine) Replenish() {
-	m.CreateVCPU()
 	for i := range m.EMR {
 		if m.EMR[i] == nil {
 			m.EMR[i] = &mv.MemoryRegion{}
