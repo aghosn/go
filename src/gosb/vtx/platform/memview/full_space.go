@@ -74,7 +74,7 @@ func ParseProcessAddressSpace(defProt uint8) []*commons.VMArea {
 	tvmas := strings.Split(string(dat), "\n")
 	vmareas := make([]*commons.VMArea, 0)
 	for _, v := range tvmas {
-		if len(v) == 0 {
+		if len(v) == 0 || strings.Contains(v, "vsyscall") {
 			continue
 		}
 		fields := strings.Fields(v)
