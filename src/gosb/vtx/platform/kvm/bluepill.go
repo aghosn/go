@@ -82,7 +82,7 @@ func (c *vCPU) die(context *arch.SignalContext64, msg string) {
 	// Setup the trampoline.
 	dieArchSetup(c, context, &c.dieState.guestRegs)
 }
-func init() {
+func KVMInit() {
 	// Install the handler.
 	if err := commons.ReplaceSignalHandler(bluepillSignal, reflect.ValueOf(sighandler).Pointer(), &savedHandler); err != nil {
 		log.Fatalf("Unable to set handler for signal %d: %v", bluepillSignal, err)

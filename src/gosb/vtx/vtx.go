@@ -29,6 +29,7 @@ var (
 
 func Init() {
 	kvmOnce.Do(func() {
+		kvm.KVMInit()
 		// Initialize the full memory templates.
 		mv.InitFullMemoryView()
 		var err error
