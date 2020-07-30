@@ -130,11 +130,11 @@ func (b *Benchmark) BenchExitRegister() {
 func (b *Benchmark) Dump() {
 	fmt.Println("/// Benchmarks ///")
 	fmt.Printf("Initialization: %dμs\n", b.initDuration.Microseconds())
-	fmt.Printf("#prolog: %d\n", b.prolog)
-	fmt.Printf("#execute: %d\n", b.execute)
-	fmt.Printf("#register: %d running for %dμs\n", b.register, toμs(b.registerDuration))
-	fmt.Printf("#transfer: %d running for %dμs\n", b.transfer, toμs(b.transferDuration))
-	fmt.Printf("#growth: %d\n", b.growth)
+	fmt.Printf("prolog: %d ", b.prolog)
+	fmt.Printf("execute: %d ", b.execute)
+	fmt.Printf("register: %d  (%dμs) ", b.register, toμs(b.registerDuration))
+	fmt.Printf("transfer: %d (%dμs) ", b.transfer, toμs(b.transferDuration))
+	fmt.Printf("growth: %d\n\n", b.growth)
 }
 
 //go:nosplit
@@ -148,7 +148,7 @@ func ComputeMedian(vals []time.Duration, repeat float64) string {
 	}
 	values := toValues(vals, repeat, true)
 	mid := len(values) / 2
-	return fmt.Sprintf("median: %v, min: %v, max: %v (us)\n", values[mid], values[0], values[len(values)-1])
+	return fmt.Sprintf("median: %v, min: %v, max: %v (us)", values[mid], values[0], values[len(values)-1])
 }
 
 func toValues(vals []time.Duration, repeat float64, srt bool) []float64 {

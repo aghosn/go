@@ -69,9 +69,9 @@ func New(fd int, d *commons.SandboxMemory, template *mv.AddressSpace) *KVM {
 		log.Fatalf("error creating the machine: %v\n", err)
 	}
 	kvm := &KVM{Machine: machine, Sand: d, Id: d.Config.Id}
-	for i := range kvm.Machine.EMR {
-		kvm.Machine.EMR[i] = &mv.MemoryRegion{}
-		kvm.Machine.EMR[i].Bitmap = make([]uint64, mv.HEAP_BITMAP)
+	for i := range kvm.Machine.MemView.EMR {
+		kvm.Machine.MemView.EMR[i] = &mv.MemoryRegion{}
+		kvm.Machine.MemView.EMR[i].Bitmap = make([]uint64, mv.HEAP_BITMAP)
 	}
 	return kvm
 }
@@ -91,7 +91,7 @@ func (k *KVM) ExtendRuntime(heap bool, start, size uintptr, prot uint8) {
 		return
 	}
 	// We have to map a new region.
-	m := k.Machine.AcquireEMR()
+	m := k.Machine.MemView.AcquireEMR()
 	var err syscall.Errno
 	k.Machine.MemView.Extend(heap, m, uint64(start), uint64(size), prot)
 	m.Span.Slot, err = k.Machine.setEPTRegion(

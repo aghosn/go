@@ -53,8 +53,6 @@ func bluepillHandler(context unsafe.Pointer) {
 	// Mark this as guest mode.
 	switch atomic.SwapUint32(&c.state, vCPUGuest|vCPUUser) {
 	case vCPUUser: // Expected case.
-	case vCPUUser | vCPUWaiter:
-		throw("Unimplemented") //	c.notify()
 	case 0:
 		throw("Faulty Faulty Faulty")
 	default:
@@ -153,8 +151,6 @@ func bluepillHandler(context unsafe.Pointer) {
 				user := atomic.LoadUint32(&c.state) & vCPUUser
 				switch atomic.SwapUint32(&c.state, user) {
 				case user | vCPUGuest: // Expected case.
-				case user | vCPUGuest | vCPUWaiter:
-					panic("TODO implement") //c.notify()
 				default:
 					throw("invalid state")
 				}

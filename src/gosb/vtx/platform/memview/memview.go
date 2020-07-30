@@ -54,6 +54,9 @@ type AddressSpace struct {
 	Tables       *pg.PageTables      // Page table as in ring0
 
 	NextSlot uint32 // EPT mappings slots.
+
+	// Used for emergency runtime growth
+	EMR [20]*MemoryRegion
 }
 
 /*				AddressSpace methods				*/
@@ -213,7 +216,9 @@ func (a *AddressSpace) Toggle(on bool, start, size uintptr, prot uint8) {
 	}
 	// We did not have a match, check if we should add something.
 	if on {
-		a.Extend(false, nil, uint64(start), uint64(size), prot)
+		// Its dangerous so only call with an acquired EMR.
+		m := a.AcquireEMR()
+		a.Extend(false, m, uint64(start), uint64(size), prot)
 	}
 }
 
@@ -293,6 +298,19 @@ func (a *AddressSpace) DefaultMap(start, size, gpa uintptr) {
 		Visit:   visit,
 	}
 	a.Tables.Map(start, size, &visitor)
+}
+
+//go:nosplit
+func (a *AddressSpace) AcquireEMR() *MemoryRegion {
+	for i := range a.EMR {
+		if a.EMR[i] != nil {
+			result := a.EMR[i]
+			a.EMR[i] = nil
+			return result
+		}
+	}
+	panic("Unable to acquire a new memory region :(")
+	return nil
 }
 
 /*				MemoryRegion methods				*/

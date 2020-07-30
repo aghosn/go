@@ -183,3 +183,9 @@ func SpanIdOf(addr uintptr) int {
 	}
 	return span.id
 }
+
+//go:nosplit
+func GosbSpanOf(addr uintptr) (uintptr, uintptr, int) {
+	span := spanOf(addr)
+	return span.startAddr, span.npages, span.id
+}

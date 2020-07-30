@@ -35,9 +35,6 @@ type Machine struct {
 
 	Start uintptr
 
-	// Used for emergency runtime growth
-	EMR [20]*mv.MemoryRegion
-
 	// For address space extension.
 	Mu runtime.GosbMutex
 }
@@ -52,10 +49,7 @@ const (
 	// vCPUGuest indicates the vCPU is in guest mode.
 	vCPUGuest uint32 = 1 << 1
 
-	// vCPUWaiter indicates that there is a waiter.
-	//
-	// If this is set, then notify must be called on any state transitions.
-	vCPUWaiter uint32 = 1 << 2
+	cpuScale = 2
 )
 
 // vCPU is a single KVM vCPU.
@@ -162,25 +156,15 @@ func (m *Machine) newVCPU() *vCPU {
 
 //go:nosplit
 func (m *Machine) Replenish() {
-	for i := range m.EMR {
-		if m.EMR[i] == nil {
-			m.EMR[i] = &mv.MemoryRegion{}
-			m.EMR[i].Bitmap = make([]uint64, mv.HEAP_BITMAP)
+	for i := range m.MemView.EMR {
+		if m.MemView.EMR[i] == nil {
+			m.MemView.EMR[i] = &mv.MemoryRegion{}
+			if m.MemView.EMR[i] == nil {
+				panic("Allocation failed??")
+			}
+			m.MemView.EMR[i].Bitmap = make([]uint64, mv.HEAP_BITMAP)
 		}
 	}
-}
-
-//go:nosplit
-func (k *Machine) AcquireEMR() *mv.MemoryRegion {
-	for i := range k.EMR {
-		if k.EMR[i] != nil {
-			result := k.EMR[i]
-			k.EMR[i] = nil
-			return result
-		}
-	}
-	panic("Unable to acquire a new memory region :(")
-	return nil
 }
 
 //go:nosplit
@@ -215,7 +199,7 @@ func newMachine(vm int, d *commons.SandboxMemory, template *mv.AddressSpace) (*M
 	memview.Seal()
 	m.Start = reflect.ValueOf(ring0.Start).Pointer()
 	m.kernel.Init(ring0.KernelOpts{PageTables: memview.Tables})
-	m.maxVCPUs = runtime.GOMAXPROCS(0)
+	m.maxVCPUs = runtime.GOMAXPROCS(0) * cpuScale
 	maxVCPUs, errno := commons.Ioctl(m.fd, _KVM_CHECK_EXTENSION, _KVM_CAP_MAX_VCPUS)
 	if errno != 0 && maxVCPUs < m.maxVCPUs {
 		m.maxVCPUs = _KVM_NR_VCPUS

@@ -102,10 +102,12 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 			}
 		}
 		MRTFault = vcpu.FaultAddr
-		MRTAddr, _, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(MRTFault)
+		MRTMaped = vcpu.machine.MemView.Tables.IsMapped(MRTFault)
+		if MRTMaped {
+			MRTAddr, _, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(MRTFault)
+		}
 		MRTSpanId = runtime.SpanIdOf(vcpu.FaultAddr)
 		MRTFd = vcpu.machine.fd
-		MRTMaped = vcpu.machine.MemView.Tables.IsMapped(MRTFault)
 		MRTValid = vcpu.machine.ValidAddress(uint64(MRTFault))
 		vcpu.machine.Mu.Unlock()
 		return syshandlerPF

@@ -24,7 +24,7 @@ func (m *Machine) initArchState() error {
 		recover()
 		debug.SetPanicOnFault(old)
 	}()
-	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+	for i := 0; i < m.maxVCPUs; i++ {
 		m.CreateVCPU()
 	}
 	m.retryInGuest(func() {
