@@ -4,8 +4,8 @@ import (
 	"unsafe"
 )
 
-// Set to 1 if env var GOSB_BACKEND=MPK, set to 0 otherwise
-var isMPK = -1
+// Set to true if LITTER=MPK, set to 0 otherwise
+var isMPK bool = false
 
 // WritePKRU updates the value of the PKRU
 func WritePKRU(prot uint32)

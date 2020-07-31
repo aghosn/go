@@ -564,6 +564,10 @@ func schedinit() {
 	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
 	}
+	if gogetenv("LITTER") == "MPK" {
+		WritePKRU(0)
+		isMPK = true
+	}
 	if procresize(procs) != nil {
 		throw("unknown runnable goroutine during bootstrap")
 	}
@@ -1184,15 +1188,8 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 //go:nosplit
 //go:nowritebarrierrec
 func mstart() {
-	if isMPK == 1 || isMPK == -1 {
-		if isMPK == 1 {
-			WritePKRU(0)
-		} else if gogetenv("GOSB_BACKEND") == "MPK" {
-			isMPK = 1
-			WritePKRU(0)
-		} else {
-			isMPK = 0
-		}
+	if isMPK {
+		WritePKRU(0)
 	}
 	_g_ := getg()
 

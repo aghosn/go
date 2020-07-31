@@ -29,6 +29,7 @@ func MStart() {
 }
 
 // Execute turns on sandbox isolation
+//go:nosplit
 func Execute(id c.SandId) {
 	cid := runtime.GetmSbIds()
 	if id == "" {
@@ -41,7 +42,7 @@ func Execute(id c.SandId) {
 	}
 	pkru, ok := sbPKRU[id]
 	if !ok {
-		println("[MPK BACKEND]: Could not find pkru")
+		println("[MPK BACKEND]: Could not find pkru ", id)
 		return
 	}
 	entries++
@@ -50,6 +51,7 @@ func Execute(id c.SandId) {
 }
 
 // Prolog initialize isolation of the sandbox
+//go:nosplit
 func Prolog(id c.SandId) {
 	pkru, ok := sbPKRU[id]
 	if !ok {
@@ -62,6 +64,7 @@ func Prolog(id c.SandId) {
 }
 
 // Epilog is called at the end of the execution of a given sandbox
+//go:nosplit
 func Epilog(id c.SandId) {
 	runtime.AssignSbId("", 0)
 	// Clean PKRU
@@ -70,6 +73,7 @@ func Epilog(id c.SandId) {
 }
 
 // Register a page for a given package
+//go:nosplit
 func Register(id int, start, size uintptr) {
 	if id == 0 || id == -1 { // Runtime
 		return
@@ -84,6 +88,7 @@ func Register(id int, start, size uintptr) {
 }
 
 // Transfer a page from one package to another
+//go:nosplit
 func Transfer(oldid, newid int, start, size uintptr) {
 	if oldid == newid {
 		return
@@ -128,8 +133,7 @@ func tagPackage(id int, key Pkey) {
 	}
 
 	for _, section := range pkg.Sects {
-		if section.Size > 0 {
-			// fmt.Printf("section %06x + %06x -- pkg %02d ~ %s\n", section.Addr, section.Addr+section.Size, id, pkg.Name)
+		if section.Addr != 0 && section.Size > 0 {
 			sysProt := getSectionProt(section)
 			PkeyMprotect(uintptr(section.Addr), section.Size, sysProt, key)
 		}

@@ -362,26 +362,45 @@ func PcToId(pc uintptr) int {
 }
 
 func PrintInformation() {
-	/*for _, s := range globals.Sandboxes {
+	for _, s := range globals.Sandboxes {
 		fmt.Println(s.Config.Func)
 		s.Static.Print()
-	}
-	pkgs, ok := globals.NameToPkg["runtime/cgo2"]
-	if ok {
-		fmt.Println("runtime/cgo2")
-		for _, s := range pkgs.Sects {
-			if s.Addr != 0 {
-				fmt.Printf("%x -- %x[%x]\n", s.Addr, s.Addr+s.Size, s.Prot)
+		for p, _ := range s.View {
+			name, ok := globals.IdToPkg[p]
+			if !ok {
+				panic(fmt.Sprintf("no name for: %d", p))
 			}
+			fmt.Printf("%v ", name.Name)
 		}
-	} else {
-		fmt.Println("No cgo2?")
-	}*/
-	for _, s := range globals.Sandboxes {
+		fmt.Println()
+		pk, ok := globals.NameToPkg["gosb/mpk"]
+		if !ok {
+			panic("Oh come on we have mpk")
+		}
+		fmt.Println("The mpk package sections")
+		for _, s := range pk.Sects {
+			if s.Addr == 0 && s.Size == 0 {
+				continue
+			}
+			fmt.Printf("%x -+- %x [%x]\n", s.Addr, s.Addr+s.Size, s.Prot)
+		}
+	} /*
+		pkgs, ok := globals.NameToPkg["runtime/cgo2"]
+		if ok {
+			fmt.Println("runtime/cgo2")
+			for _, s := range pkgs.Sects {
+				if s.Addr != 0 {
+					fmt.Printf("%x -- %x[%x]\n", s.Addr, s.Addr+s.Size, s.Prot)
+				}
+			}
+		} else {
+			fmt.Println("No cgo2?")
+		}*/
+	/*for _, s := range globals.Sandboxes {
 		fmt.Printf("%v: ", s.Config.Id)
 		fmt.Printf("%v\n", s.View)
 	}
 	for _, s := range globals.AllPackages {
 		fmt.Println(s.Name, "-->", s.Id)
-	}
+	}*/
 }
