@@ -25,7 +25,7 @@ type Machine struct {
 	kernel ring0.Kernel
 
 	// @aghosn mutex for us
-	mu runtime.GosbMutex
+	//mu runtime.GosbMutex
 
 	// vcpus available to this machine
 	vcpus map[int]*vCPU
@@ -78,10 +78,6 @@ type vCPU struct {
 
 	// machine associated with this vCPU.
 	machine *Machine
-
-	// active is the current addressSpace: this is set and read atomically,
-	// it is used to elide unnecessary interrupts due to invalidations.
-	active atomicAddressSpace
 
 	// vCPUArchState is the architecture-specific state.
 	vCPUArchState
@@ -218,7 +214,7 @@ func newMachine(vm int, d *commons.SandboxMemory, template *mv.AddressSpace) (*M
 // This should only be called in a normal go state as it does allocation
 // and hence will split the stack.
 func (m *Machine) CreateVCPU() {
-	m.mu.Lock()
+	m.Mu.Lock()
 	if len(m.vcpus) < m.maxVCPUs {
 		id := len(m.vcpus)
 		if _, ok := m.vcpus[id]; ok {
@@ -226,17 +222,17 @@ func (m *Machine) CreateVCPU() {
 		}
 		_ = m.newVCPU()
 	}
-	m.mu.Unlock()
+	m.Mu.Unlock()
 }
 
 // returns with os thread locked
 //go:nosplit
 func (m *Machine) Get() *vCPU {
-	m.mu.Lock()
+	m.Mu.Lock()
 	runtime.LockOSThread()
 	for _, c := range m.vcpus {
 		if atomic.CompareAndSwapUint32(&c.state, vCPUReady, vCPUUser) {
-			m.mu.Unlock()
+			m.Mu.Unlock()
 			tid := procid.Current()
 			c.loadSegments(tid)
 			return c
@@ -245,10 +241,10 @@ func (m *Machine) Get() *vCPU {
 	// Failure, should be impossible.
 	runtime.UnlockOSThread()
 	if len(m.vcpus) < m.maxVCPUs {
-		m.mu.Unlock()
+		m.Mu.Unlock()
 		panic("Unable to get a cpu but still have space.")
 	}
-	m.mu.Unlock()
+	m.Mu.Unlock()
 	panic("Unable to get a cpu")
 	return nil
 }

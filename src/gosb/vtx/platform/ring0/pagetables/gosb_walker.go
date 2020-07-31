@@ -2,6 +2,7 @@ package pagetables
 
 import (
 	gc "gosb/commons"
+	"unsafe"
 )
 
 /**
@@ -118,6 +119,21 @@ func (p *PageTables) FindMapping(addr uintptr) (uintptr, uintptr, uintptr) {
 	page := p.Allocator.LookupPTEs(pte[s2].Address())
 	gc.Check(page != nil)
 	return page[s1].Address(), page[s1].Flags(), uintptr(page[s1])
+}
+
+//go:nosplit
+func (p *PageTables) FindPages(addr uintptr) (uintptr, uintptr, uintptr, uintptr) {
+	addr = addr - (addr % gc.PageSize)
+	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
+	s2, _ := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
+	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())
+	gc.Check(pdpte != nil)
+	pte := p.Allocator.LookupPTEs(pdpte[s3].Address())
+	gc.Check(pte != nil)
+	page := p.Allocator.LookupPTEs(pte[s2].Address())
+	gc.Check(page != nil)
+	return uintptr(unsafe.Pointer(p.root)), uintptr(unsafe.Pointer(pdpte)),
+		uintptr(unsafe.Pointer(pte)), uintptr(unsafe.Pointer(pte))
 }
 
 //go:nosplit
