@@ -52,15 +52,15 @@ var (
 // redpill invokes a syscall with -1.
 //
 //go:nosplit
-func redpill() {
-	syscall.RawSyscall(^uintptr(0), 0x111, 0x222, 0x333)
+func redpill(tag uintptr) {
+	syscall.RawSyscall(^uintptr(0), tag /*0x111*/, 0x222, 0x333)
 }
 
 // Redpill invokes a syscall with -1
 //
 //go:nosplit
-func Redpill() {
-	redpill()
+func Redpill(tag uintptr) {
+	redpill(tag)
 }
 
 // dieHandler is called by dieTrampoline.

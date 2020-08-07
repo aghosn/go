@@ -78,10 +78,17 @@ func LitterboxHooks(
 	transferSection = t
 	registerSection = r
 	runtimeGrowth = g
+	//TODO debugging remove afterwards
+	gcMarkAddr = funcPC(gcBgMarkWorker)
+	timerProcAddr = funcPC(timerproc)
+	bgsweepAddr = funcPC(bgsweep)
+	bgscavengeAddr = funcPC(bgscavenge)
+
 	executeSandbox = e
 	prologHook = prolog
 	epilogHook = epilog
 	mstartHook = mstart
+
 	bloatInitDone = true
 }
 

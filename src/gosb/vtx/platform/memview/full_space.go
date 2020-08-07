@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	FullAddressSpace     *commons.VMAreas = nil
-	AddressSpaceTemplate *AddressSpace    = nil
+	Full       *commons.VMAreas = nil
+	ASTemplate *AddressSpace    = nil
 
 	// Due to concurrency issue, we might have delayed updates between
 	// initialization of the full memory view, and setting up the hooks
@@ -31,11 +31,12 @@ func InitFullMemoryView() {
 	// Register the hook with the runtime.
 	runtime.RegisterEmergencyGrowth(EmergencyGrowth)
 
-	FullAddressSpace = commons.Convert(fvmas)
+	Full = commons.Convert(fvmas)
 
 	// Generate the address space.
-	AddressSpaceTemplate = &AddressSpace{}
-	AddressSpaceTemplate.Initialize(FullAddressSpace)
+	ASTemplate = &AddressSpace{}
+	//ASTemplate.Tables = pg.New(ASTemplate.PTEAllocator)
+	ASTemplate.Initialize(Full)
 }
 
 //go:nosplit

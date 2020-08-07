@@ -2,7 +2,7 @@ package vtx
 
 import (
 	"fmt"
-	"gosb/benchmark"
+	//"gosb/benchmark"
 	"gosb/commons"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
@@ -25,6 +25,12 @@ var (
 	kvmFd     *os.File
 	machines  map[commons.SandId]*kvm.KVM
 	pristines map[commons.SandId][]*kvm.KVM
+
+	// Full address space referenced by everyone.
+	Full *mv.AddressSpace = nil
+
+	//Debugging
+	Translock uint64 = 0
 )
 
 func Init() {
@@ -50,7 +56,7 @@ func Init() {
 			if d.Config.Id == "-1" {
 				continue
 			}
-			m := kvm.New(int(kvmFd.Fd()), d, mv.AddressSpaceTemplate)
+			m := kvm.New(int(kvmFd.Fd()), d, mv.ASTemplate)
 			m.Id = d.Config.Id
 			machines[d.Config.Id] = m
 		}
@@ -96,20 +102,22 @@ func justexec(f func()) {
 
 //go:nosplit
 func Transfer(oldid, newid int, start, size uintptr) {
-	tryInHost(func() {
+	justexec(func() {
 		if oldid == newid {
 			panic("Useless transfer")
 		}
-		benchmark.Bench.BenchEnterTransfer()
+		//benchmark.Bench.BenchEnterTransfer()
 		lunmap, ok := globals.PkgDeps[oldid]
 		lmap, ok1 := globals.PkgDeps[newid]
 		if !ok && !ok1 {
 			return
 		}
+		atomic.AddUint64(&kvm.MRTTrans, 1)
 		if ok {
 			for _, u := range lunmap {
 				if vm, ok2 := machines[u]; ok2 {
 					vm.Machine.Mu.Lock()
+					atomic.AddUint64(&Translock, 1)
 					vm.Unmap(start, size)
 					vm.Machine.Mu.Unlock()
 				}
@@ -122,17 +130,19 @@ func Transfer(oldid, newid int, start, size uintptr) {
 					// Map with the correct view.
 					if prot, ok := vm.Sand.View[newid]; ok {
 						vm.Machine.Mu.Lock()
+						atomic.AddUint64(&Translock, 1)
 						vm.Map(start, size, prot&commons.HEAP_VAL)
 						vm.Machine.Mu.Unlock()
 					} else if newid != 0 && newid == vm.Pid {
 						vm.Machine.Mu.Lock()
+						atomic.AddUint64(&Translock, 1)
 						vm.Map(start, size, commons.HEAP_VAL)
 						vm.Machine.Mu.Unlock()
 					}
 				}
 			}
 		}
-		benchmark.Bench.BenchExitTransfer()
+		//benchmark.Bench.BenchExitTransfer()
 	})
 }
 
@@ -207,7 +217,7 @@ func Execute(id commons.SandId) {
 	// We are inside the VM, scheduling something else.
 	// Redpill out.
 	if id == "" {
-		kvm.Redpill()
+		kvm.Redpill(0x111)
 		runtime.AssignSbId(id, 0)
 		return
 	}
@@ -231,7 +241,7 @@ func tryRedpill() (bool, string) {
 	if msbid == "" {
 		return false, msbid
 	}
-	kvm.Redpill()
+	kvm.Redpill(0x222)
 	runtime.AssignSbId("", 0)
 	return true, msbid
 }
@@ -333,5 +343,9 @@ func Stats() {
 		exits += ex
 		escapes += es
 	}
-	fmt.Printf("entries: %v, exits: %v, escapes: %v\n", entries, exits, escapes)
+	fmt.Printf("entries: %v exits: %v escapes: %v\n", entries, exits, escapes)
+	fmt.Printf("sched: %v futex: %v translock: %v\n", kvm.MRTSY, kvm.MRTFu, Translock)
+	fmt.Printf("fsleep: %v fwake: %v fsched: %v\n", kvm.MRTFuS, kvm.MRTFuW, kvm.MRTSched)
+	fmt.Printf("fother: %v\n", kvm.MRTOther)
+	fmt.Printf("mrtheap: %v\n", kvm.MRTOtherHeap)
 }

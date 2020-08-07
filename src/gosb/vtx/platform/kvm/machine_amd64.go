@@ -181,5 +181,5 @@ func (m *Machine) retryInGuest(fn func()) {
 			break
 		}
 	}
-	redpill()
+	redpill(0x111)
 }

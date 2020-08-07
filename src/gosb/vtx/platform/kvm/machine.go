@@ -152,15 +152,7 @@ func (m *Machine) newVCPU() *vCPU {
 
 //go:nosplit
 func (m *Machine) Replenish() {
-	for i := range m.MemView.EMR {
-		if m.MemView.EMR[i] == nil {
-			m.MemView.EMR[i] = &mv.MemoryRegion{}
-			if m.MemView.EMR[i] == nil {
-				panic("Allocation failed??")
-			}
-			m.MemView.EMR[i].Bitmap = make([]uint64, mv.HEAP_BITMAP)
-		}
-	}
+	m.MemView.Replenish()
 }
 
 //go:nosplit

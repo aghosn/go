@@ -36,9 +36,8 @@ var (
 	PcToPkg []*c.Package
 
 	// VMareas
-	CommonVMAs       *c.VMAreas
-	FullAddressSpace *c.VMAreas
-	TrustedSpace     *c.VMAreas
+	CommonVMAs   *c.VMAreas
+	TrustedSpace *c.VMAreas
 
 	// Maps
 	NameToPkg map[string]*c.Package

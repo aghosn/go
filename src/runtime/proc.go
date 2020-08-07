@@ -2211,7 +2211,24 @@ func execute(gp *g, inheritTime bool) {
 	}
 
 	// GOSB hook
-	if executeSandbox != nil {
+	if bloatInitDone && executeSandbox != nil {
+		if _g_ != nil && _g_.sbid != "" {
+			if gp != nil && gp.sbid == "" {
+				switch gp.startpc {
+				case gcMarkAddr:
+					atomic.Xadd(&MRTgc, 1)
+				case timerProcAddr:
+					atomic.Xadd(&MRTtim, 1)
+				case bgsweepAddr:
+					atomic.Xadd(&MRTbg, 1)
+				case bgscavengeAddr:
+					atomic.Xadd(&MRTscav, 1)
+				default:
+					atomic.Xadd(&MRTunid, 1)
+				}
+
+			}
+		}
 		executeSandbox(gp.sbid)
 	}
 
@@ -2226,7 +2243,6 @@ func findrunnable() (gp *g, inheritTime bool) {
 	// The conditions here and in handoffp must agree: if
 	// findrunnable would return a G to run, handoffp must start
 	// an M.
-
 top:
 	_p_ := _g_.m.p.ptr()
 	if sched.gcwaiting != 0 {
@@ -2643,6 +2659,8 @@ top:
 			tryWakeP = true
 		}
 	}
+
+	//TODO aghosn this one below is the one that fucks us
 	if gp == nil && gcBlackenEnabled != 0 {
 		gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())
 		tryWakeP = tryWakeP || gp != nil

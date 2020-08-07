@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	ARENA_SIZE       = 30
+	ARENA_SIZE       = 40
 	ARENA_TOTAL_SIZE = uintptr(ARENA_SIZE * commons.PageSize)
 
 	// Handy for mmap

@@ -47,6 +47,9 @@ func bluepillArchContext(context unsafe.Pointer) *arch.SignalContext64 {
 //
 //go:nosplit
 func bluepillHandler(context unsafe.Pointer) {
+	if uintptr(context) == 0 {
+		throw("Context is null in handler.")
+	}
 	// Sanitize the registers; interrupts must always be disabled.
 	c := bluepillArchEnter(bluepillArchContext(context))
 
@@ -59,6 +62,7 @@ func bluepillHandler(context unsafe.Pointer) {
 		throw("invalid state")
 	}
 	for {
+		atomic.AddUint64(&MRTRun, 1)
 		switch _, errno := commons.Ioctl(c.fd, _KVM_RUN, 0); errno {
 		case 0: // Expected case.
 		case syscall.EINTR:

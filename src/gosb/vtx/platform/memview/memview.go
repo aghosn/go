@@ -101,10 +101,15 @@ func (a *AddressSpace) Initialize(procmap *commons.VMAreas) {
 // this domain.
 func (a *AddressSpace) ApplyDomain(d *commons.SandboxMemory) {
 	commons.Check(a.Tables == nil && a.PTEAllocator != nil)
-	commons.Check(AddressSpaceTemplate.Tables == nil)
+	commons.Check(ASTemplate.Tables == nil)
 	// Initialize the root page table.
 	a.Tables = pg.New(a.PTEAllocator)
-	view := d.Static.Copy()
+	a.ApplyVMAs(d.Static.Copy())
+}
+
+// Applies the vmas to the address space.
+// @warning destroys view.
+func (a *AddressSpace) ApplyVMAs(view *commons.VMAreas) {
 	for v := commons.ToVMA(view.First); v != nil; {
 		next := commons.ToVMA(v.Next)
 		view.Remove(v.ToElem())
@@ -141,8 +146,6 @@ func (a *AddressSpace) Assign(vma *commons.VMArea) {
 func (a *AddressSpace) Print() {
 	for r := ToMemoryRegion(a.Regions.First); r != nil; r = ToMemoryRegion(r.Next) {
 		r.Print()
-		//fmt.Printf("%x -- %x (%x)", r.Span.Start, r.Span.Start+r.Span.Size, r.Span.Prot)
-		//fmt.Printf(" [%x]\n", r.Span.GPA)
 	}
 }
 
@@ -311,6 +314,19 @@ func (a *AddressSpace) AcquireEMR() *MemoryRegion {
 	}
 	panic("Unable to acquire a new memory region :(")
 	return nil
+}
+
+//go:nosplit
+func (a *AddressSpace) Replenish() {
+	for i := range a.EMR {
+		if a.EMR[i] == nil {
+			a.EMR[i] = &MemoryRegion{}
+			if a.EMR[i] == nil {
+				panic("Allocation failed??")
+			}
+			a.EMR[i].Bitmap = make([]uint64, HEAP_BITMAP)
+		}
+	}
 }
 
 /*				MemoryRegion methods				*/

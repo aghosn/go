@@ -69,10 +69,7 @@ func New(fd int, d *commons.SandboxMemory, template *mv.AddressSpace) *KVM {
 		log.Fatalf("error creating the machine: %v\n", err)
 	}
 	kvm := &KVM{Machine: machine, Sand: d, Id: d.Config.Id}
-	for i := range kvm.Machine.MemView.EMR {
-		kvm.Machine.MemView.EMR[i] = &mv.MemoryRegion{}
-		kvm.Machine.MemView.EMR[i].Bitmap = make([]uint64, mv.HEAP_BITMAP)
-	}
+	kvm.Machine.MemView.Replenish()
 	return kvm
 }
 

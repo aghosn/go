@@ -10,16 +10,19 @@ const (
 // Exposing runtime locks to the outside.
 type GosbMutex struct {
 	m mutex
+	s sbspinlock
 }
 
 //go:nosplit
 func (g *GosbMutex) Lock() {
 	lock(&g.m)
+	//slock(&g.s)
 }
 
 //go:nosplit
 func (g *GosbMutex) Unlock() {
 	unlock(&g.m)
+	//sunlock(&g.s)
 }
 
 func getpackageid(level int) int {
