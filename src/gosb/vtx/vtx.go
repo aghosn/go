@@ -38,7 +38,6 @@ func Init() {
 	kvmOnce.Do(func() {
 		kvm.KVMInit()
 		// Initialize the full memory templates.
-		//mv.InitFullMemoryView()
 		mv.InitializeGod()
 		var err error
 		kvmFd, err = os.OpenFile(_KVM_DRIVER_PATH, syscall.O_RDWR, 0)
@@ -58,11 +57,13 @@ func Init() {
 			if d.Config.Id == "-1" {
 				continue
 			}
-			m := kvm.New(int(kvmFd.Fd()), d, mv.GodAS /*mv.ASTemplate*/)
+			m := kvm.New(int(kvmFd.Fd()), d, mv.GodAS)
 			m.Id = d.Config.Id
 			machines[d.Config.Id] = m
 		}
-		mapAllArenas()
+		for _, m := range machines {
+			m.Machine.MemView.MapArenas()
+		}
 	})
 }
 

@@ -53,14 +53,3 @@ func (m *Machine) SetAllEPTSlots() {
 		}
 	})
 }
-
-func (m *Machine) SetOArenaSlots() {
-	m.MemView.PTEAllocator.Others.Foreach(func(e *commons.ListElem) {
-		o := mv.ToOArena(e)
-		var err syscall.Errno
-		o.Slot, err = m.setEPTRegion(&m.MemView.NextSlot, o.GPA, uint64(mv.ARENA_TOTAL_SIZE), o.A.HVA, 0)
-		if err != 0 {
-			panic("Error mapping slot")
-		}
-	})
-}

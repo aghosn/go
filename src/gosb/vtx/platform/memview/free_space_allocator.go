@@ -31,9 +31,6 @@ type PageTableAllocator struct {
 	// Callback to register growth with KVM
 	Register func(uint64, uint64, uint64, uint32)
 
-	// Arenas from other machines, as OArena.
-	Others commons.List
-
 	// Page allocation can happen during a register
 	// which prevents dynamic allocation.
 	// If danger is on, that means the VM has been entered
@@ -42,13 +39,6 @@ type PageTableAllocator struct {
 
 	// Statistics about the page table allocator
 	NbMMaps uint64
-}
-
-type OArena struct {
-	commons.ListElem
-	A    *Arena
-	GPA  uint64
-	Slot uint32
 }
 
 type Arena struct {
@@ -176,11 +166,6 @@ func (pga *PageTableAllocator) FreePTEs(ptes *pg.PTEs) {
 	// Nothing to do, we do not free them.
 }
 
-func (pga *PageTableAllocator) AddOArena(o *OArena) {
-	o.GPA = pga.Allocator.Malloc(uint64(ARENA_TOTAL_SIZE))
-	pga.Others.AddBack(o.ToElem())
-}
-
 /*				Arena methods				*/
 //go:nosplit
 func ToArena(e *commons.ListElem) *Arena {
@@ -240,16 +225,4 @@ func (a *Arena) GPA2HVA(gpa uint64) *pg.PTEs {
 		panic("Index is too damn high!")
 	}
 	return a.PTEs[idx]
-}
-
-/*				OArena methods				*/
-
-//go:nosplit
-func (o *OArena) ToElem() *commons.ListElem {
-	return (*commons.ListElem)(unsafe.Pointer(o))
-}
-
-//go:nosplit
-func ToOArena(e *commons.ListElem) *OArena {
-	return (*OArena)(unsafe.Pointer(e))
 }

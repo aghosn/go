@@ -61,6 +61,42 @@ type AddressSpace struct {
 
 /*				AddressSpace methods				*/
 
+// VMAToMemoryRegion creates a memory region from the provided VMA.
+// It consumes the provided argument, i.e., it should not be in a list.
+func (a *AddressSpace) VMAToMemoryRegion(vma *commons.VMArea) *MemoryRegion {
+	commons.Check(vma != nil && vma.Addr < vma.Addr+vma.Size)
+	commons.Check(vma.Prev == nil && vma.Next == nil)
+	mem := &MemoryRegion{}
+	mem.Span.Start = vma.Addr
+	mem.Span.Size = vma.Size
+	mem.Span.Prot = vma.Prot
+	mem.Span.Slot = ^uint32(0)
+	mem.Owner = a
+
+	// Add the view
+	mem.View.Init()
+	mem.View.AddBack(vma.ToElem())
+
+	// Allocate a physical address for this memory region.
+	if mem.Span.Start+mem.Span.Size <= uint64(commons.Limit39bits) {
+		mem.Span.GPA = mem.Span.Start
+	} else {
+		mem.Span.GPA = a.FreeAllocator.Malloc(mem.Span.Size)
+	}
+
+	// Find the category for this memory region.
+	mem.Tpe = guessTpe(vma)
+
+	// Extensible regions do not have a bitmap.
+	if mem.Tpe == EXTENSIBLE_REG {
+		goto apply
+	}
+	mem.AllocBitmap()
+apply:
+	mem.Map(vma.Addr, vma.Size, vma.Prot, true)
+	return mem
+}
+
 func (a *AddressSpace) Copy(fresh bool) *AddressSpace {
 	doppler := &AddressSpace{}
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
@@ -80,25 +116,6 @@ func (a *AddressSpace) Copy(fresh bool) *AddressSpace {
 		doppler.PTEAllocator.Initialize(doppler.FreeAllocator)
 	}
 	return doppler
-}
-
-func (a *AddressSpace) Initialize(procmap *commons.VMAreas) {
-	// Start by finding out the free portions in the (1 << 39) space.
-	free := procmap.Mirror()
-	a.FreeAllocator = &FreeSpaceAllocator{}
-	a.FreeAllocator.Initialize(free, true)
-
-	// Now aggregate areas per type.
-	for v := commons.ToVMA(procmap.First); v != nil; v = commons.ToVMA(v.Next) {
-		head := v
-		tail := v
-		// Now create a region that corresponds to this.
-		region := a.CreateMemoryRegion(head, tail)
-		region.Owner = a
-		a.Regions.AddBack(region.ToElem())
-		// Update the loop.
-		v = tail
-	}
 }
 
 // ApplyDomain changes the view of this address space to the one specified by
@@ -151,39 +168,6 @@ func (a *AddressSpace) Print() {
 	for r := ToMemoryRegion(a.Regions.First); r != nil; r = ToMemoryRegion(r.Next) {
 		r.Print()
 	}
-}
-
-//go:nosplit
-func (a *AddressSpace) CreateMemoryRegion(head *commons.VMArea, tail *commons.VMArea) *MemoryRegion {
-	// Safety checks
-	commons.Check(head == tail || (head.Addr+head.Size <= tail.Addr))
-	commons.Check(head.Prot == tail.Prot)
-	mem := &MemoryRegion{}
-	mem.Span.Start = head.Addr
-	mem.Span.Size = tail.Addr + tail.Size - head.Addr
-	mem.Span.Prot = head.Prot
-	mem.Span.Slot = ^uint32(0)
-
-	// Check if we can self map it inside the address space.
-	if mem.Span.Start+mem.Span.Size <= uint64(commons.Limit39bits) {
-		mem.Span.GPA = mem.Span.Start
-	} else {
-		mem.Span.GPA = a.FreeAllocator.Malloc(mem.Span.Size)
-	}
-	// Find the category for this memory region.
-	mem.Tpe = guessTpe(head)
-	// This is always mapped, do not bother initializing bitmap.
-	if mem.Tpe == EXTENSIBLE_REG {
-		return mem
-	}
-	mem.AllocBitmap()
-	for v := head; v != nil; v = commons.ToVMA(v.Next) {
-		mem.Map(v.Addr, v.Size, v.Prot, false)
-		if v == tail {
-			break
-		}
-	}
-	return mem
 }
 
 //go:nosplit
@@ -273,10 +257,6 @@ func (a *AddressSpace) MapArenas() {
 	a.PTEAllocator.All.Foreach(func(e *commons.ListElem) {
 		arena := ToArena(e)
 		a.DefaultMap(uintptr(arena.HVA), ARENA_TOTAL_SIZE, uintptr(arena.GPA))
-	})
-	a.PTEAllocator.Others.Foreach(func(e *commons.ListElem) {
-		o := ToOArena(e)
-		a.DefaultMap(uintptr(o.A.HVA), ARENA_TOTAL_SIZE, uintptr(o.GPA))
 	})
 }
 

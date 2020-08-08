@@ -1,7 +1,8 @@
 package memview
 
 import (
-	"gosb/commons"
+	c "gosb/commons"
+	pg "gosb/vtx/platform/ring0/pagetables"
 	"io/ioutil"
 	"log"
 	"runtime"
@@ -9,70 +10,93 @@ import (
 	"strings"
 )
 
+// Globals that are shared by everyone.
+// These include:
+// (1) A synchronized freespace allocator, used to map portions of the address
+//	space that are above the 40bits limit. It is shared as VMs might have to
+//	update each other.
+// (2) God address space. This is a representation of the current program as
+//	an address space that runtime routines can switch to without leaving the VM.
 var (
-	Full       *commons.VMAreas = nil
-	ASTemplate *AddressSpace    = nil
-
-	// Due to concurrency issue, we might have delayed updates between
-	// initialization of the full memory view, and setting up the hooks
-	// in the runtime.
-	EUpdates [50]*commons.VMArea
-	CurrE    int = 0
-	Updates  commons.VMAreas
+	FreeSpace *FreeSpaceAllocator = nil
+	GodAS     *AddressSpace       = nil
 )
 
-func InitFullMemoryView() {
-	// Allocate the emergency VMArea
-	for i := range EUpdates {
-		EUpdates[i] = &commons.VMArea{}
-	}
-	fvmas := ParseProcessAddressSpace(commons.USER_VAL)
+// Due to concurrency issue, we might have delayed updates between
+// initialization of the full memory view, and setting up the hooks
+// in the runtime.
+var (
+	EUpdates [50]*c.VMArea
+	CurrE    int = 0
+	Updates  c.VMAreas
+)
 
+// Initialize creates a view of the entire address space and the GodAS.
+// (1) parse the entire address space from self proc.
+// (2) create the corresponding vmas.
+// (3) mirror the full address space.
+// (4) create a corresponding address space with the associated page tables.
+func InitializeGod() {
 	// Register the hook with the runtime.
+	for i := range EUpdates {
+		EUpdates[i] = &c.VMArea{}
+	}
 	runtime.RegisterEmergencyGrowth(EmergencyGrowth)
 
-	Full = commons.Convert(fvmas)
+	// Start parsing the address space.
+	fvmas := ParseProcessAddressSpace(c.USER_VAL)
+	full := c.Convert(fvmas)
+	GodAS = &AddressSpace{}
+	FreeSpace = &FreeSpaceAllocator{}
 
-	// Generate the address space.
-	ASTemplate = &AddressSpace{}
-	ASTemplate.Initialize(Full)
+	// Create the free space allocator.
+	free := full.Mirror()
+	FreeSpace.Initialize(free, false)
+	GodAS.FreeAllocator = FreeSpace
+
+	// Create the page tables
+	GodAS.PTEAllocator = &PageTableAllocator{}
+	GodAS.PTEAllocator.Initialize(GodAS.FreeAllocator)
+	GodAS.Tables = pg.New(GodAS.PTEAllocator)
+
+	// Create the memory regions for GodAS
+	for v := c.ToVMA(full.First); v != nil; {
+		next := c.ToVMA(v.Next)
+		full.Remove(v.ToElem())
+		region := GodAS.VMAToMemoryRegion(v)
+		GodAS.Regions.AddBack(region.ToElem())
+		// update the loop
+		v = next
+	}
 }
 
 //go:nosplit
 func EmergencyGrowth(isheap bool, id int, start, size uintptr) {
 	v := acquireUpdate()
-	commons.Check(v != nil)
-	v.Addr, v.Size, v.Prot = uint64(start), uint64(size), commons.HEAP_VAL
-	Updates.AddBack(v.ToElem())
+	c.Check(v != nil)
+	v.Addr, v.Size, v.Prot = uint64(start), uint64(size), c.HEAP_VAL
+	//Updates.AddBack(v.ToElem())
 }
 
 //go:nosplit
-func acquireUpdate() *commons.VMArea {
+func acquireUpdate() *c.VMArea {
 	if CurrE < len(EUpdates) {
 		i := CurrE
 		CurrE++
 		return EUpdates[i]
 	}
-	/*
-		for i, v := range EUpdates {
-			if v != nil {
-				res := EUpdates[i]
-				EUpdates[i] = nil
-				return res
-			}
-		}*/
 	return nil
 }
 
 // ParseProcessAddressSpace parses the self proc map to get the entire address space.
 // defProt is the common set of flags we want for this.
-func ParseProcessAddressSpace(defProt uint8) []*commons.VMArea {
+func ParseProcessAddressSpace(defProt uint8) []*c.VMArea {
 	dat, err := ioutil.ReadFile("/proc/self/maps")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 	tvmas := strings.Split(string(dat), "\n")
-	vmareas := make([]*commons.VMArea, 0)
+	vmareas := make([]*c.VMArea, 0)
 	for _, v := range tvmas {
 		if len(v) == 0 || strings.Contains(v, "vsyscall") {
 			continue
@@ -95,23 +119,23 @@ func ParseProcessAddressSpace(defProt uint8) []*commons.VMArea {
 		rstr := fields[1]
 		rights := uint8(0)
 		if strings.Contains(rstr, "r") {
-			rights |= commons.R_VAL
+			rights |= c.R_VAL
 		}
 		// This doesn't work for some C dependencies that have ---p
-		/*rights := uint8(commons.R_VAL)
+		/*rights := uint8(c.R_VAL)
 		if !strings.Contains(rstr, "r") {
 			log.Fatalf("missing read rights parsed from self proc: %v\n", rstr)
 		}*/
 		if strings.Contains(rstr, "w") {
-			rights |= commons.W_VAL
+			rights |= c.W_VAL
 		}
 		if strings.Contains(rstr, "x") {
-			rights |= commons.X_VAL
+			rights |= c.X_VAL
 		}
 
-		vm := &commons.VMArea{
-			commons.ListElem{},
-			commons.Section{
+		vm := &c.VMArea{
+			c.ListElem{},
+			c.Section{
 				Addr: uint64(start),
 				Size: uint64(end - start),
 				Prot: uint8(rights | defProt),
