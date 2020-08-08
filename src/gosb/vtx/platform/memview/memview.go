@@ -36,7 +36,7 @@ type MemorySpan struct {
 // MemoryRegion is a MemorySpan with a given type that determines whether
 // its presence bits can be modified or not.
 type MemoryRegion struct {
-	commons.ListElem // ALlows to put the Memory region inside a list
+	commons.ListElem // Allows to put the Memory region inside a list
 	Tpe              RegType
 	Span             MemorySpan
 	Bitmap           []uint64 // Presence bitmap
@@ -61,7 +61,7 @@ type AddressSpace struct {
 
 /*				AddressSpace methods				*/
 
-func (a *AddressSpace) Copy() *AddressSpace {
+func (a *AddressSpace) Copy(fresh bool) *AddressSpace {
 	doppler := &AddressSpace{}
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
 		cpy := m.Copy()
@@ -69,12 +69,16 @@ func (a *AddressSpace) Copy() *AddressSpace {
 		cpy.Owner = doppler
 	}
 
-	// Copy the FreeAllocator state as well.
-	doppler.FreeAllocator = a.FreeAllocator.Copy()
+	// Same free and pte allocators.
+	doppler.FreeAllocator = a.FreeAllocator
+	doppler.PTEAllocator = a.PTEAllocator
 
-	// Page tables are not copied over.
-	doppler.PTEAllocator = &PageTableAllocator{}
-	doppler.PTEAllocator.Initialize(doppler.FreeAllocator)
+	// If fresh, page tables and free allocator are not copied over.
+	if fresh {
+		doppler.FreeAllocator = a.FreeAllocator.Copy()
+		doppler.PTEAllocator = &PageTableAllocator{}
+		doppler.PTEAllocator.Initialize(doppler.FreeAllocator)
+	}
 	return doppler
 }
 
@@ -82,7 +86,7 @@ func (a *AddressSpace) Initialize(procmap *commons.VMAreas) {
 	// Start by finding out the free portions in the (1 << 39) space.
 	free := procmap.Mirror()
 	a.FreeAllocator = &FreeSpaceAllocator{}
-	a.FreeAllocator.Initialize(free)
+	a.FreeAllocator.Initialize(free, true)
 
 	// Now aggregate areas per type.
 	for v := commons.ToVMA(procmap.First); v != nil; v = commons.ToVMA(v.Next) {
@@ -101,7 +105,7 @@ func (a *AddressSpace) Initialize(procmap *commons.VMAreas) {
 // this domain.
 func (a *AddressSpace) ApplyDomain(d *commons.SandboxMemory) {
 	commons.Check(a.Tables == nil && a.PTEAllocator != nil)
-	commons.Check(ASTemplate.Tables == nil)
+	//commons.Check(ASTemplate.Tables == nil)
 	// Initialize the root page table.
 	a.Tables = pg.New(a.PTEAllocator)
 	a.ApplyVMAs(d.Static.Copy())
@@ -128,7 +132,7 @@ func (a *AddressSpace) RegisterGrowth(f func(uint64, uint64, uint64, uint32)) {
 }
 
 func (a *AddressSpace) Seal() {
-	commons.Check(a.PTEAllocator.Danger == false)
+	//commons.Check(a.PTEAllocator.Danger == false)
 	// From now on, we cannot rely on dynamic allocations inside PageTableAllocator
 	a.PTEAllocator.Danger = true
 }
@@ -167,7 +171,7 @@ func (a *AddressSpace) CreateMemoryRegion(head *commons.VMArea, tail *commons.VM
 		mem.Span.GPA = a.FreeAllocator.Malloc(mem.Span.Size)
 	}
 	// Find the category for this memory region.
-	mem.Tpe = guessTpe(head, tail)
+	mem.Tpe = guessTpe(head)
 	// This is always mapped, do not bother initializing bitmap.
 	if mem.Tpe == EXTENSIBLE_REG {
 		return mem
@@ -601,7 +605,7 @@ func (s *MemorySpan) ToElem() *commons.ListElem {
 /*				Helper functions				*/
 
 //go:nosplit
-func guessTpe(head, tail *commons.VMArea) RegType {
+func guessTpe(head *commons.VMArea) RegType {
 	isexec := head.Prot&commons.X_VAL == commons.X_VAL
 	isread := head.Prot&commons.R_VAL == commons.R_VAL
 	iswrit := head.Prot&commons.W_VAL == commons.W_VAL

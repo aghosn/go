@@ -171,7 +171,7 @@ func (m *Machine) Fd() int {
 }
 
 func newMachine(vm int, d *commons.SandboxMemory, template *mv.AddressSpace) (*Machine, error) {
-	memview := template.Copy()
+	memview := template.Copy( /*true*/ false)
 	memview.ApplyDomain(d)
 	// Create the machine.
 	m := &Machine{

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	ARENA_SIZE       = 40
+	ARENA_SIZE       = 100
 	ARENA_TOTAL_SIZE = uintptr(ARENA_SIZE * commons.PageSize)
 
 	// Handy for mmap
@@ -63,10 +63,14 @@ type Arena struct {
 
 /*			FreeSpaceAllocator methods				*/
 
-func (f *FreeSpaceAllocator) Initialize(frees *commons.VMAreas) {
+func (f *FreeSpaceAllocator) Initialize(frees *commons.VMAreas, cpy bool) {
 	f.Used = &commons.VMAreas{}
 	f.Used.Init()
-	f.FreeSpace = frees.Copy()
+	if cpy {
+		f.FreeSpace = frees.Copy()
+	} else {
+		f.FreeSpace = frees
+	}
 }
 
 // Malloc allocates a free region of provided size.

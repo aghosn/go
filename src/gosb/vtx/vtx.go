@@ -27,7 +27,8 @@ var (
 	pristines map[commons.SandId][]*kvm.KVM
 
 	// Full address space referenced by everyone.
-	Full *mv.AddressSpace = nil
+	// This one is used for GC and other runtime routines to avoid exits.
+	God *mv.AddressSpace = nil
 
 	//Debugging
 	Translock uint64 = 0
@@ -37,7 +38,8 @@ func Init() {
 	kvmOnce.Do(func() {
 		kvm.KVMInit()
 		// Initialize the full memory templates.
-		mv.InitFullMemoryView()
+		//mv.InitFullMemoryView()
+		mv.InitializeGod()
 		var err error
 		kvmFd, err = os.OpenFile(_KVM_DRIVER_PATH, syscall.O_RDWR, 0)
 		if err != nil {
@@ -56,7 +58,7 @@ func Init() {
 			if d.Config.Id == "-1" {
 				continue
 			}
-			m := kvm.New(int(kvmFd.Fd()), d, mv.ASTemplate)
+			m := kvm.New(int(kvmFd.Fd()), d, mv.GodAS /*mv.ASTemplate*/)
 			m.Id = d.Config.Id
 			machines[d.Config.Id] = m
 		}

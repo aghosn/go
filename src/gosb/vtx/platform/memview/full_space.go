@@ -35,7 +35,6 @@ func InitFullMemoryView() {
 
 	// Generate the address space.
 	ASTemplate = &AddressSpace{}
-	//ASTemplate.Tables = pg.New(ASTemplate.PTEAllocator)
 	ASTemplate.Initialize(Full)
 }
 
