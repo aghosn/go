@@ -6,6 +6,8 @@ import (
 
 // Set to true if LITTER=MPK, set to 0 otherwise
 var isMPK bool = false
+var isVTX bool = false
+var isSim bool = false
 
 // WritePKRU updates the value of the PKRU
 func WritePKRU(prot uint32)
@@ -14,6 +16,8 @@ func WritePKRU(prot uint32)
 const (
 	_LOW_STACK_OFFSET  = 0x288
 	_HIGH_STACK_OFFSET = 0x1178
+	_GOD_MODE          = "god"
+	_OUT_MODE          = ""
 )
 
 var (
@@ -38,6 +42,7 @@ var (
 	prologHook        func(id string)                                = nil
 	epilogHook        func(id string)                                = nil
 	mstartHook        func()                                         = nil
+	Redpill           func()                                         = nil
 )
 
 //go:nosplit
@@ -195,4 +200,25 @@ func SpanIdOf(addr uintptr) int {
 func GosbSpanOf(addr uintptr) (uintptr, uintptr, int) {
 	span := spanOf(addr)
 	return span.startAddr, span.npages, span.id
+}
+
+//go:nosplit
+func isSpecialRoutine(startpc uintptr) bool {
+	if !bloatInitDone {
+		return false
+	}
+	switch startpc {
+	case gcMarkAddr:
+		fallthrough
+	//	fallthrough
+	//case timerProcAddr:
+	//	fallthrough
+	case bgsweepAddr:
+		//fallthrough
+		//case bgscavengeAddr:
+		return true
+	default:
+		return false
+	}
+	return false
 }

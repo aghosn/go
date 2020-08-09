@@ -16,16 +16,10 @@ var (
 )
 
 var (
-	gcMarkAddr     uintptr = 0 //funcPC(gcBgMarkWorker)
-	timerProcAddr  uintptr = 0 //funcPC(timerproc)
-	bgsweepAddr    uintptr = 0 //funcPC(bgsweep)
-	bgscavengeAddr uintptr = 0 //funcPC(bgscavenge)
-
-	MRTgc   uint32 = 0
-	MRTtim  uint32 = 0
-	MRTbg   uint32 = 0
-	MRTscav uint32 = 0
-	MRTunid uint32 = 0
+	gcMarkAddr     uintptr = 0
+	timerProcAddr  uintptr = 0
+	bgsweepAddr    uintptr = 0
+	bgscavengeAddr uintptr = 0
 )
 
 //go:nosplit

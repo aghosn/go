@@ -9,6 +9,13 @@ import (
 	"syscall"
 )
 
+const (
+	// Redpill values
+	RED_EXIT = 0x111
+	RED_NORM = 0x555
+	RED_GOD  = 0x777
+)
+
 // bluepille1 asm to enter guest mode.
 func bluepill1(*vCPU)
 

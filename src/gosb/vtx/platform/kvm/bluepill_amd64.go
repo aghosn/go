@@ -54,7 +54,17 @@ func bluepillArchEnter(context *arch.SignalContext64) *vCPU {
 //go:nosplit
 func (c *vCPU) KernelSyscall() {
 	regs := c.Registers()
-	//TODO(aghosn) might do a switch here.
+
+	// Switch to god mode, technically should validate.
+	if regs.Rax == ^uint64(0) {
+		if regs.Rdi == RED_GOD {
+			ring0.WriteCR3(c.machine.GodView)
+			return
+		} else if regs.Rdi == RED_NORM {
+			ring0.WriteCR3(uintptr(c.machine.MemView.Tables.CR3(false, 0)))
+			return
+		}
+	}
 	// We only trigger a bluepill entry in the bluepill function, and can
 	// therefore be guaranteed that there is no floating point state to be
 	// loaded on resuming from halt. We only worry about saving on exit.

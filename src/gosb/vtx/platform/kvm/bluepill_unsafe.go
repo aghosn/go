@@ -62,7 +62,6 @@ func bluepillHandler(context unsafe.Pointer) {
 		throw("invalid state")
 	}
 	for {
-		atomic.AddUint64(&MRTRun, 1)
 		switch _, errno := commons.Ioctl(c.fd, _KVM_RUN, 0); errno {
 		case 0: // Expected case.
 		case syscall.EINTR:

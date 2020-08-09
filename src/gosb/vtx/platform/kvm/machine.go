@@ -21,6 +21,9 @@ type Machine struct {
 	// Memory view for this machine
 	MemView *mv.AddressSpace
 
+	// Pointer to the God view
+	GodView uintptr
+
 	// kernel is the set of global structures.
 	kernel ring0.Kernel
 
@@ -177,6 +180,7 @@ func newMachine(vm int, d *commons.SandboxMemory, template *mv.AddressSpace) (*M
 	m := &Machine{
 		fd:      vm,
 		MemView: memview,
+		GodView: uintptr(mv.GodAS.Tables.CR3(false, 0)),
 		vcpus:   make(map[int]*vCPU),
 	}
 	memview.RegisterGrowth(

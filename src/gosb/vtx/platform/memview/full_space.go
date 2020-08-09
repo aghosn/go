@@ -20,6 +20,7 @@ import (
 var (
 	FreeSpace *FreeSpaceAllocator = nil
 	GodAS     *AddressSpace       = nil
+	GodMu     runtime.GosbMutex
 )
 
 // Due to concurrency issue, we might have delayed updates between
@@ -68,6 +69,7 @@ func InitializeGod() {
 		// update the loop
 		v = next
 	}
+	GodAS.Replenish()
 }
 
 //go:nosplit

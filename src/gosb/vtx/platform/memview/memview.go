@@ -207,9 +207,8 @@ func (a *AddressSpace) Toggle(on bool, start, size uintptr, prot uint8) {
 	}
 	// We did not have a match, check if we should add something.
 	if on {
-		// Its dangerous so only call with an acquired EMR.
-		m := a.AcquireEMR()
-		a.Extend(false, m, uint64(start), uint64(size), prot)
+		//TODO check if this is ever called.
+		panic("It is called")
 	}
 }
 
@@ -249,6 +248,26 @@ func (a *AddressSpace) Extend(heap bool, m *MemoryRegion, start, size uint64, pr
 	}
 	a.Regions.AddBack(m.ToElem())
 	m.ApplyRange(start, size, prot)
+	m.finalized = true
+}
+
+//go:nosplit
+func (a *AddressSpace) Extend2(m, orig *MemoryRegion) {
+	if m == nil {
+		m = &MemoryRegion{}
+	}
+	m.Tpe = EXTENSIBLE_REG
+	m.Span.Start, m.Span.Size, m.Span.Prot = orig.Span.Start, orig.Span.Size, orig.Span.Prot
+	m.Owner = a
+	m.Span.Slot = a.NextSlot
+	m.Tpe = orig.Tpe
+	m.Span.GPA = orig.Span.GPA
+	a.NextSlot++
+	if m.Tpe == HEAP_REG {
+		copy(m.Bitmap, orig.Bitmap)
+	}
+	a.Regions.AddBack(m.ToElem())
+	m.ApplyRange(m.Span.Start, m.Span.Size, m.Span.Prot)
 	m.finalized = true
 }
 

@@ -564,9 +564,14 @@ func schedinit() {
 	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
 	}
-	if gogetenv("LITTER") == "MPK" {
+	litter := gogetenv("LITTER")
+	if litter == "MPK" {
 		WritePKRU(0)
 		isMPK = true
+	} else if litter == "VTX" {
+		isVTX = true
+	} else {
+		isSim = true
 	}
 	if procresize(procs) != nil {
 		throw("unknown runnable goroutine during bootstrap")
@@ -2212,21 +2217,21 @@ func execute(gp *g, inheritTime bool) {
 
 	// GOSB hook
 	if bloatInitDone && executeSandbox != nil {
-		if _g_ != nil && _g_.sbid != "" {
-			if gp != nil && gp.sbid == "" {
-				switch gp.startpc {
-				case gcMarkAddr:
-					atomic.Xadd(&MRTgc, 1)
-				case timerProcAddr:
-					atomic.Xadd(&MRTtim, 1)
-				case bgsweepAddr:
-					atomic.Xadd(&MRTbg, 1)
-				case bgscavengeAddr:
-					atomic.Xadd(&MRTscav, 1)
-				default:
-					atomic.Xadd(&MRTunid, 1)
-				}
-
+		if isVTX {
+			// Reset the previd
+			if _g_.sbid == _GOD_MODE {
+				Redpill()
+				AssignSbId(_g_.previd, 0)
+				_g_.previd = _OUT_MODE
+			}
+			if _g_.sbid != _OUT_MODE && isSpecialRoutine(gp.startpc) {
+				// we are inside and it is a runtime routine, avoid exiting
+				gp.sbid = _GOD_MODE
+				_g_.previd = _g_.sbid
+			} else if _g_.sbid == _OUT_MODE && gp.sbid == _GOD_MODE {
+				// we are outside, clean-up the god routine
+				gp.sbid = _OUT_MODE
+				_g_.previd = _OUT_MODE
 			}
 		}
 		executeSandbox(gp.sbid)

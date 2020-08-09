@@ -18,6 +18,8 @@ import (
 
 const (
 	_KVM_DRIVER_PATH = "/dev/kvm"
+	_OUT_MODE        = ""
+	_GOD_MODE        = "god"
 )
 
 var (
@@ -29,9 +31,6 @@ var (
 	// Full address space referenced by everyone.
 	// This one is used for GC and other runtime routines to avoid exits.
 	God *mv.AddressSpace = nil
-
-	//Debugging
-	Translock uint64 = 0
 )
 
 func Init() {
@@ -115,12 +114,10 @@ func Transfer(oldid, newid int, start, size uintptr) {
 		if !ok && !ok1 {
 			return
 		}
-		atomic.AddUint64(&kvm.MRTTrans, 1)
 		if ok {
 			for _, u := range lunmap {
 				if vm, ok2 := machines[u]; ok2 {
 					vm.Machine.Mu.Lock()
-					atomic.AddUint64(&Translock, 1)
 					vm.Unmap(start, size)
 					vm.Machine.Mu.Unlock()
 				}
@@ -133,12 +130,10 @@ func Transfer(oldid, newid int, start, size uintptr) {
 					// Map with the correct view.
 					if prot, ok := vm.Sand.View[newid]; ok {
 						vm.Machine.Mu.Lock()
-						atomic.AddUint64(&Translock, 1)
 						vm.Map(start, size, prot&commons.HEAP_VAL)
 						vm.Machine.Mu.Unlock()
 					} else if newid != 0 && newid == vm.Pid {
 						vm.Machine.Mu.Lock()
-						atomic.AddUint64(&Translock, 1)
 						vm.Map(start, size, commons.HEAP_VAL)
 						vm.Machine.Mu.Unlock()
 					}
@@ -182,55 +177,71 @@ func Register(id int, start, size uintptr) {
 	})
 }
 
-// @warning cannot do dynamic allocation!
-//
+// RuntimeGrowth2 extends the runtime memory.
+// @warning cannot do dynamic allocation
 //go:nosplit
-func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
-	tryInHost(
-		//justexec(
-		func() {
-			lmap, ok := globals.PkgDeps[id]
-			if ok {
-				for _, m := range lmap {
-					if vm, ok1 := machines[m]; ok1 {
-						vm.Machine.Mu.Lock()
-						vm.ExtendRuntime(isheap, start, size, commons.HEAP_VAL)
-						vm.Machine.Mu.Unlock()
-					}
-				}
-			}
-		})
+func RuntimeGrowth2(isheap bool, id int, start, size uintptr) {
+	size = uintptr(commons.Round(uint64(size), true))
+	mv.GodMu.Lock()
+	mem := mv.GodAS.AcquireEMR()
+	mv.GodAS.Extend(isheap, mem, uint64(start), uint64(size), commons.HEAP_VAL)
+	mv.GodMu.Unlock()
+
+	lmap, ok := globals.PkgDeps[id]
+	if !ok {
+		return
+	}
+	for _, m := range lmap {
+		if vm, ok1 := machines[m]; ok1 {
+			vm.Machine.Mu.Lock()
+			vm.ExtendRuntime2(mem)
+			vm.Machine.Mu.Unlock()
+		}
+	}
 }
 
 // All the updates we might have missed
 func UpdateAll() {
 	for v := commons.ToVMA(mv.Updates.First); v != nil; v = commons.ToVMA(v.Next) {
 		isheap := runtime.IsThisTheHeap(uintptr(v.Addr))
-		RuntimeGrowth(isheap, 0, uintptr(v.Addr), uintptr(v.Size))
+		RuntimeGrowth2(isheap, 0, uintptr(v.Addr), uintptr(v.Size))
 	}
 }
 
 //go:nosplit
 func Execute(id commons.SandId) {
 	msbid := runtime.GetmSbIds()
+	// Already in the correct context, continue
 	if msbid == id {
-		// Already in the correct context, continue
 		return
 	}
+
+	// We are inside the VM, scheduling a special routine.
+	if msbid != _OUT_MODE && id == _GOD_MODE {
+		kvm.Redpill(kvm.RED_GOD)
+		runtime.AssignSbId(id, 0)
+		return
+	}
+
+	// Error case should not happen.
+	if (msbid == _OUT_MODE && id == _GOD_MODE) || msbid == _GOD_MODE {
+		panic("It should have been cleaned")
+	}
+
 	// We are inside the VM, scheduling something else.
 	// Redpill out.
-	if id == "" {
-		kvm.Redpill(0x111)
+	if id == _OUT_MODE {
+		kvm.Redpill(kvm.RED_EXIT)
 		runtime.AssignSbId(id, 0)
 		return
 	}
 	// We are outside the VM, scheduling something inside.
-	if msbid == "" && id != "" {
+	if msbid == _OUT_MODE && id != _OUT_MODE {
 		prolog_internal(id, false)
 		return
 	}
 	// nested VMs? Or just the scheduler?
-	if msbid != "" && id != "" && msbid != id {
+	if msbid != _OUT_MODE && id != _OUT_MODE && msbid != id {
 		throw("Urf shit")
 	}
 }
@@ -244,7 +255,7 @@ func tryRedpill() (bool, string) {
 	if msbid == "" {
 		return false, msbid
 	}
-	kvm.Redpill(0x222)
+	kvm.Redpill(kvm.RED_EXIT)
 	runtime.AssignSbId("", 0)
 	return true, msbid
 }
@@ -347,8 +358,4 @@ func Stats() {
 		escapes += es
 	}
 	fmt.Printf("entries: %v exits: %v escapes: %v\n", entries, exits, escapes)
-	fmt.Printf("sched: %v futex: %v translock: %v\n", kvm.MRTSY, kvm.MRTFu, Translock)
-	fmt.Printf("fsleep: %v fwake: %v fsched: %v\n", kvm.MRTFuS, kvm.MRTFuW, kvm.MRTSched)
-	fmt.Printf("fother: %v\n", kvm.MRTOther)
-	fmt.Printf("mrtheap: %v\n", kvm.MRTOtherHeap)
 }

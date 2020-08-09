@@ -12,7 +12,7 @@ import (
 var (
 	configBackends = [be.BACKEND_SIZE]be.BackendConfig{
 		be.BackendConfig{be.SIM_BACKEND, sim.Init, sim.Prolog, sim.Epilog, sim.Transfer, sim.Register, sim.Execute, nil, nil, sim.Stats},
-		be.BackendConfig{be.VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, nil, vtx.RuntimeGrowth, vtx.Stats},
+		be.BackendConfig{be.VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, nil, vtx.RuntimeGrowth2, vtx.Stats},
 		be.BackendConfig{be.MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute, mpk.MStart, nil, nil},
 	}
 )

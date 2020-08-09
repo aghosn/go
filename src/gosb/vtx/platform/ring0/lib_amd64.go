@@ -64,6 +64,11 @@ func wrgsmsr(addr uintptr)
 // writeCR3 writes the CR3 value.
 func writeCR3(phys uintptr)
 
+// WriteCR3 writes the CR3 value.
+func WriteCR3(phys uintptr) {
+	writeCR3(phys)
+}
+
 // readCR3 reads the current CR3 value.
 func readCR3() uintptr
 

@@ -85,6 +85,7 @@ func (k *KVM) ExtendRuntime(heap bool, start, size uintptr, prot uint8) {
 	size = uintptr(commons.Round(uint64(size), true))
 	if k.Machine.MemView.ContainsRegion(start, size) {
 		// Nothing to do, we already mapped it.
+		panic("Already exists!")
 		return
 	}
 	// We have to map a new region.
@@ -97,6 +98,23 @@ func (k *KVM) ExtendRuntime(heap bool, start, size uintptr, prot uint8) {
 		if size%commons.PageSize != 0 {
 			panic("Size is shit")
 		}
+		panic("Error mapping slot")
+	}
+}
+
+//go:nosplit
+func (k *KVM) ExtendRuntime2(orig *mv.MemoryRegion) {
+	commons.Check(orig != nil)
+	if k.Machine.MemView.ContainsRegion(uintptr(orig.Span.Start), uintptr(orig.Span.Size)) {
+		panic("Already exists")
+		return
+	}
+	var err syscall.Errno
+	m := k.Machine.MemView.AcquireEMR()
+	k.Machine.MemView.Extend2(m, orig)
+	m.Span.Slot, err = k.Machine.setEPTRegion(
+		&k.Machine.MemView.NextSlot, m.Span.GPA, m.Span.Size, m.Span.Start, 0)
+	if err != 0 {
 		panic("Error mapping slot")
 	}
 }

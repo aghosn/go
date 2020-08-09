@@ -8,6 +8,7 @@ import (
 	"gosb/commons"
 	"gosb/globals"
 	"gosb/vtx"
+	"gosb/vtx/platform/kvm"
 	"os"
 	"runtime"
 	"sort"
@@ -40,6 +41,11 @@ func initRuntime() {
 	globals.NameToId = make(map[string]int)
 	for k, d := range globals.NameToPkg {
 		globals.NameToId[k] = d.Id
+	}
+	if currBackend.Tpe == backend.VTX_BACKEND {
+		runtime.Redpill = func() {
+			kvm.Redpill(kvm.RED_NORM)
+		}
 	}
 	runtime.LitterboxHooks(
 		globals.RtIds,
