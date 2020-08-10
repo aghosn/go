@@ -223,6 +223,19 @@ func Execute(id commons.SandId) {
 		return
 	}
 
+	// For clone exits
+	if msbid == _GOD_MODE && id == _OUT_MODE {
+		prev := runtime.GetPrevid()
+		if prev == _OUT_MODE || prev == _GOD_MODE {
+			panic("previd is null or god")
+		}
+		kvm.Redpill(kvm.RED_NORM)
+		runtime.AssignSbId(prev, 0)
+		kvm.Redpill(kvm.RED_EXIT)
+		runtime.AssignSbId(id, 0)
+		return
+	}
+
 	// Error case should not happen.
 	if (msbid == _OUT_MODE && id == _GOD_MODE) || msbid == _GOD_MODE {
 		panic("It should have been cleaned")
@@ -252,11 +265,14 @@ func Execute(id commons.SandId) {
 //go:nosplit
 func tryRedpill() (bool, string) {
 	msbid := runtime.GetmSbIds()
-	if msbid == "" {
+	if msbid == _OUT_MODE {
 		return false, msbid
 	}
+	if msbid == _GOD_MODE {
+		panic("Oh fuck")
+	}
 	kvm.Redpill(kvm.RED_EXIT)
-	runtime.AssignSbId("", 0)
+	runtime.AssignSbId(_OUT_MODE, 0)
 	return true, msbid
 }
 

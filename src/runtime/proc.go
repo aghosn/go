@@ -1902,11 +1902,20 @@ func newm1(mp *m) {
 		execLock.runlock()
 		return
 	}
-	execLock.rlock() // Prevent process clone.
 	if gp := getg(); isVTX && bloatInitDone && Redpill != nil && gp.sbid != _OUT_MODE {
-		//throw("Hey how let's go")
-		Redpill()
+		/*if gp.sbid == _GOD_MODE {
+			RedSwitch()
+			if gp.previd == _GOD_MODE || gp.previd == _OUT_MODE {
+				throw("fuck seriously?")
+			}
+			if gp.m.g0 != gp {
+				throw("Oh come on")
+			}
+		}*/
+		executeSandbox(_OUT_MODE)
 	}
+
+	execLock.rlock() // Prevent process clone.
 	newosproc(mp)
 	execLock.runlock()
 }

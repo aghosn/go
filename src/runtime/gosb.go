@@ -136,6 +136,15 @@ func GetmSbIds() string {
 }
 
 //go:nosplit
+func GetPrevid() string {
+	_g_ := getg()
+	if _g_ != _g_.m.g0 {
+		throw("Getprevid on non-runtime routine")
+	}
+	return _g_.previd
+}
+
+//go:nosplit
 func RegisterPthread(id int) {
 	if !iscgo || runtimeGrowth == nil {
 		return
