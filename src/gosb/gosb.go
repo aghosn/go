@@ -43,8 +43,11 @@ func initRuntime() {
 		globals.NameToId[k] = d.Id
 	}
 	if currBackend.Tpe == backend.VTX_BACKEND {
-		runtime.Redpill = func() {
+		runtime.RedSwitch = func() {
 			kvm.Redpill(kvm.RED_NORM)
+		}
+		runtime.Redpill = func() {
+			kvm.Redpill(kvm.RED_EXIT)
 		}
 	}
 	runtime.LitterboxHooks(

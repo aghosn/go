@@ -1903,6 +1903,10 @@ func newm1(mp *m) {
 		return
 	}
 	execLock.rlock() // Prevent process clone.
+	if gp := getg(); isVTX && bloatInitDone && Redpill != nil && gp.sbid != _OUT_MODE {
+		//throw("Hey how let's go")
+		Redpill()
+	}
 	newosproc(mp)
 	execLock.runlock()
 }
@@ -2220,7 +2224,7 @@ func execute(gp *g, inheritTime bool) {
 		if isVTX {
 			// Reset the previd
 			if _g_.sbid == _GOD_MODE {
-				Redpill()
+				RedSwitch()
 				AssignSbId(_g_.previd, 0)
 				_g_.previd = _OUT_MODE
 			}

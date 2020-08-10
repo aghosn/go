@@ -42,6 +42,7 @@ var (
 	prologHook        func(id string)                                = nil
 	epilogHook        func(id string)                                = nil
 	mstartHook        func()                                         = nil
+	RedSwitch         func()                                         = nil
 	Redpill           func()                                         = nil
 )
 
