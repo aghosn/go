@@ -77,7 +77,7 @@ func EmergencyGrowth(isheap bool, id int, start, size uintptr) {
 	v := acquireUpdate()
 	c.Check(v != nil)
 	v.Addr, v.Size, v.Prot = uint64(start), uint64(size), c.HEAP_VAL
-	//Updates.AddBack(v.ToElem())
+	Updates.AddBack(v.ToElem())
 }
 
 //go:nosplit
