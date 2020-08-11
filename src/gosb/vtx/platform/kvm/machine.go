@@ -52,7 +52,7 @@ const (
 	// vCPUGuest indicates the vCPU is in guest mode.
 	vCPUGuest uint32 = 1 << 1
 
-	cpuScale = 2
+	cpuScale = 4
 )
 
 // vCPU is a single KVM vCPU.
