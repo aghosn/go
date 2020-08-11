@@ -104,7 +104,6 @@ func (b *Benchmark) BenchEnterTransfer() {
 		return
 	}
 	atomic.AddUint64(&b.transfer, 1)
-	b.transferStart = time.Now()
 }
 
 //go:nosplit
@@ -133,7 +132,7 @@ func (b *Benchmark) Dump() {
 	fmt.Printf("prolog: %d ", b.prolog)
 	fmt.Printf("execute: %d ", b.execute)
 	fmt.Printf("register: %d  (%dμs) ", b.register, toμs(b.registerDuration))
-	fmt.Printf("transfer: %d (%dμs) ", b.transfer, toμs(b.transferDuration))
+	fmt.Printf("transfer: %d ", b.transfer)
 	fmt.Printf("growth: %d\n\n", b.growth)
 }
 

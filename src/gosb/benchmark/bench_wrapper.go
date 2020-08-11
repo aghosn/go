@@ -23,7 +23,7 @@ func InitBenchWrapper(b *backend.BackendConfig) (*backend.BackendConfig, *Benchm
 		bench.BenchEpilog(id)
 	}
 	config.Transfer = func(oldid, newid int, start, size uintptr) {
-		//bench.BenchEnterTransfer()
+		bench.BenchEnterTransfer()
 		b.Transfer(oldid, newid, start, size)
 		//bench.BenchExitTransfer()
 	}
