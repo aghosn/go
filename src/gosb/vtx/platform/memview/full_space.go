@@ -21,6 +21,7 @@ var (
 	FreeSpace *FreeSpaceAllocator = nil
 	GodAS     *AddressSpace       = nil
 	GodMu     runtime.GosbMutex
+	CHeap     uint64 = 0
 )
 
 // Due to concurrency issue, we might have delayed updates between
@@ -144,6 +145,10 @@ func ParseProcessAddressSpace(defProt uint8) []*c.VMArea {
 			},
 		}
 		vmareas = append(vmareas, vm)
+		if rights == c.W_VAL|c.R_VAL && strings.Contains(v, "[heap]") {
+			CHeap = uint64(start)
+			vm.Prot |= uint8(c.S_VAL)
+		}
 	}
 	return vmareas
 }

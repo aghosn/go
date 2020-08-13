@@ -1897,21 +1897,16 @@ func newm1(mp *m) {
 		if msanenabled {
 			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
 		}
+		gp := getg()
+		if isVTX && bloatInitDone && Redpill != nil && gp.sbid != _OUT_MODE {
+			executeSandbox(_OUT_MODE)
+		}
 		execLock.rlock() // Prevent process clone.
 		asmcgocall(_cgo_thread_start, unsafe.Pointer(&ts))
 		execLock.runlock()
 		return
 	}
 	if gp := getg(); isVTX && bloatInitDone && Redpill != nil && gp.sbid != _OUT_MODE {
-		/*if gp.sbid == _GOD_MODE {
-			RedSwitch()
-			if gp.previd == _GOD_MODE || gp.previd == _OUT_MODE {
-				throw("fuck seriously?")
-			}
-			if gp.m.g0 != gp {
-				throw("Oh come on")
-			}
-		}*/
 		executeSandbox(_OUT_MODE)
 	}
 

@@ -26,8 +26,11 @@ func (g *GosbMutex) Unlock() {
 }
 
 func getpackageid(level int) int {
-	if !bloatInitDone || level <= 0 || level > MAX_LEVEL {
+	if !bloatInitDone {
 		return -1
+	}
+	if level <= 0 || level > MAX_LEVEL {
+		throw("Invalid level in getpackageid")
 	}
 	sp := getcallersp()
 	pc := getcallerpc()
@@ -44,6 +47,9 @@ func getpackageid(level int) int {
 	id := pcToPkg(pcbuf[n-1])
 	if id != 0 && gp.pristine {
 		return gp.pristineid
+	}
+	if id == -1 && gp.sbid != _OUT_MODE {
+		throw("What the fuck")
 	}
 	return id
 }
@@ -68,6 +74,7 @@ func gosbInterpose(lvl int) int {
 	id := -1
 	mp := acquirem()
 	if mp.tracingAlloc == 1 {
+		throw("Oups")
 		goto cleanup
 	}
 	mp.tracingAlloc = 1

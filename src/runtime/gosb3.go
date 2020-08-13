@@ -35,7 +35,10 @@ type spanExtras struct {
 //go:nosplit
 func (e *mspan) setId(id int, move bool) {
 	mp := acquirem()
-	if e.id == id || transferSection == nil || registerSection == nil {
+	if gp := getg(); gp.sbid != _OUT_MODE && id == -1 {
+		throw("Setid -1 inside an enclosure")
+	}
+	if e.id == id || !bloatInitDone {
 		e.id = id
 		releasem(mp)
 		return
@@ -43,12 +46,12 @@ func (e *mspan) setId(id int, move bool) {
 	if mp.toclean != nil {
 		throw("Already have stuff to clean")
 	}
-	e.oldid = e.id
-	e.id = id
-	if e.dirty && e.oldid != id {
+	if e.dirty && e.id != id {
 		throw("Nested dirty span")
 	}
 	e.dirty = true
+	e.oldid = e.id
+	e.id = id
 	e.move = move
 	mp.toclean = e
 	mp.nester = mp.locks - 1
@@ -59,8 +62,8 @@ func (e *mspan) DoRegistration() {
 	if !e.dirty {
 		panic("we fucked up")
 	}
-	if e.move && transferSection != nil {
-		transferSection(e.oldid, e.id, e.startAddr, e.limit-e.startAddr)
+	if e.move && bloatInitDone {
+		transferSection(e.oldid, e.id, e.startAddr, e.npages<<_PageShift)
 	} else if !e.move && registerSection != nil {
 		registerSection(e.id, e.startAddr, e.limit-e.startAddr)
 	}

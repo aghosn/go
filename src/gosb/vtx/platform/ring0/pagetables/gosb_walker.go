@@ -137,23 +137,29 @@ func (p *PageTables) FindPages(addr uintptr) (uintptr, uintptr, uintptr, uintptr
 }
 
 //go:nosplit
-func (p *PageTables) IsMapped(addr uintptr) bool {
+func (p *PageTables) IsMapped(addr uintptr) int {
 	addr = addr - (addr % gc.PageSize)
 	s4, s3 := PDX(addr, _LVL_PML4), PDX(addr, _LVL_PDPTE)
 	s2, s1 := PDX(addr, _LVL_PDE), PDX(addr, _LVL_PTE)
 	pdpte := p.Allocator.LookupPTEs(p.root[s4].Address())
 	if !p.root[s4].Valid() || pdpte == nil {
-		return false
+		return -4
 	}
 	pte := p.Allocator.LookupPTEs(pdpte[s3].Address())
 	if !pdpte[s3].Valid() || pte == nil {
-		return false
+		return -3
 	}
 	page := p.Allocator.LookupPTEs(pte[s2].Address())
 	if !pte[s2].Valid() || page == nil {
-		return false
+		return -2
 	}
-	return page[s1].Valid()
+	if page[s1].Valid() {
+		return 1
+	}
+	if page[s1] == 0 {
+		return -11
+	}
+	return -1
 }
 
 //go:nosplit

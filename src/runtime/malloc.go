@@ -885,6 +885,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 		if ok {
 			id = id2
 		}
+		if _g_ := getg(); _g_.sbid != _OUT_MODE && id == -1 {
+			throw("Allocating with id -1 from an enclosure")
+		}
 	}
 
 	// Check if we are in a pristine sandbox

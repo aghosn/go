@@ -1,14 +1,15 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
 var (
-	MRTRuntimeVals [10000]uintptr
-	MRTRuntimeIdx  int   = 0
-	MRTId          int64 = -1
-	MRTBaddy       int   = 0
+	MRTRuntimeVals [1000]uintptr
+	MRTRuntimeIdx  uint32 = 0
+	MRTId          int64  = -1
+	MRTBaddy       int    = 0
 	Lock           GosbMutex
 
 	// The value
@@ -24,12 +25,10 @@ var (
 
 //go:nosplit
 func TakeValue(a uintptr) {
-	//Lock.Lock()
-	if MRTRuntimeIdx < len(MRTRuntimeVals) {
-		MRTRuntimeVals[MRTRuntimeIdx] = a
-		MRTRuntimeIdx++
+	idx := atomic.Xadd(&MRTRuntimeIdx, 1)
+	if int(idx) < len(MRTRuntimeVals) {
+		MRTRuntimeVals[idx] = a
 	}
-	//Lock.Unlock()
 }
 
 //go:nosplit
@@ -58,4 +57,17 @@ func TakeValueTrace(a uintptr) {
 func GiveGoid() int64 {
 	_g_ := getg()
 	return _g_.goid
+}
+
+//go:nosplit
+func FindAllSpans(add uintptr) {
+	var count = 0
+	for i := 0; i < len(mheap_.allspans); i++ {
+		if mheap_.allspans[i].base() == add {
+			count++
+		}
+	}
+	if count != 1 {
+		throw("Many of them")
+	}
 }

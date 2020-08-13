@@ -271,11 +271,20 @@ func (a *AddressSpace) Extend2(m, orig *MemoryRegion) {
 	m.finalized = true
 }
 
+// TODO Maybe it's not pte allocator.
 func (a *AddressSpace) MapArenas() {
 	a.PTEAllocator.Danger = true
 	a.PTEAllocator.All.Foreach(func(e *commons.ListElem) {
 		arena := ToArena(e)
 		a.DefaultMap(uintptr(arena.HVA), ARENA_TOTAL_SIZE, uintptr(arena.GPA))
+	})
+	a.PTEAllocator.All.Foreach(func(e *commons.ListElem) {
+		arena := ToArena(e)
+		commons.Check(a.Tables.IsMapped(uintptr(arena.HVA)) == 1)
+	})
+	GodAS.PTEAllocator.All.Foreach(func(e *commons.ListElem) {
+		arena := ToArena(e)
+		commons.Check(GodAS.Tables.IsMapped(uintptr(arena.HVA)) == 1)
 	})
 }
 
@@ -523,7 +532,6 @@ func (m *MemoryRegion) ValidAddress(addr uint64) bool {
 	}
 
 	// At that point, we're the heap and need to look into page tables.
-	// TODO implement
 	return true
 }
 
@@ -610,15 +618,16 @@ func guessTpe(head *commons.VMArea) RegType {
 	iswrit := head.Prot&commons.W_VAL == commons.W_VAL
 	isheap := runtime.IsThisTheHeap(uintptr(head.Addr))
 	ismeta := !isheap && head.Addr > HEAP_START
+	ischeap := CHeap != 0 && CHeap == head.Addr
 
 	// executable and readonly sections do not change.
-	if !ismeta && (isexec || (isread && !iswrit)) {
+	if !ismeta && (isexec || (isread && !iswrit)) && !ischeap {
 		return IMMUTABLE_REG
 	}
 	if isheap {
 		return HEAP_REG
 	}
-	if ismeta {
+	if ismeta || ischeap {
 		return EXTENSIBLE_REG
 	}
 	// Probably just data, so it is immutable.

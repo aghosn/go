@@ -48,6 +48,7 @@ const (
 	X_VAL = uint8(1)
 	W_VAL = uint8(1 << 1)
 	R_VAL = uint8(1 << 2)
+	S_VAL = uint8(1 << 3) // allows to separate a vma
 	// Extra definitions that we require for seggregating pages.
 	USER_VAL  = uint8(3 << 4)
 	SUPER_VAL = uint8(1 << 4)

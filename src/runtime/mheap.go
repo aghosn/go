@@ -1098,8 +1098,13 @@ func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero b
 
 	if s != nil {
 		if needzero && s.needzero != 0 {
-			if transferSection != nil && s.spanExtras.id != id {
-				transferSection(s.spanExtras.id, id, s.base(), s.npages<<_PageShift)
+			if bloatInitDone && s.spanExtras.id != id {
+				if gp := getg(); id == -1 && gp.sbid != _OUT_MODE {
+					throw("Setting id to -1 from enclosure")
+				}
+				s.oldid = s.id
+				s.id = id
+				transferSection(s.oldid, s.id, s.base(), s.npages<<_PageShift)
 			}
 			memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
 		}

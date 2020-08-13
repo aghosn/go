@@ -2,7 +2,6 @@ package vtx
 
 import (
 	"fmt"
-	//"gosb/benchmark"
 	"gosb/commons"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
@@ -60,6 +59,7 @@ func Init() {
 			m.Id = d.Config.Id
 			machines[d.Config.Id] = m
 		}
+		mv.GodAS.MapArenas()
 		for _, m := range machines {
 			m.Machine.MemView.MapArenas()
 		}
@@ -108,7 +108,6 @@ func Transfer(oldid, newid int, start, size uintptr) {
 		if oldid == newid {
 			panic("Useless transfer")
 		}
-		//benchmark.Bench.BenchEnterTransfer()
 		lunmap, ok := globals.PkgDeps[oldid]
 		lmap, ok1 := globals.PkgDeps[newid]
 		if !ok && !ok1 {
@@ -140,12 +139,12 @@ func Transfer(oldid, newid int, start, size uintptr) {
 				}
 			}
 		}
-		//benchmark.Bench.BenchExitTransfer()
 	})
 }
 
 //go:nosplit
 func Register(id int, start, size uintptr) {
+	panic("Called")
 	tryInHost(func() {
 		lmap, ok := globals.PkgDeps[id]
 		if ok {

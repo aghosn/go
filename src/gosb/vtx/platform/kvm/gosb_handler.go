@@ -2,6 +2,7 @@ package kvm
 
 import (
 	c "gosb/commons"
+	"gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
 	"runtime"
 	"syscall"
@@ -32,9 +33,11 @@ var (
 	MRTFault  uintptr = 0
 	MRTSpanId int     = 0
 	MRTEntry  uintptr = 0
+	MRTSpan   uintptr = 0
 	MRTAddr   uintptr = 0
 	MRTFd     int     = 0
-	MRTMaped  bool    = false
+	MRTMaped  int     = 0
+	MRTMaped2 int     = 0
 	MRTValid  bool    = false
 )
 
@@ -103,10 +106,14 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 		}
 		MRTFault = vcpu.FaultAddr
 		MRTMaped = vcpu.machine.MemView.Tables.IsMapped(MRTFault)
-		if MRTMaped {
+		MRTMaped2 = memview.GodAS.Tables.IsMapped(MRTFault)
+		if MRTMaped == 1 {
 			MRTAddr, _, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(MRTFault)
 		}
 		MRTSpanId = runtime.SpanIdOf(vcpu.FaultAddr)
+		if MRTSpanId != -666 {
+			MRTSpan, _, _ = runtime.GosbSpanOf(MRTFault)
+		}
 		MRTFd = vcpu.machine.fd
 		MRTValid = vcpu.machine.ValidAddress(uint64(MRTFault))
 		vcpu.machine.Mu.Unlock()

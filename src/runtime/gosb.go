@@ -201,7 +201,7 @@ func Iscgo() bool {
 func SpanIdOf(addr uintptr) int {
 	span := spanOf(addr)
 	if span == nil {
-		return -10
+		return -666
 	}
 	return span.id
 }
