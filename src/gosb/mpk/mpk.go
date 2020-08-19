@@ -21,7 +21,7 @@ type PKRU uint32
 type Prot uint32
 
 // SysProt represents protection of the page table entries
-type SysProt int
+type SysProt = int
 
 // Syscall number on x86_64
 const (
