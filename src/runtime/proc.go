@@ -1897,17 +1897,16 @@ func newm1(mp *m) {
 		if msanenabled {
 			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
 		}
-		gp := getg()
-		if isVTX && bloatInitDone && Redpill != nil && gp.sbid != _OUT_MODE {
-			executeSandbox(_OUT_MODE)
+		if isVTX && bloatInitDone {
+			executeSandbox(_FUCK_MODE)
 		}
 		execLock.rlock() // Prevent process clone.
 		asmcgocall(_cgo_thread_start, unsafe.Pointer(&ts))
 		execLock.runlock()
 		return
 	}
-	if gp := getg(); isVTX && bloatInitDone && Redpill != nil && gp.sbid != _OUT_MODE {
-		executeSandbox(_OUT_MODE)
+	if isVTX && bloatInitDone {
+		executeSandbox(_FUCK_MODE)
 	}
 
 	execLock.rlock() // Prevent process clone.
@@ -2225,26 +2224,8 @@ func execute(gp *g, inheritTime bool) {
 
 	// GOSB hook
 	if bloatInitDone && executeSandbox != nil {
-		if isVTX {
-			// Reset the previd
-			if _g_.sbid == _GOD_MODE {
-				RedSwitch()
-				AssignSbId(_g_.previd, 0)
-				_g_.previd = _OUT_MODE
-			}
-			if _g_.sbid != _OUT_MODE && isSpecialRoutine(gp.startpc) {
-				// we are inside and it is a runtime routine, avoid exiting
-				gp.sbid = _GOD_MODE
-				_g_.previd = _g_.sbid
-			} else if _g_.sbid == _OUT_MODE && gp.sbid == _GOD_MODE {
-				// we are outside, clean-up the god routine
-				gp.sbid = _OUT_MODE
-				_g_.previd = _OUT_MODE
-			}
-		}
 		executeSandbox(gp.sbid)
 	}
-
 	gogo(&gp.sched)
 }
 
@@ -3518,8 +3499,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 	}
 	// @aghosn transitivity of environment.
 	newg.sbid = _g_.sbid
-	newg.pristine = _g_.pristine
-	newg.pristineid = _g_.pristineid
 	if newg.stack.hi == 0 {
 		throw("newproc1: newg missing stack")
 	}

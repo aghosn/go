@@ -18,7 +18,7 @@ import (
 const (
 	_KVM_DRIVER_PATH = "/dev/kvm"
 	_OUT_MODE        = ""
-	_GOD_MODE        = "god"
+	_FUCK_MODE       = "fuck"
 )
 
 var (
@@ -68,10 +68,19 @@ func Init() {
 
 //go:nosplit
 func Prolog(id commons.SandId) {
-	// Check if we're trying to get into a pristine sandbox.
-	if _, ok := globals.IsPristine[id]; ok {
-		id = acquirePristine(id)
+	// check if we already have a vcpu.
+	vcpu := runtime.GetVcpu()
+	commons.Check(!runtime.IsG0())
+	if vcpu != 0 {
+		_, ok := machines[id]
+		if !ok {
+			panic("Could not find the sandbox")
+		}
+		kvm.Redpill(kvm.RED_NORM)
+		runtime.AssignSbId(id, false)
+		return
 	}
+
 	prolog_internal(id, true)
 }
 
@@ -91,10 +100,16 @@ func prolog_internal(id commons.SandId, replenish bool) {
 
 //go:nosplit
 func Epilog(id commons.SandId) {
-	_, _ = tryRedpill()
-	if sb, ok := machines[id]; ok && sb.Sand.Config.Pristine {
-		sb.Locked = kvm.VM_UNLOCKED
+	sbmid := runtime.GetmSbIds()
+	commons.Check(!runtime.IsG0())
+	commons.Check(runtime.GetVcpu() != 0)
+	if id != sbmid {
+		fmt.Println("'", id, "' '", sbmid, "'", runtime.IsG0(), runtime.GetGoid())
 	}
+	commons.Check(id == sbmid)
+	kvm.Redpill(kvm.RED_GOD)
+	runtime.AssignSbId(_OUT_MODE, true)
+	//_, _ = tryRedpill()
 }
 
 //go:nosplit
@@ -210,52 +225,39 @@ func UpdateAll() {
 //go:nosplit
 func Execute(id commons.SandId) {
 	msbid := runtime.GetmSbIds()
+	vcpu := runtime.GetVcpu()
+	commons.Check(msbid == _OUT_MODE || vcpu != 0)
+	commons.Check(runtime.IsG0())
+
+	if id == _FUCK_MODE {
+		if vcpu != 0 {
+			kvm.Redpill(kvm.RED_EXIT)
+		}
+		runtime.AssignSbId(_OUT_MODE, false)
+		runtime.AssignVcpu(0)
+		return
+	}
+
 	// Already in the correct context, continue
 	if msbid == id {
 		return
 	}
 
-	// We are inside the VM, scheduling a special routine.
-	if msbid != _OUT_MODE && id == _GOD_MODE {
-		kvm.Redpill(kvm.RED_GOD)
-		runtime.AssignSbId(id, 0)
-		return
-	}
-
-	// For clone exits
-	if msbid == _GOD_MODE && id == _OUT_MODE {
-		prev := runtime.GetPrevid()
-		if prev == _OUT_MODE || prev == _GOD_MODE {
-			panic("previd is null or god")
+	// Are we inside the VM?
+	if vcpu != 0 {
+		if id == _OUT_MODE {
+			kvm.Redpill(kvm.RED_GOD)
+			runtime.AssignSbId(id, false)
+		} else {
+			kvm.Redpill(kvm.RED_NORM)
 		}
-		kvm.Redpill(kvm.RED_NORM)
-		runtime.AssignSbId(prev, 0)
-		kvm.Redpill(kvm.RED_EXIT)
-		runtime.AssignSbId(id, 0)
+		runtime.AssignSbId(id, false)
 		return
 	}
 
-	// Error case should not happen.
-	if (msbid == _OUT_MODE && id == _GOD_MODE) || msbid == _GOD_MODE {
-		panic("It should have been cleaned")
-	}
-
-	// We are inside the VM, scheduling something else.
-	// Redpill out.
-	if id == _OUT_MODE {
-		kvm.Redpill(kvm.RED_EXIT)
-		runtime.AssignSbId(id, 0)
-		return
-	}
-	// We are outside the VM, scheduling something inside.
-	if msbid == _OUT_MODE && id != _OUT_MODE {
-		prolog_internal(id, false)
-		return
-	}
-	// nested VMs? Or just the scheduler?
-	if msbid != _OUT_MODE && id != _OUT_MODE && msbid != id {
-		throw("Urf shit")
-	}
+	// Do we have to get inside the VM?
+	commons.Check(msbid == _OUT_MODE)
+	prolog_internal(id, false)
 }
 
 // tryRedpill exits the VM iff we are in a VM.
@@ -264,14 +266,14 @@ func Execute(id commons.SandId) {
 //go:nosplit
 func tryRedpill() (bool, string) {
 	msbid := runtime.GetmSbIds()
-	if msbid == _OUT_MODE {
+	vcpu := runtime.GetVcpu()
+	if vcpu == 0 {
+		commons.Check(msbid == _OUT_MODE)
 		return false, msbid
 	}
-	if msbid == _GOD_MODE {
-		panic("Oh fuck")
-	}
 	kvm.Redpill(kvm.RED_EXIT)
-	runtime.AssignSbId(_OUT_MODE, 0)
+	runtime.AssignSbId(_OUT_MODE, false)
+	runtime.AssignVcpu(0)
 	return true, msbid
 }
 

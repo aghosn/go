@@ -22,7 +22,7 @@ func Init() {
 //go:noinline
 //go:nosplit
 func Prolog(id c.SandId) {
-	runtime.AssignSbId(id, 0)
+	runtime.AssignSbId(id, false)
 	/*	if _, ok := g.Sandboxes[id]; ok {
 			log.Printf("Prolog sandbox %v\n", id)
 			count, _ := countEntries[id]
@@ -40,7 +40,7 @@ func Prolog(id c.SandId) {
 //go:noinline
 //go:nosplit
 func Epilog(id c.SandId) {
-	runtime.AssignSbId("", 0)
+	runtime.AssignSbId("", true)
 	/*if _, ok := g.Sandboxes[id]; ok {
 		log.Printf("Epilog sandbox %v\n", id)
 		count, _ := countEntries[id]
@@ -138,7 +138,7 @@ func Register(id int, start, size uintptr) {
 
 //go:nosplit
 func Execute(id c.SandId) {
-	runtime.AssignSbId(id, 0)
+	runtime.AssignSbId(id, false)
 	return
 	/*if _, ok := g.Domains[id]; ok {
 		log.Printf("Execute sandbox %v\n", id)

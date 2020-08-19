@@ -437,10 +437,7 @@ type g struct {
 	timer          *timer         // cached timer for time.Sleep
 	selectDone     uint32         // are we participating in a select and did someone win the race?
 	sbid           string         // gosb sandbox ID
-	previd         string
-	pristine       bool
-	pristineid     int
-
+	vcpu           uintptr        // pointer to the current vcpu
 	// Per-G GC state
 
 	// gcAssistBytes is this G's GC assist credit in terms of

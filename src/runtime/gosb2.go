@@ -45,9 +45,6 @@ func getpackageid(level int) int {
 		panic("Unable to unwind the stack")
 	}
 	id := pcToPkg(pcbuf[n-1])
-	if id != 0 && gp.pristine {
-		return gp.pristineid
-	}
 	if id == -1 && gp.sbid != _OUT_MODE {
 		throw("What the fuck")
 	}

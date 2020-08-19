@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"syscall"
+	"unsafe"
 )
 
 var (
@@ -141,7 +142,8 @@ func (k *KVM) SwitchToUser() {
 		runtime.RegisterPthread(c.id)
 	}
 	commons.Check(k.Id != "")
-	runtime.AssignSbId(k.Id, k.Pid)
+	runtime.AssignSbId(k.Id, false)
+	runtime.AssignVcpu(uintptr(unsafe.Pointer(c)))
 	if !c.entered {
 		c.SwitchToUser(opts)
 		return

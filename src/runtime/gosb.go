@@ -16,7 +16,7 @@ func WritePKRU(prot uint32)
 const (
 	_LOW_STACK_OFFSET  = 0x288
 	_HIGH_STACK_OFFSET = 0x1178
-	_GOD_MODE          = "god"
+	_FUCK_MODE         = "fuck"
 	_OUT_MODE          = ""
 )
 
@@ -106,21 +106,27 @@ func RegisterEmergencyGrowth(f func(bool, int, uintptr, uintptr)) {
 // This might change g0? Should we make it explicit?
 //
 //go:nosplit
-func AssignSbId(id string, pid int) {
+func AssignSbId(id string, allowed bool) {
 	_g_ := getg()
 	if _g_ == nil || _g_.m == nil || _g_.m.g0 == nil {
 		throw("g, m, or g0 is nil")
 	}
-	_g_.sbid = id
+	if _g_ != _g_.m.g0 {
+		if _g_.sbid != _OUT_MODE && id == _OUT_MODE && !allowed {
+			println("There")
+			panic("urgh")
+		}
+		_g_.sbid = id
+	}
 	_g_.m.sbid = id
 	_g_.m.g0.sbid = id
-	_g_.pristineid = 0
-	_g_.pristine = false
-	if pid != 0 {
-		_g_.pristine = true
-		_g_.m.g0.pristine = true
-		_g_.pristineid = pid
-	}
+}
+
+// AssignVcpu assigns a vcpu
+//go:nosplit
+func AssignVcpu(vcpu uintptr) {
+	_g_ := getg()
+	_g_.m.g0.vcpu = vcpu
 }
 
 // GetmSbIds returns the m ids
@@ -136,12 +142,22 @@ func GetmSbIds() string {
 }
 
 //go:nosplit
-func GetPrevid() string {
+func GetGoid() int64 {
+	return getg().goid
+}
+
+//go:nosplit
+func IsG0() bool {
 	_g_ := getg()
-	if _g_ != _g_.m.g0 {
-		throw("Getprevid on non-runtime routine")
-	}
-	return _g_.previd
+	return _g_ == _g_.m.g0
+}
+
+// GetmSbIds returns the m ids
+//
+//go:nosplit
+func GetVcpu() uintptr {
+	_g_ := getg()
+	return _g_.m.g0.vcpu
 }
 
 //go:nosplit

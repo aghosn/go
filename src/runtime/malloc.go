@@ -890,11 +890,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool, id int) unsafe.Pointer {
 		}
 	}
 
-	// Check if we are in a pristine sandbox
-	if g := getg(); g.pristine && g.pristineid != 0 && id != 0 {
-		id = g.pristineid
-	}
-
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
 	}

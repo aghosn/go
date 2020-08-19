@@ -37,7 +37,7 @@ func Execute(id c.SandId) {
 			escapes++
 		}
 		WritePKRU(AllRightsPKRU)
-		runtime.AssignSbId(id, 0)
+		runtime.AssignSbId(id, false)
 		return
 	}
 	pkru, ok := sbPKRU[id]
@@ -47,7 +47,7 @@ func Execute(id c.SandId) {
 	}
 	entries++
 	WritePKRU(pkru)
-	runtime.AssignSbId(id, 0)
+	runtime.AssignSbId(id, false)
 }
 
 // Prolog initialize isolation of the sandbox
@@ -59,14 +59,14 @@ func Prolog(id c.SandId) {
 		return
 	}
 	entries++
-	runtime.AssignSbId(id, 0)
+	runtime.AssignSbId(id, false)
 	WritePKRU(pkru)
 }
 
 // Epilog is called at the end of the execution of a given sandbox
 //go:nosplit
 func Epilog(id c.SandId) {
-	runtime.AssignSbId("", 0)
+	runtime.AssignSbId("", true)
 	// Clean PKRU
 	WritePKRU(AllRightsPKRU)
 	exits++

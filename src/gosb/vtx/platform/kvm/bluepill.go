@@ -11,9 +11,10 @@ import (
 
 const (
 	// Redpill values
-	RED_EXIT = 0x111
-	RED_NORM = 0x555
-	RED_GOD  = 0x777
+	RED_EXIT  = 0x111
+	RED_NORM  = 0x555
+	RED_GOD   = 0x777
+	RED_CHECK = 0x888
 )
 
 // bluepille1 asm to enter guest mode.
