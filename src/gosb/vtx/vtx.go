@@ -10,7 +10,6 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -293,38 +292,6 @@ func tryInHost(f func()) {
 	do, msbid := tryRedpill()
 	f()
 	tryBluepill(do, msbid)
-}
-
-// acquirePristine looks for an available pristine sandbox.
-func acquirePristine(id string) string {
-	if sb, ok := machines[id]; ok && sb.Sand.Config.Pristine {
-		var candidate *kvm.KVM = nil
-		if ps, ok1 := pristines[id]; ok1 {
-			for _, v := range ps {
-				if atomic.CompareAndSwapUint32(&v.Locked, kvm.VM_UNLOCKED, kvm.VM_LOCKED) {
-					candidate = v
-					break
-				}
-			}
-		}
-		if candidate != nil {
-			commons.Check(candidate.Pid != 0)
-			return candidate.Id
-		}
-		// Need to create a new pristine.
-		candidate = sb.Copy(int(kvmFd.Fd()))
-		candidate.Locked = kvm.VM_LOCKED
-		machines[candidate.Id] = candidate
-		ps, _ := pristines[id]
-		pristines[id] = append(ps, candidate)
-		globals.IsPristine[candidate.Id] = true
-		commons.Check(candidate.Pid != 0)
-		v, _ := globals.PkgDeps[candidate.Pid]
-		commons.Check(len(v) == 0)
-		globals.PkgDeps[candidate.Pid] = append(v, candidate.Id)
-		return candidate.Id
-	}
-	return id
 }
 
 // Deps returns the ids of sandboxes that have a dependency on this package id.
