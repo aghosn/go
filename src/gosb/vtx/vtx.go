@@ -113,7 +113,19 @@ func Epilog(id commons.SandId) {
 
 //go:nosplit
 func justexec(f func()) {
+	s := false
+	vcpu := runtime.GetVcpu()
+	id := runtime.GetmSbIds()
+	if vcpu != 0 && id != _OUT_MODE {
+		s = true
+		kvm.Redpill(kvm.RED_GOD)
+		//runtime.AssignSbId(_OUT_MODE, false)
+	}
 	f()
+	if s {
+		kvm.Redpill(kvm.RED_NORM)
+		//runtime.AssignSbId()
+	}
 }
 
 //go:nosplit
