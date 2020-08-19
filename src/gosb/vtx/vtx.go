@@ -145,10 +145,6 @@ func Transfer(oldid, newid int, start, size uintptr) {
 						vm.Machine.Mu.Lock()
 						vm.Map(start, size, prot&commons.HEAP_VAL)
 						vm.Machine.Mu.Unlock()
-					} else if newid != 0 && newid == vm.Pid {
-						vm.Machine.Mu.Lock()
-						vm.Map(start, size, commons.HEAP_VAL)
-						vm.Machine.Mu.Unlock()
 					}
 				}
 			}
