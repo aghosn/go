@@ -150,6 +150,16 @@ func ComputeMedian(vals []time.Duration, repeat float64) string {
 	return fmt.Sprintf("median: %v, min: %v, max: %v (us)", values[mid], values[0], values[len(values)-1])
 }
 
+func ComputeMedianCycles(vals []int64, repeat float64) string {
+	res := make([]float64, len(vals))
+	for i := range vals {
+		res[i] = float64(vals[i]) / repeat
+	}
+	sort.Float64s(res)
+	mid := len(vals) / 2
+	return fmt.Sprintf("median: %v, min %v, max: %v (cycles)", res[mid], res[0], res[len(res)-1])
+}
+
 func toValues(vals []time.Duration, repeat float64, srt bool) []float64 {
 	values := make([]float64, len(vals))
 	for i := range vals {

@@ -161,6 +161,11 @@ func GetVcpu() uintptr {
 }
 
 //go:nosplit
+func GetCpuTicks() int64 {
+	return cputicks()
+}
+
+//go:nosplit
 func RegisterPthread(id int) {
 	if !iscgo || runtimeGrowth == nil {
 		return
