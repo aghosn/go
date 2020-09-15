@@ -271,6 +271,17 @@ func (a *AddressSpace) Extend2(m, orig *MemoryRegion) {
 	m.finalized = true
 }
 
+//go:nosplit
+func (a *AddressSpace) ExtendRuntime(orig *MemoryRegion) {
+	commons.Check(orig != nil)
+	if a.ContainsRegion(uintptr(orig.Span.Start), uintptr(orig.Span.Size)) {
+		panic("Already exists")
+		return
+	}
+	m := a.AcquireEMR()
+	a.Extend2(m, orig)
+}
+
 // TODO Maybe it's not pte allocator.
 func (a *AddressSpace) MapArenas() {
 	a.PTEAllocator.Danger = true

@@ -206,6 +206,49 @@ func newMachine(vm int, d *commons.SandboxMemory, template *mv.AddressSpace) (*M
 	return m, nil
 }
 
+// CreateVirtualMachine creates a single virtual machine based on the default view.
+func CreateVirtualMachine(kvmfd int) *Machine {
+	var (
+		vm    int
+		errno syscall.Errno
+	)
+	for {
+		vm, errno = commons.Ioctl(kvmfd, _KVM_CREATE_VM, 0)
+		if errno == syscall.EINTR {
+			continue
+		}
+		commons.Check(errno == 0)
+		break
+	}
+	m := &Machine{
+		fd:      vm,
+		MemView: mv.GodAS,
+		GodView: uintptr(mv.GodAS.Tables.CR3(false, 0)),
+		vcpus:   make(map[int]*vCPU),
+	}
+	mv.GodAS.RegisterGrowth(
+		//go:nosplit
+		func(p, l, v uint64, f uint32) {
+			m.setEPTRegion(&mv.GodAS.NextSlot, p, l, v, f)
+		})
+	mv.GodAS.Seal()
+	m.Start = reflect.ValueOf(ring0.Start).Pointer()
+	m.kernel.Init(ring0.KernelOpts{PageTables: mv.GodAS.Tables})
+	m.maxVCPUs = runtime.GOMAXPROCS(0) * cpuScale
+	maxVCPUs, errno := commons.Ioctl(m.fd, _KVM_CHECK_EXTENSION, _KVM_CAP_MAX_VCPUS)
+	if errno != 0 && maxVCPUs < m.maxVCPUs {
+		m.maxVCPUs = _KVM_NR_VCPUS
+	}
+	// Register the memory address range.
+	m.SetAllEPTSlots()
+
+	// Initialize architecture state.
+	if err := m.initArchState(); err != nil {
+		log.Fatalf("Error initializing machine %v\n", err)
+	}
+	return m
+}
+
 // CreateVCPU attempts to allocate a new vcpu.
 // This should only be called in a normal go state as it does allocation
 // and hence will split the stack.

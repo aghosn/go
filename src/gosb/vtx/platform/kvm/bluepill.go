@@ -11,10 +11,11 @@ import (
 
 const (
 	// Redpill values
-	RED_EXIT  = 0x111
-	RED_NORM  = 0x555
-	RED_GOD   = 0x777
-	RED_CHECK = 0x888
+	RED_EXIT   = 0x111
+	RED_NORM   = 0x555
+	RED_GOD    = 0x777
+	RED_SWITCH = 0x888
+	RED_CHECK  = 0x999
 )
 
 // bluepille1 asm to enter guest mode.
@@ -69,6 +70,13 @@ func redpill(tag uintptr) {
 //go:nosplit
 func Redpill(tag uintptr) {
 	redpill(tag)
+}
+
+// RedSwitch invokes syscall with -1 and target env
+//
+//go:nosplit
+func RedSwitch(cr3 uintptr) {
+	syscall.RawSyscall(^uintptr(0), RED_SWITCH, cr3, 0x333)
 }
 
 // dieHandler is called by dieTrampoline.

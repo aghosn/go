@@ -21,19 +21,11 @@ var (
 //go:nosplit
 func Bluepillret()
 
-const (
-	VM_UNLOCKED = uint32(0)
-	VM_LOCKED   = uint32(1)
-)
-
 type KVM struct {
 	Machine *Machine
 
 	// Pointer to the sandbox memory
 	Sand *commons.SandboxMemory
-
-	// For pristine sandboxes, tells whether it can be acquired atomically
-	Locked uint32
 
 	// Id for the sandbox, this is important for pristine
 	Id  commons.SandId
