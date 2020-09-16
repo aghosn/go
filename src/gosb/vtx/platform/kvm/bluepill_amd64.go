@@ -63,6 +63,9 @@ func (c *vCPU) KernelSyscall() {
 		} else if regs.Rdi == RED_NORM {
 			ring0.WriteCR3(uintptr(c.machine.MemView.Tables.CR3(false, 0)))
 			return
+		} else if regs.Rdi == RED_SWITCH {
+			ring0.WriteCR3(uintptr(regs.Rsi))
+			return
 		}
 	}
 	// We only trigger a bluepill entry in the bluepill function, and can
