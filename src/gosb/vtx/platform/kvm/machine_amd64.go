@@ -34,14 +34,14 @@ func (m *Machine) initArchState() error {
 	return nil
 }
 
-type vCPUArchState struct {
+type VCPUArchState struct {
 	// floatingPointState is the floating point state buffer used in guest
 	// to host transitions. See usage in bluepill_amd64.go.
 	//floatingPointState *arch.FloatingPointData
 }
 
 // initArchState initializes architecture-specific state.
-func (c *vCPU) initArchState() error {
+func (c *VCPU) initArchState() error {
 	var (
 		kernelSystemRegs systemRegs
 		kernelUserRegs   userRegs
@@ -97,7 +97,7 @@ func (c *vCPU) initArchState() error {
 		return err
 	}
 
-	// Allocate some floating point state save area for the local vCPU.
+	// Allocate some floating point state save area for the local VCPU.
 	// This will be saved prior to leaving the guest, and we restore from
 	// this always. We cannot use the pointer in the context alone because
 	// we don't know how large the area there is in reality.
@@ -110,7 +110,7 @@ func (c *vCPU) initArchState() error {
 // fault generates an appropriate fault return.
 //
 //go:nosplit
-func (c *vCPU) fault(signal int32, info *arch.SignalInfo) (usermem.AccessType, error) {
+func (c *VCPU) fault(signal int32, info *arch.SignalInfo) (usermem.AccessType, error) {
 	bluepill(c) // Probably no-op, but may not be.
 	faultAddr := ring0.ReadCR2()
 	code, user := c.ErrorCode()
@@ -138,7 +138,7 @@ func (c *vCPU) fault(signal int32, info *arch.SignalInfo) (usermem.AccessType, e
 
 // SwitchToUser unpacks architectural-details.
 //go:nosplit
-func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts) {
+func (c *VCPU) SwitchToUser(switchOpts ring0.SwitchOpts) {
 	// Past this point, stack growth can cause system calls (and a break
 	// from guest mode). So we need to ensure that between the bluepill
 	// call here and the switch call immediately below, no additional
@@ -166,7 +166,9 @@ func (c *vCPU) SwitchToUser(switchOpts ring0.SwitchOpts) {
 // given function must be idempotent as a result of the retry mechanism.
 func (m *Machine) retryInGuest(fn func()) {
 	c := m.Get()
+	c.Memview = m.MemView
 	defer m.Put(c)
+	defer func() { c.Memview = nil }()
 	defer runtime.UnlockOSThread()
 	for {
 		c.ClearErrorCode() // See below.

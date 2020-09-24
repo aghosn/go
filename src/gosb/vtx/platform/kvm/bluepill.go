@@ -19,10 +19,10 @@ const (
 )
 
 // bluepille1 asm to enter guest mode.
-func bluepill1(*vCPU)
+func bluepill1(*VCPU)
 
 // bluepill enters guest mode.
-func bluepill(v *vCPU) {
+func bluepill(v *VCPU) {
 	v.Entries++
 	bluepill1(v)
 }
@@ -82,16 +82,16 @@ func RedSwitch(cr3 uintptr) {
 // dieHandler is called by dieTrampoline.
 //
 //go:nosplit
-func dieHandler(c *vCPU) {
+func dieHandler(c *VCPU) {
 	throw(c.dieState.message)
 }
 
-// die is called to set the vCPU up to panic.
+// die is called to set the VCPU up to panic.
 //
-// This loads vCPU state, and sets up a call for the trampoline.
+// This loads VCPU state, and sets up a call for the trampoline.
 //
 //go:nosplit
-func (c *vCPU) die(context *arch.SignalContext64, msg string) {
+func (c *VCPU) die(context *arch.SignalContext64, msg string) {
 	// Save the death message, which will be thrown.
 	c.dieState.message = msg
 

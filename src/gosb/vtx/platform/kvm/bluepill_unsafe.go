@@ -11,11 +11,11 @@ import (
 //go:linkname throw runtime.throw
 func throw(string)
 
-// vCPUPtr returns a CPU for the given address.
+// VCPUPtr returns a CPU for the given address.
 //
 //go:nosplit
-func vCPUPtr(addr uintptr) *vCPU {
-	return (*vCPU)(unsafe.Pointer(addr))
+func VCPUPtr(addr uintptr) *VCPU {
+	return (*VCPU)(unsafe.Pointer(addr))
 }
 
 // bytePtr returns a bytePtr for the given address.
@@ -54,8 +54,8 @@ func bluepillHandler(context unsafe.Pointer) {
 	c := bluepillArchEnter(bluepillArchContext(context))
 
 	// Mark this as guest mode.
-	switch atomic.SwapUint32(&c.state, vCPUGuest|vCPUUser) {
-	case vCPUUser: // Expected case.
+	switch atomic.SwapUint32(&c.state, VCPUGuest|VCPUUser) {
+	case VCPUUser: // Expected case.
 	case 0:
 		throw("Faulty Faulty Faulty")
 	default:
@@ -87,16 +87,16 @@ func bluepillHandler(context unsafe.Pointer) {
 				throw("unexpected signal")
 			}
 
-			// Check whether the current state of the vCPU is ready
+			// Check whether the current state of the VCPU is ready
 			// for interrupt injection. Because we don't have a
 			// PIC, we can't inject an interrupt while they are
 			// masked. We need to request a window if it's not
 			// ready.
 			if c.runData.readyForInterruptInjection == 0 {
 				c.runData.requestInterruptWindow = 1
-				continue // Rerun vCPU.
+				continue // Rerun VCPU.
 			} else {
-				// Force injection below; the vCPU is ready.
+				// Force injection below; the VCPU is ready.
 				c.runData.exitReason = _KVM_EXIT_IRQ_WINDOW_OPEN
 			}
 		case syscall.EFAULT:
@@ -111,7 +111,7 @@ func bluepillHandler(context unsafe.Pointer) {
 				_KVM_NMI, 0); errno != 0 {
 				throw("NMI injection failed")
 			}
-			continue // Rerun vCPU.
+			continue // Rerun VCPU.
 		case syscall.ENOSPC:
 			throw("KVM said no space")
 		default:
@@ -151,13 +151,13 @@ func bluepillHandler(context unsafe.Pointer) {
 				// Nothing to do, we'll go back to the VM.
 			case syshandlerBail:
 				// We bailed
-				user := atomic.LoadUint32(&c.state) & vCPUUser
+				user := atomic.LoadUint32(&c.state) & VCPUUser
 				switch atomic.SwapUint32(&c.state, user) {
-				case user | vCPUGuest: // Expected case.
+				case user | VCPUGuest: // Expected case.
 				default:
 					throw("invalid state")
 				}
-				// Make the vCPU available again.
+				// Make the VCPU available again.
 				c.unlock()
 				return
 			case syshandlerErr1:
@@ -174,6 +174,9 @@ func bluepillHandler(context unsafe.Pointer) {
 				return
 			case syshandlerSNF:
 				c.die(bluepillArchContext(context), "Should not page fault!")
+				return
+			case syshandlerInvalid:
+				c.die(bluepillArchContext(context), "Invalid system call")
 				return
 			case syshandlerException:
 				c.die(bluepillArchContext(context), "Received an exception")

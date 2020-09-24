@@ -50,6 +50,12 @@ func Init() {
 	commons.Check(err == nil)
 	machine = kvm.CreateVirtualMachine(int(kvmFd.Fd()))
 	vm = &kvm.KVM{machine, nil, "God", 0}
+
+	// Map the page allocator.
+	mv.GodAS.MapArenas()
+	for _, v := range views {
+		v.MapArenas()
+	}
 }
 
 //go:nosplit
@@ -58,14 +64,21 @@ func Prolog(id commons.SandId) {
 	commons.Check(!runtime.IsG0())
 	//TODO add to the stack of sandboxes.
 	v, ok := views[id]
-	commons.Check(ok)
+	s, ok1 := globals.Sandboxes[id]
+	commons.Check(ok && ok1)
 	if vcpu != 0 {
-		kvm.RedSwitch(uintptr(v.Tables.CR3(false, 0)))
-		runtime.AssignSbId(id, false)
-		return
+		//kvm.RedSwitch(uintptr(v.Tables.CR3(false, 0)))
+		//TODO set the memview
+		//runtime.AssignSbId(id, false)
+		//return
+		goto end
 	}
 	prolog_internal(true)
+	vcpu = runtime.GetVcpu()
+end:
+	commons.Check(vcpu != 0)
 	kvm.RedSwitch(uintptr(v.Tables.CR3(false, 0)))
+	kvm.SetVCPUAttributes(vcpu, v, &s.Config.Sys)
 	runtime.AssignSbId(id, false)
 }
 
@@ -101,7 +114,8 @@ func Execute(id commons.SandId) {
 	}
 
 	mem, ok := views[id]
-	commons.Check(ok || id == _OUT_MODE)
+	filter, ok1 := globals.Sandboxes[id]
+	commons.Check((ok && ok1) || id == _OUT_MODE)
 
 	if vcpu == 0 && id != _OUT_MODE {
 		commons.Check(sid == _OUT_MODE)
@@ -113,8 +127,10 @@ func Execute(id commons.SandId) {
 	// Inside the VM
 	if id == _OUT_MODE {
 		kvm.Redpill(kvm.RED_GOD)
+		kvm.SetVCPUAttributes(vcpu, mv.GodAS, &commons.SyscallAll)
 	} else {
 		kvm.RedSwitch(uintptr(mem.Tables.CR3(false, 0)))
+		kvm.SetVCPUAttributes(vcpu, mem, &filter.Config.Sys)
 	}
 	runtime.AssignSbId(id, false)
 }
@@ -225,9 +241,12 @@ func tryBluepill(do bool, id string) {
 		return
 	}
 	v, ok := views[id]
-	commons.Check(ok)
+	f, ok1 := globals.Sandboxes[id]
+	vcpu := runtime.GetVcpu()
+	commons.Check(ok && ok1 && vcpu != 0)
 	prolog_internal(false)
 	kvm.RedSwitch(uintptr(v.Tables.CR3(false, 0)))
+	kvm.SetVCPUAttributes(vcpu, v, &f.Config.Sys)
 	runtime.AssignSbId(id, false)
 }
 

@@ -3,8 +3,6 @@ package kvm
 import (
 	"fmt"
 	"gosb/commons"
-	"gosb/vtx/linux"
-	"math"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -46,39 +44,4 @@ func mapRunData(fd int) (*runData, error) {
 		return nil, fmt.Errorf("error mapping runData: %v", errno)
 	}
 	return (*runData)(unsafe.Pointer(r)), nil
-}
-
-// notify notifies that the vCPU has transitioned modes.
-//
-// This may be called by a signal handler and therefore throws on error.
-//
-//go:nosplit
-func (c *vCPU) notify() {
-	_, _, errno := syscall.RawSyscall6(
-		syscall.SYS_FUTEX,
-		uintptr(unsafe.Pointer(&c.state)),
-		linux.FUTEX_WAKE|linux.FUTEX_PRIVATE_FLAG,
-		math.MaxInt32, // Number of waiters.
-		0, 0, 0)
-	if errno != 0 {
-		throw("futex wake error")
-	}
-}
-
-// waitUntilNot waits for the vCPU to transition modes.
-//
-// The state should have been previously set to vCPUWaiter after performing an
-// appropriate action to cause a transition (e.g. interrupt injection).
-//
-// This panics on error.
-func (c *vCPU) waitUntilNot(state uint32) {
-	_, _, errno := syscall.Syscall6(
-		syscall.SYS_FUTEX,
-		uintptr(unsafe.Pointer(&c.state)),
-		linux.FUTEX_WAIT|linux.FUTEX_PRIVATE_FLAG,
-		uintptr(state),
-		0, 0, 0)
-	if errno != 0 && errno != syscall.EINTR && errno != syscall.EAGAIN {
-		panic("futex wait error")
-	}
 }

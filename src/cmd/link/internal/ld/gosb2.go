@@ -149,7 +149,7 @@ func (ctxt *Link) gosb_generateDomains() {
 	nonbloatDomain := &lb.SandboxDomain{}
 	nonbloatDomain.Id = "-1"
 	nonbloatDomain.Func = "-1"
-	nonbloatDomain.Sys = 0
+	nonbloatDomain.Sys = [lb.BITMASK_LEN]uint64{0, 0, 0, 0, 0}
 	nonbloatDomain.View = nil
 	nonbloatDomain.Pkgs = []string{nonbloat.Name}
 	domains = append(domains, nonbloatDomain)

@@ -14,7 +14,7 @@ import (
 // This may be called from within the signal context and throws on error.
 //
 //go:nosplit
-func (c *vCPU) loadSegments(tid uint64) {
+func (c *VCPU) loadSegments(tid uint64) {
 	if _, _, errno := syscall.RawSyscall(
 		syscall.SYS_ARCH_PRCTL,
 		linux.ARCH_GET_FS,
@@ -36,10 +36,10 @@ func (c *vCPU) loadSegments(tid uint64) {
 	atomic.StoreUint64(&c.tid, tid)
 }
 
-// setSignalMask sets the vCPU signal mask.
+// setSignalMask sets the VCPU signal mask.
 //
-// This must be called prior to running the vCPU.
-func (c *vCPU) setSignalMask() error {
+// This must be called prior to running the VCPU.
+func (c *VCPU) setSignalMask() error {
 	// The layout of this structure implies that it will not necessarily be
 	// the same layout chosen by the Go compiler. It gets fudged here.
 	var data struct {
@@ -59,27 +59,27 @@ func (c *vCPU) setSignalMask() error {
 }
 
 // setCPUID sets the CPUID to be used by the guest.
-func (c *vCPU) setCPUID() error {
+func (c *VCPU) setCPUID() error {
 	if _, errno := commons.Ioctl(c.fd, _KVM_SET_CPUID2, uintptr(unsafe.Pointer(&cpuidSupported))); errno != 0 {
 		return fmt.Errorf("error setting CPUID: %v", errno)
 	}
 	return nil
 }
 
-// setUserRegisters sets user registers in the vCPU.
-func (c *vCPU) setUserRegisters(uregs *userRegs) error {
+// setUserRegisters sets user registers in the VCPU.
+func (c *VCPU) setUserRegisters(uregs *userRegs) error {
 	if _, errno := commons.Ioctl(c.fd, _KVM_SET_REGS, uintptr(unsafe.Pointer(uregs))); errno != 0 {
 		return fmt.Errorf("error setting user registers: %v", errno)
 	}
 	return nil
 }
 
-// getUserRegisters reloads user registers in the vCPU.
+// getUserRegisters reloads user registers in the VCPU.
 //
 // This is safe to call from a nosplit context.
 //
 //go:nosplit
-func (c *vCPU) getUserRegisters(uregs *userRegs) syscall.Errno {
+func (c *VCPU) getUserRegisters(uregs *userRegs) syscall.Errno {
 	if _, errno := commons.Ioctl(c.fd, _KVM_GET_REGS, uintptr(unsafe.Pointer(uregs))); errno != 0 {
 		return errno
 	}
@@ -88,7 +88,7 @@ func (c *vCPU) getUserRegisters(uregs *userRegs) syscall.Errno {
 
 // setSystemRegisters sets system registers.
 //go:nosplit
-func (c *vCPU) setSystemRegisters(sregs *systemRegs) error {
+func (c *VCPU) setSystemRegisters(sregs *systemRegs) error {
 	if _, errno := commons.Ioctl(c.fd, _KVM_SET_SREGS, uintptr(unsafe.Pointer(sregs))); errno != 0 {
 		return fmt.Errorf("error setting system registers: %v", errno)
 	}
@@ -97,7 +97,7 @@ func (c *vCPU) setSystemRegisters(sregs *systemRegs) error {
 
 // getSystemRegisters gets system registers.
 //go:nosplit
-func (c *vCPU) getSystemRegisters(sregs *systemRegs) error {
+func (c *VCPU) getSystemRegisters(sregs *systemRegs) error {
 	if _, errno := commons.Ioctl(c.fd, _KVM_GET_SREGS, uintptr(unsafe.Pointer(sregs))); errno != 0 {
 		return fmt.Errorf("error setting system registers: %v", errno)
 	}

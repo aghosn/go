@@ -29,19 +29,6 @@ func (m *Machine) SetAllEPTSlots() {
 		mem := mv.ToMemoryRegion(e)
 		span := mem.Span
 		switch mem.Tpe {
-		/*case mv.IMMUTABLE_REG:
-		for v := commons.ToVMA(mem.View.First); v != nil; v = commons.ToVMA(v.Next) {
-			flags := uint32(1)
-			if v.Prot&commons.W_VAL == 0 {
-				flags = uint32(1)
-			}
-			err := m.setEPTRegion(m.MemView.NextSlot, v.Addr-span.Start+span.GPA, v.Size, v.Addr, flags)
-			if err != 0 {
-				panic("Error mapping slot")
-			}
-			span.Slot = m.MemView.NextSlot
-			m.MemView.NextSlot++
-		}*/
 		case mv.HEAP_REG:
 			fallthrough
 		default:

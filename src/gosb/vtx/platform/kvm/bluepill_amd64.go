@@ -14,8 +14,8 @@ var (
 // bluepillArchEnter is called during bluepillEnter.
 //
 //go:nosplit
-func bluepillArchEnter(context *arch.SignalContext64) *vCPU {
-	c := vCPUPtr(uintptr(context.Rax))
+func bluepillArchEnter(context *arch.SignalContext64) *VCPU {
+	c := VCPUPtr(uintptr(context.Rax))
 	regs := c.CPU.Registers()
 	regs.R8 = context.R8
 	regs.R9 = context.R9
@@ -52,22 +52,26 @@ func bluepillArchEnter(context *arch.SignalContext64) *vCPU {
 // KernelSyscall handles kernel syscalls.
 //
 //go:nosplit
-func (c *vCPU) KernelSyscall() {
+func (c *VCPU) KernelSyscall() {
 	regs := c.Registers()
-
 	// Switch to god mode, technically should validate.
 	if regs.Rax == ^uint64(0) {
-		if regs.Rdi == RED_GOD {
-			ring0.WriteCR3(c.machine.GodView)
-			return
-		} else if regs.Rdi == RED_NORM {
-			ring0.WriteCR3(uintptr(c.machine.MemView.Tables.CR3(false, 0)))
-			return
-		} else if regs.Rdi == RED_SWITCH {
-			ring0.WriteCR3(uintptr(regs.Rsi))
-			return
+		var cr3 uintptr = 0
+		switch regs.Rdi {
+		case RED_GOD:
+			cr3 = c.machine.GodView
+		case RED_NORM:
+			cr3 = uintptr(c.machine.MemView.Tables.CR3(false, 0))
+		case RED_SWITCH:
+			cr3 = uintptr(regs.Rsi)
+		default:
+			goto exit
 		}
+		ring0.WriteCR3(cr3)
+		return
 	}
+
+exit:
 	// We only trigger a bluepill entry in the bluepill function, and can
 	// therefore be guaranteed that there is no floating point state to be
 	// loaded on resuming from halt. We only worry about saving on exit.
@@ -84,7 +88,7 @@ var (
 // KernelException handles kernel exceptions.
 //
 //go:nosplit
-func (c *vCPU) KernelException(vector ring0.Vector) {
+func (c *VCPU) KernelException(vector ring0.Vector) {
 	regs := c.Registers()
 	MRTExceptions++
 	if vector == ring0.Vector(bounce) {
@@ -108,7 +112,7 @@ func (c *vCPU) KernelException(vector ring0.Vector) {
 // bluepillArchExit is called during bluepillEnter.
 //
 //go:nosplit
-func bluepillArchExit(c *vCPU, context *arch.SignalContext64) {
+func bluepillArchExit(c *VCPU, context *arch.SignalContext64) {
 	regs := c.CPU.Registers()
 	context.R8 = regs.R8
 	context.R9 = regs.R9

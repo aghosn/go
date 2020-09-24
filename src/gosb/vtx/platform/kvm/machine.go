@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"sync/atomic"
 	"syscall"
+	"unsafe"
 )
 
 type Machine struct {
@@ -31,9 +32,9 @@ type Machine struct {
 	//mu runtime.GosbMutex
 
 	// vcpus available to this machine
-	vcpus map[int]*vCPU
+	vcpus map[int]*VCPU
 
-	// maxVCPUs is the maximum number of vCPUs supported by the machine.
+	// maxVCPUs is the maximum number of VCPUs supported by the machine.
 	maxVCPUs int
 
 	Start uintptr
@@ -43,47 +44,47 @@ type Machine struct {
 }
 
 const (
-	// vCPUReady is an alias for all the below clear.
-	vCPUReady uint32 = 0
+	// VCPUReady is an alias for all the below clear.
+	VCPUReady uint32 = 0
 
-	// vCPUser indicates that the vCPU is in or about to enter user mode.
-	vCPUUser uint32 = 1 << 0
+	// VCPUser indicates that the VCPU is in or about to enter user mode.
+	VCPUUser uint32 = 1 << 0
 
-	// vCPUGuest indicates the vCPU is in guest mode.
-	vCPUGuest uint32 = 1 << 1
+	// VCPUGuest indicates the VCPU is in guest mode.
+	VCPUGuest uint32 = 1 << 1
 
 	cpuScale = 4
 )
 
-// vCPU is a single KVM vCPU.
-type vCPU struct {
+// VCPU is a single KVM VCPU.
+type VCPU struct {
 	// CPU is the kernel CPU data.
 	//
 	// This must be the first element of this structure, it is referenced
 	// by the bluepill code (see bluepill_amd64.s).
 	ring0.CPU
 
-	// id is the vCPU id.
+	// id is the VCPU id.
 	id int
 
-	// fd is the vCPU fd.
+	// fd is the VCPU fd.
 	fd int
 
 	// tid is the last set tid.
 	tid uint64
-	// state is the vCPU state.
+	// state is the VCPU state.
 	//
-	// This is a bitmask of the three fields (vCPU*) described above.
+	// This is a bitmask of the three fields (VCPU*) described above.
 	state uint32
 
-	// runData for this vCPU.
+	// runData for this VCPU.
 	runData *runData
 
-	// machine associated with this vCPU.
+	// machine associated with this VCPU.
 	machine *Machine
 
-	// vCPUArchState is the architecture-specific state.
-	vCPUArchState
+	// VCPUArchState is the architecture-specific state.
+	VCPUArchState
 
 	dieState dieState
 
@@ -101,6 +102,10 @@ type vCPU struct {
 
 	uregs syscall.PtraceRegs
 
+	// Current memview and sys filter
+	Memview   *mv.AddressSpace
+	Sysfilter *commons.SyscallMask
+
 	// Counters for statistics
 	Entries uint64 // # of calls to bluepill
 	Exits   uint64 // # of calls to redpill
@@ -111,22 +116,22 @@ type dieState struct {
 	// message is thrown from die.
 	message string
 
-	// guestRegs is used to store register state during vCPU.die() to prevent
+	// guestRegs is used to store register state during VCPU.die() to prevent
 	// allocation inside nosplit function.
 	guestRegs userRegs
 
 	sysRegs systemRegs
 }
 
-func (m *Machine) newVCPU() *vCPU {
+func (m *Machine) newVCPU() *VCPU {
 	id := len(m.vcpus)
-	// Create the vCPU.
+	// Create the VCPU.
 	fd, errno := commons.Ioctl(m.fd, _KVM_CREATE_VCPU, uintptr(id))
 	if errno != 0 {
-		log.Printf("error creating new vCPU: %v\n", errno)
+		log.Printf("error creating new VCPU: %v\n", errno)
 	}
 
-	c := &vCPU{
+	c := &VCPU{
 		id:      id,
 		fd:      fd,
 		machine: m,
@@ -148,7 +153,7 @@ func (m *Machine) newVCPU() *vCPU {
 
 	// Initialize architecture state.
 	if err := c.initArchState(); err != nil {
-		log.Fatalf("error initialization vCPU state: %v\n", err)
+		log.Fatalf("error initialization VCPU state: %v\n", err)
 	}
 	return c
 }
@@ -158,11 +163,13 @@ func (m *Machine) Replenish() {
 	m.MemView.Replenish()
 }
 
+/*
 //go:nosplit
 func (m *Machine) ValidAddress(addr uint64) bool {
+	//TODO: aghosn, should fix this because now we have multiple cr3...
 	return m.MemView.ValidAddress(addr)
 }
-
+*/
 //go:nosplit
 func (m *Machine) HasRights(addr uint64, prot uint8) bool {
 	return m.MemView.HasRights(addr, prot)
@@ -181,7 +188,7 @@ func newMachine(vm int, d *commons.SandboxMemory, template *mv.AddressSpace) (*M
 		fd:      vm,
 		MemView: memview,
 		GodView: uintptr(mv.GodAS.Tables.CR3(false, 0)),
-		vcpus:   make(map[int]*vCPU),
+		vcpus:   make(map[int]*VCPU),
 	}
 	memview.RegisterGrowth(
 		//go:nosplit
@@ -224,7 +231,7 @@ func CreateVirtualMachine(kvmfd int) *Machine {
 		fd:      vm,
 		MemView: mv.GodAS,
 		GodView: uintptr(mv.GodAS.Tables.CR3(false, 0)),
-		vcpus:   make(map[int]*vCPU),
+		vcpus:   make(map[int]*VCPU),
 	}
 	mv.GodAS.RegisterGrowth(
 		//go:nosplit
@@ -239,6 +246,7 @@ func CreateVirtualMachine(kvmfd int) *Machine {
 	if errno != 0 && maxVCPUs < m.maxVCPUs {
 		m.maxVCPUs = _KVM_NR_VCPUS
 	}
+
 	// Register the memory address range.
 	m.SetAllEPTSlots()
 
@@ -266,11 +274,11 @@ func (m *Machine) CreateVCPU() {
 
 // returns with os thread locked
 //go:nosplit
-func (m *Machine) Get() *vCPU {
+func (m *Machine) Get() *VCPU {
 	m.Mu.Lock()
 	runtime.LockOSThread()
 	for _, c := range m.vcpus {
-		if atomic.CompareAndSwapUint32(&c.state, vCPUReady, vCPUUser) {
+		if atomic.CompareAndSwapUint32(&c.state, VCPUReady, VCPUUser) {
 			m.Mu.Unlock()
 			tid := procid.Current()
 			c.loadSegments(tid)
@@ -288,25 +296,32 @@ func (m *Machine) Get() *vCPU {
 	return nil
 }
 
-func (m *Machine) Put(c *vCPU) {
+func (m *Machine) Put(c *VCPU) {
 	c.unlock()
 }
 
-// lock marks the vCPU as in user mode.
+// lock marks the VCPU as in user mode.
 //
 // This should only be called directly when known to be safe, i.e. when
-// the vCPU is owned by the current TID with no chance of theft.
+// the VCPU is owned by the current TID with no chance of theft.
 //
 //go:nosplit
-func (c *vCPU) lock() {
-	atomicbitops.OrUint32(&c.state, vCPUUser)
+func (c *VCPU) lock() {
+	atomicbitops.OrUint32(&c.state, VCPUUser)
 }
 
-// unlock clears the vCPUUser bit.
+// unlock clears the VCPUUser bit.
 //
 //go:nosplit
-func (c *vCPU) unlock() {
-	atomic.SwapUint32(&c.state, vCPUReady)
+func (c *VCPU) unlock() {
+	atomic.SwapUint32(&c.state, VCPUReady)
+}
+
+//go:nosplit
+func SetVCPUAttributes(vcpuptr uintptr, view *mv.AddressSpace, sys *commons.SyscallMask) {
+	vcpu := (*VCPU)(unsafe.Pointer(vcpuptr))
+	vcpu.Memview = view
+	vcpu.Sysfilter = sys
 }
 
 func (m *Machine) CollectStats() (uint64, uint64, uint64) {

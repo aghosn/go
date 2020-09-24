@@ -42,12 +42,13 @@ var (
 )
 
 //go:nosplit
-func kvmSyscallHandler(vcpu *vCPU) sysHType {
+func kvmSyscallHandler(vcpu *VCPU) sysHType {
 	regs := vcpu.Registers()
 
 	// 1. Check that the Rip is valid, @later use seccomp too to disambiguate kern/user.
 	// No lock, this part never changes.
-	if !vcpu.machine.ValidAddress(regs.Rip) && vcpu.machine.HasRights(regs.Rip, c.X_VAL) {
+	c.Check(vcpu.Memview != nil)
+	if !vcpu.Memview.ValidAddress(regs.Rip) && vcpu.machine.HasRights(regs.Rip, c.X_VAL) {
 		return syshandlerErr1
 	}
 
@@ -58,6 +59,14 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 		if regs.Rax == ^uint64(0) {
 			vcpu.Exits++
 			return syshandlerBail
+		}
+
+		// Validate the syscall
+		c.Check(vcpu.Sysfilter != nil)
+		// Filter the system call
+		idx, idy := c.SysCoords(int(regs.Rax))
+		if vcpu.Sysfilter[idx]&(1<<idy) == 0 {
+			return syshandlerInvalid
 		}
 
 		// Perform the syscall, here we will interpose.
@@ -90,8 +99,8 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 		// Check if we have a concurrency issue.
 		// The thread as been reshuffled to service that thread and is not properly
 		// mapped and hence we should go back.
-		if vcpu.machine.ValidAddress(uint64(vcpu.FaultAddr)) {
-			if vcpu.machine.MemView.HasRights(uint64(vcpu.FaultAddr), c.R_VAL|c.USER_VAL|c.W_VAL) {
+		if vcpu.Memview.ValidAddress(uint64(vcpu.FaultAddr)) {
+			if vcpu.Memview.HasRights(uint64(vcpu.FaultAddr), c.R_VAL|c.USER_VAL|c.W_VAL) {
 				MRTRip = vcpu.Registers().Rip
 				MRTFsbase = vcpu.Registers().Fs_base
 				MRTFault = vcpu.FaultAddr
@@ -105,7 +114,7 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 			}
 		}
 		MRTFault = vcpu.FaultAddr
-		MRTMaped = vcpu.machine.MemView.Tables.IsMapped(MRTFault)
+		MRTMaped = vcpu.Memview.Tables.IsMapped(MRTFault)
 		MRTMaped2 = memview.GodAS.Tables.IsMapped(MRTFault)
 		if MRTMaped == 1 {
 			MRTAddr, _, MRTEntry = vcpu.machine.MemView.Tables.FindMapping(MRTFault)
@@ -115,7 +124,7 @@ func kvmSyscallHandler(vcpu *vCPU) sysHType {
 			MRTSpan, _, _ = runtime.GosbSpanOf(MRTFault)
 		}
 		MRTFd = vcpu.machine.fd
-		MRTValid = vcpu.machine.ValidAddress(uint64(MRTFault))
+		MRTValid = vcpu.Memview.ValidAddress(uint64(MRTFault))
 		vcpu.machine.Mu.Unlock()
 		return syshandlerPF
 	}
