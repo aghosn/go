@@ -19,6 +19,8 @@ func DynInitialize(back backend.Backend) {
 		globals.IdToPkg = make(map[int]*commons.Package)
 		globals.NameToPkg = make(map[string]*commons.Package)
 		globals.NameToId = make(map[string]int)
+		globals.Sandboxes = make(map[commons.SandId]*commons.SandboxMemory)
+		globals.Configurations = make([]*commons.SandboxDomain, 0)
 		P2PDeps = make(map[string][]string)
 		PNames = make(map[string]bool)
 		IdToName = make(map[int]string)
@@ -77,4 +79,36 @@ func DynRegisterId(name string, id int) {
 		globals.AllPackages = append(globals.AllPackages, pkg)
 		globals.NameToPkg[name] = pkg
 	}
+}
+
+//export DynRegisterSandbox
+func DynRegisterSandbox(id, mem, sys string) {
+	m, _, err := commons.ParseMemoryView(mem)
+	s, err1 := commons.ParseSyscalls(sys)
+	commons.Check(err == nil)
+	commons.Check(err1 == nil)
+	if e, ok := globals.Sandboxes[id]; ok {
+		commons.Check(e.Config != nil)
+		return
+	}
+	memview := make(map[string]uint8)
+	for _, v := range m {
+		memview[v.Name] = v.Perm
+	}
+	// TODO compute the view.
+	config := &commons.SandboxDomain{
+		Id:       id,
+		Func:     "a fake func",
+		Sys:      s,
+		View:     memview, //TODO complete the view
+		Pkgs:     nil,     //TODO complete the pkgs
+		Pristine: false,
+	}
+	globals.Configurations = append(globals.Configurations, config)
+	sb := &commons.SandboxMemory{
+		Static: nil, // Compute this.
+		Config: config,
+		View:   nil, //TODO compute this.
+	}
+	globals.Sandboxes[id] = sb
 }
