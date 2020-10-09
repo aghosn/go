@@ -5,6 +5,7 @@ import (
 	"gosb/backend"
 	"gosb/commons"
 	"gosb/globals"
+	"strings"
 )
 
 var (
@@ -92,10 +93,8 @@ func DynRegisterSandbox(id, mem, sys string) {
 		commons.Check(e.Config != nil)
 		return
 	}
-	{
-		_, ok := SandboxDeps[id]
-		commons.Check(ok)
-	}
+	deps, ok := SandboxDeps[id]
+	commons.Check(ok)
 	memview := make(map[string]uint8)
 	for _, v := range m {
 		memview[v.Name] = v.Perm
@@ -110,10 +109,18 @@ func DynRegisterSandbox(id, mem, sys string) {
 		Pristine: false,
 	}
 	globals.Configurations = append(globals.Configurations, config)
+
+	// Compute and translate the memview.
+	memview = globals.ComputeMemoryView(deps, P2PDeps, memview)
+	mv := make(map[int]uint8)
+	for k, v := range memview {
+		i := findId(k)
+		mv[i] = v
+	}
 	sb := &commons.SandboxMemory{
-		Static: nil, // Compute this.
+		Static: nil, //TODO Compute this.
 		Config: config,
-		View:   nil, //TODO compute this.
+		View:   mv,
 	}
 	globals.Sandboxes[id] = sb
 }
@@ -121,4 +128,20 @@ func DynRegisterSandbox(id, mem, sys string) {
 func DynRegisterSandboxDependency(id, pkg string) {
 	e, _ := SandboxDeps[id]
 	SandboxDeps[id] = append(e, pkg)
+}
+
+func findId(name string) int {
+	// Fast path
+	if id, ok := globals.NameToId[name]; ok {
+		return id
+	}
+
+	// Slow path
+	for k, v := range globals.NameToId {
+		if strings.HasSuffix(k, fmt.Sprintf(".%s", name)) {
+			return v
+		}
+	}
+	panic(fmt.Sprintf("Unable to find an id for %s", name))
+	return -1
 }

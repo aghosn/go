@@ -80,3 +80,49 @@ func compatible(pa, pb int, ga, gb []c.SandId, prots map[int]map[c.SandId]uint8)
 	}
 	return true
 }
+
+// ComputeMemoryView for dynamic sandboxes computes the view based on the available
+// information.
+func ComputeMemoryView(sbdeps []string, deps map[string][]string, view map[string]uint8) map[string]uint8 {
+	result := make(map[string]uint8)
+	toadd := make(map[string]bool)
+	// Init will all the initial packages, including the views.
+	for _, v := range sbdeps {
+		toadd[v] = true
+	}
+	for k, _ := range view {
+		toadd[k] = true
+	}
+
+	for {
+		if len(toadd) == 0 {
+			break
+		}
+		// we are popping the list.
+		current := ""
+		for k, _ := range toadd {
+			current = k
+			delete(toadd, k)
+			break
+		}
+		// We already visited this node and added its dependencies
+		if _, ok := result[current]; ok {
+			continue
+		}
+
+		// We did not visit this node and are adding its dependencies.
+		cdeps, _ := deps[current]
+		for _, v := range cdeps {
+			toadd[v] = true
+		}
+
+		// Check if there is a special restriction on this view.
+		prot := c.D_VAL
+		if p, ok := view[current]; ok {
+			prot = p
+		}
+		result[current] = prot
+
+	}
+	return result
+}
