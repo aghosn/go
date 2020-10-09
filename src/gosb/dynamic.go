@@ -8,9 +8,10 @@ import (
 )
 
 var (
-	P2PDeps  map[string][]string
-	PNames   map[string]bool
-	IdToName map[int]string
+	P2PDeps     map[string][]string
+	PNames      map[string]bool
+	IdToName    map[int]string
+	SandboxDeps map[string][]string
 )
 
 func DynInitialize(back backend.Backend) {
@@ -24,6 +25,7 @@ func DynInitialize(back backend.Backend) {
 		P2PDeps = make(map[string][]string)
 		PNames = make(map[string]bool)
 		IdToName = make(map[int]string)
+		SandboxDeps = make(map[string][]string)
 	})
 }
 
@@ -81,7 +83,6 @@ func DynRegisterId(name string, id int) {
 	}
 }
 
-//export DynRegisterSandbox
 func DynRegisterSandbox(id, mem, sys string) {
 	m, _, err := commons.ParseMemoryView(mem)
 	s, err1 := commons.ParseSyscalls(sys)
@@ -90,6 +91,10 @@ func DynRegisterSandbox(id, mem, sys string) {
 	if e, ok := globals.Sandboxes[id]; ok {
 		commons.Check(e.Config != nil)
 		return
+	}
+	{
+		_, ok := SandboxDeps[id]
+		commons.Check(ok)
 	}
 	memview := make(map[string]uint8)
 	for _, v := range m {
@@ -111,4 +116,9 @@ func DynRegisterSandbox(id, mem, sys string) {
 		View:   nil, //TODO compute this.
 	}
 	globals.Sandboxes[id] = sb
+}
+
+func DynRegisterSandboxDependency(id, pkg string) {
+	e, _ := SandboxDeps[id]
+	SandboxDeps[id] = append(e, pkg)
 }
