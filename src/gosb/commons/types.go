@@ -25,7 +25,8 @@ type Section struct {
 }
 
 type SandboxMemory struct {
-	Static *VMAreas
-	Config *SandboxDomain
-	View   map[int]uint8
+	Static  *VMAreas
+	Config  *SandboxDomain
+	View    map[int]uint8
+	Entered bool
 }

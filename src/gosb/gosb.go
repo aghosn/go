@@ -228,6 +228,7 @@ func loadSandboxes() {
 			new(commons.VMAreas),
 			d,
 			make(map[int]uint8),
+			false,
 		}
 		var statics []*commons.VMArea = nil
 

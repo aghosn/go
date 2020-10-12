@@ -1,6 +1,7 @@
 package gosb
 
 import (
+	"errors"
 	"fmt"
 	"gosb/backend"
 	"gosb/commons"
@@ -93,12 +94,13 @@ func DynRegisterSandbox(id, mem, sys string) {
 		commons.Check(e.Config != nil)
 		return
 	}
-	deps, ok := SandboxDeps[id]
-	commons.Check(ok)
+
 	memview := make(map[string]uint8)
 	for _, v := range m {
 		memview[v.Name] = v.Perm
 	}
+	// Compute and translate the memview.
+	//memview = globals.ComputeMemoryView(deps, P2PDeps, memview)
 	// TODO compute the view.
 	config := &commons.SandboxDomain{
 		Id:       id,
@@ -110,17 +112,11 @@ func DynRegisterSandbox(id, mem, sys string) {
 	}
 	globals.Configurations = append(globals.Configurations, config)
 
-	// Compute and translate the memview.
-	memview = globals.ComputeMemoryView(deps, P2PDeps, memview)
-	mv := make(map[int]uint8)
-	for k, v := range memview {
-		i := findId(k)
-		mv[i] = v
-	}
 	sb := &commons.SandboxMemory{
-		Static: nil, //TODO Compute this.
-		Config: config,
-		View:   mv,
+		Static:  nil, //TODO Compute this.
+		Config:  config,
+		View:    nil,
+		Entered: false,
 	}
 	globals.Sandboxes[id] = sb
 }
@@ -130,18 +126,89 @@ func DynRegisterSandboxDependency(id, pkg string) {
 	SandboxDeps[id] = append(e, pkg)
 }
 
-func findId(name string) int {
+func findId(name string) (int, error) {
 	// Fast path
 	if id, ok := globals.NameToId[name]; ok {
-		return id
+		return id, nil
 	}
 
 	// Slow path
 	for k, v := range globals.NameToId {
 		if strings.HasSuffix(k, fmt.Sprintf(".%s", name)) {
-			return v
+			return v, nil
 		}
 	}
-	panic(fmt.Sprintf("Unable to find an id for %s", name))
-	return -1
+	return -1, errors.New(fmt.Sprintf("Unable to find an id for %s", name))
+}
+
+func findFullName(pkg string) (string, error) {
+	// Fast path
+	if _, ok := globals.NameToId[pkg]; ok {
+		return pkg, nil
+	}
+
+	// Slow path
+	for k, _ := range globals.NameToId {
+		if strings.HasSuffix(k, fmt.Sprintf(".%s", pkg)) {
+			return k, nil
+		}
+	}
+
+	// Couldn't find it inside the Id, look in deps
+	for k, _ := range P2PDeps {
+		if strings.HasSuffix(k, fmt.Sprintf(".%s", pkg)) {
+			return k, nil
+		}
+	}
+	return pkg, errors.New(fmt.Sprintf("Unable to find a full name for %s", pkg))
+}
+
+func DynProlog(id string) {
+	sb, ok := globals.Sandboxes[id]
+	commons.Check(ok)
+	if sb.Entered {
+		//TODO enter the sandbox
+		return
+	}
+
+	// Compute full names for deps
+	memview := sb.Config.View
+	commons.Check(memview != nil)
+	d, ok := SandboxDeps[id]
+	commons.Check(ok)
+	deps := make([]string, len(d))
+	for i, v := range d {
+		n, err := findFullName(v)
+		commons.Check(err == nil)
+		deps[i] = n
+		if p, ok := memview[v]; ok {
+			delete(memview, v)
+			memview[n] = p
+		}
+	}
+
+	// We need to update the view.
+	sb.Config.View = globals.ComputeMemoryView(deps, P2PDeps, memview)
+	mv := make(map[int]uint8)
+	for k, v := range memview {
+		i, _ := findId(k)
+		mv[i] = v
+	}
+	commons.Check(sb.View == nil)
+	sb.View = mv
+	sb.Entered = true
+
+	vmareas := make([]*commons.VMArea, 0)
+	// Compute the static
+	for k, v := range sb.Config.View {
+		pkg, ok := globals.NameToPkg[k]
+		if !ok {
+			continue
+		}
+		//commons.Check(ok)
+		vmareas = append(vmareas, commons.PackageToVMAreas(pkg, v)...)
+	}
+	sb.Static = commons.Convert(vmareas)
+	fmt.Println("Prolog", id)
+	sb.Static.Print()
 }
