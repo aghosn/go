@@ -8,6 +8,7 @@ import (
 var isMPK bool = false
 var isVTX bool = false
 var isSim bool = false
+var isDVTX bool = false
 
 // WritePKRU updates the value of the PKRU
 func WritePKRU(prot uint32)

@@ -24,6 +24,7 @@ const (
 	SIM_BACKEND  Backend = iota
 	VTX_BACKEND  Backend = iota
 	MPK_BACKEND  Backend = iota
+	DVTX_BACKEND Backend = iota
 	BACKEND_SIZE Backend = iota
 )
 
@@ -32,5 +33,6 @@ var (
 		"SIM",
 		"VTX",
 		"MPK",
+		"DVTX",
 	}
 )

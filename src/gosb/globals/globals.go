@@ -22,7 +22,8 @@ const (
 )
 
 var (
-
+	// For debugging for the moment
+	IsDynamic bool = false
 	// Symbols
 	Symbols   []elf.Symbol
 	NameToSym map[string]*elf.Symbol

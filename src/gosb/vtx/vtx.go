@@ -48,13 +48,13 @@ func Init() {
 	commons.Check(err == nil)
 	err = kvm.UpdateGlobalOnce(int(kvmFd.Fd()))
 	commons.Check(err == nil)
-	machine = kvm.CreateVirtualMachine(int(kvmFd.Fd()))
+	machine = kvm.CreateVirtualMachine(int(kvmFd.Fd()), true)
 	vm = &kvm.KVM{machine, nil, "God", 0}
 
 	// Map the page allocator.
-	mv.GodAS.MapArenas()
+	mv.GodAS.MapArenas(true)
 	for _, v := range views {
-		v.MapArenas()
+		v.MapArenas(true)
 	}
 }
 
@@ -67,10 +67,6 @@ func Prolog(id commons.SandId) {
 	s, ok1 := globals.Sandboxes[id]
 	commons.Check(ok && ok1)
 	if vcpu != 0 {
-		//kvm.RedSwitch(uintptr(v.Tables.CR3(false, 0)))
-		//TODO set the memview
-		//runtime.AssignSbId(id, false)
-		//return
 		goto end
 	}
 	prolog_internal(true)

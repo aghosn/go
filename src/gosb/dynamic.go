@@ -6,19 +6,32 @@ import (
 	"gosb/backend"
 	"gosb/commons"
 	"gosb/globals"
+	mv "gosb/vtx/platform/memview"
+	"runtime"
 	"strings"
 )
+
+type IdFunc func() commons.SandId
 
 var (
 	P2PDeps     map[string][]string
 	PNames      map[string]bool
 	IdToName    map[int]string
 	SandboxDeps map[string][]string
+
+	// Go tries to hold information about the address space.
+	InitialSpace *commons.VMAreas
+	GodSpace     *commons.VMAreas
+
+	// Pointer to switch id.
+	DynGetId IdFunc = nil
 )
 
 func DynInitialize(back backend.Backend) {
 	once.Do(func() {
-		fmt.Println("Called init")
+		runtime.GOMAXPROCS(1)
+		commons.Check(DynGetId != nil)
+		globals.IsDynamic = true
 		globals.IdToPkg = make(map[int]*commons.Package)
 		globals.NameToPkg = make(map[string]*commons.Package)
 		globals.NameToId = make(map[string]int)
@@ -28,6 +41,11 @@ func DynInitialize(back backend.Backend) {
 		PNames = make(map[string]bool)
 		IdToName = make(map[int]string)
 		SandboxDeps = make(map[string][]string)
+		fvmas := mv.ParseProcessAddressSpace(commons.USER_VAL)
+		InitialSpace = commons.Convert(fvmas)
+		GodSpace = InitialSpace.Copy()
+		// Do the normal backend initialization and see what happens.
+		initBackend(back)
 	})
 }
 
@@ -46,7 +64,7 @@ func DynAddPackage(name string, id int, start, size uintptr) {
 	pkg := &commons.Package{
 		Name:  name,
 		Id:    id,
-		Sects: []commons.Section{commons.Section{uint64(start), uint64(size), 0}},
+		Sects: []commons.Section{commons.Section{uint64(start), uint64(size), commons.HEAP_VAL}},
 	}
 	// Name should be updated in the register id.
 	if name != "module" || ok {
@@ -189,13 +207,13 @@ func DynProlog(id string) {
 
 	// We need to update the view.
 	sb.Config.View = globals.ComputeMemoryView(deps, P2PDeps, memview)
-	mv := make(map[int]uint8)
+	mmv := make(map[int]uint8)
 	for k, v := range memview {
 		i, _ := findId(k)
-		mv[i] = v
+		mmv[i] = v
 	}
 	commons.Check(sb.View == nil)
-	sb.View = mv
+	sb.View = mmv
 	sb.Entered = true
 
 	vmareas := make([]*commons.VMArea, 0)
@@ -206,10 +224,40 @@ func DynProlog(id string) {
 			fmt.Println("Missing information for ", k)
 			continue
 		}
-		//commons.Check(ok)
 		vmareas = append(vmareas, commons.PackageToVMAreas(pkg, v)...)
 	}
+
+	// Map the InitialSpace too, this corresponds to runtime.
 	sb.Static = commons.Convert(vmareas)
-	fmt.Println("Prolog", id)
-	sb.Static.Print()
+	sb.Static.MapAreaCopy(InitialSpace)
+
+	// Call the actual backend.
+	commons.Check(currBackend != nil)
+	currBackend.Prolog(id)
+}
+
+func DynEpilog(id commons.SandId) {
+	//TODO implement
+}
+
+//TODO(aghosn) this fluff might be useless.
+//Let's check if we really need to have these updates here or not.
+// Same for InitialSpace and GodSpace, see if we need to keep them or not.
+// Probably GodSpace is useless as we have GodAS.
+func ExtendSpace(isrt bool, addr, size uintptr) {
+	commons.Check(InitialSpace != nil)
+	commons.Check(isrt)
+	vma := &commons.VMArea{}
+	vma.Addr, vma.Size, vma.Prot = uint64(addr), uint64(size), commons.HEAP_VAL
+	//TODO these updates are not reflected by the backend.
+	GodSpace.Map(vma)
+	commons.Check(currBackend != nil)
+	currBackend.RuntimeGrowth(true, 0, addr, size)
+	if isrt {
+		cpy := vma.Copy()
+		InitialSpace.Map(cpy)
+		for _, sb := range globals.Sandboxes {
+			sb.Static.Map(vma.Copy())
+		}
+	}
 }

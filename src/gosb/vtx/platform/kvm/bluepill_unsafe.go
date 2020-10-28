@@ -8,6 +8,11 @@ import (
 	"unsafe"
 )
 
+var (
+	uregs userRegs
+	sregs systemRegs
+)
+
 //go:linkname throw runtime.throw
 func throw(string)
 
@@ -126,6 +131,8 @@ func bluepillHandler(context unsafe.Pointer) {
 			c.die(bluepillArchContext(context), "I/O")
 			return
 		case _KVM_EXIT_INTERNAL_ERROR:
+			c.getUserRegisters(&uregs)
+			c.getSystemRegisters(&sregs)
 			// @from gvisor
 			// An internal error is typically thrown when emulation
 			// fails. This can occur via the MMIO path below (and
@@ -140,8 +147,12 @@ func bluepillHandler(context unsafe.Pointer) {
 			c.die(bluepillArchContext(context), "debug")
 			return
 		case _KVM_EXIT_MMIO:
-			c.die(bluepillArchContext(context), "mmio")
-			throw("Implement support for MMIO")
+			c.getUserRegisters(&uregs)
+			c.getSystemRegisters(&sregs)
+			physical := uint64(c.runData.data[0])
+			c.MMIOFault(physical)
+			//c.die(bluepillArchContext(context), "mmio")
+			//throw("Implement support for MMIO")
 		case _KVM_EXIT_HLT:
 			// Copy out registers.
 			bluepillArchExit(c, bluepillArchContext(context))

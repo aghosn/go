@@ -1,6 +1,7 @@
 package kvm
 
 import (
+	"gosb/commons"
 	"gosb/vtx/arch"
 	"gosb/vtx/platform/ring0"
 	platform "gosb/vtx/plt"
@@ -30,7 +31,6 @@ func (m *Machine) initArchState() error {
 	m.retryInGuest(func() {
 		ring0.SetCPUIDFaulting(true)
 	})
-
 	return nil
 }
 
@@ -167,6 +167,7 @@ func (c *VCPU) SwitchToUser(switchOpts ring0.SwitchOpts) {
 func (m *Machine) retryInGuest(fn func()) {
 	c := m.Get()
 	c.Memview = m.MemView
+	c.Sysfilter = &commons.SyscallAll
 	defer m.Put(c)
 	defer func() { c.Memview = nil }()
 	defer runtime.UnlockOSThread()

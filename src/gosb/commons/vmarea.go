@@ -80,6 +80,7 @@ func (vm *VMArea) merge(o *VMArea) (*VMArea, bool) {
 	// Safety check first
 	if vm.intersect(o) && vm.Prot != o.Prot {
 		log.Printf("Malformed address space, incompatible protection %v, %v\n", vm, o)
+		log.Printf("protection %x %x, %x\n", vm.Prot, o.Prot, vm.Prot&R_VAL)
 		panic("backtrace")
 	}
 	// Contiguous but different protection

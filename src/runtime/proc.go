@@ -570,6 +570,8 @@ func schedinit() {
 		isMPK = true
 	} else if litter == "VTX" {
 		isVTX = true
+	} else if litter == "DVTX" {
+		isDVTX = true
 	} else {
 		isSim = true
 	}
@@ -1770,7 +1772,9 @@ func dropm() {
 	// Commit the release of mp.
 	unlockextra(mp)
 
-	msigrestore(sigmask)
+	if !isDVTX {
+		msigrestore(sigmask)
+	}
 }
 
 // A helper function for EnsureDropM.

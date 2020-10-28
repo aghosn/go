@@ -39,6 +39,12 @@ func Register(id int, start, size uintptr) {
 }
 
 //go:nosplit
+func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
+	// Nothing to do
+	return
+}
+
+//go:nosplit
 func Execute(id c.SandId) {
 	runtime.AssignSbId(id, false)
 	return

@@ -181,6 +181,16 @@ func (a *AddressSpace) ValidAddress(addr uint64) bool {
 }
 
 //go:nosplit
+func (a *AddressSpace) FindVirtualForPhys(phys uint64) (uint64, bool) {
+	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
+		if phys >= m.Span.GPA && phys < m.Span.GPA+m.Span.Size {
+			return m.Span.Start + (phys - m.Span.GPA), true
+		}
+	}
+	return 0, false
+}
+
+//go:nosplit
 func (a *AddressSpace) FindMemoryRegion(addr uint64) *MemoryRegion {
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
 		if addr >= m.Span.Start && addr < m.Span.Start+m.Span.Size {
@@ -283,8 +293,10 @@ func (a *AddressSpace) ExtendRuntime(orig *MemoryRegion) {
 }
 
 // TODO Maybe it's not pte allocator.
-func (a *AddressSpace) MapArenas() {
-	a.PTEAllocator.Danger = true
+func (a *AddressSpace) MapArenas(seal bool) {
+	if seal {
+		a.PTEAllocator.Danger = true
+	}
 	a.PTEAllocator.All.Foreach(func(e *commons.ListElem) {
 		arena := ToArena(e)
 		a.DefaultMap(uintptr(arena.HVA), ARENA_TOTAL_SIZE, uintptr(arena.GPA))

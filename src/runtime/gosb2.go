@@ -15,12 +15,18 @@ type GosbMutex struct {
 
 //go:nosplit
 func (g *GosbMutex) Lock() {
+	if isDVTX {
+		return
+	}
 	lock(&g.m)
 	//slock(&g.s)
 }
 
 //go:nosplit
 func (g *GosbMutex) Unlock() {
+	if isDVTX {
+		return
+	}
 	unlock(&g.m)
 	//sunlock(&g.s)
 }

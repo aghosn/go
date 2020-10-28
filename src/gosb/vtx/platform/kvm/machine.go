@@ -214,7 +214,7 @@ func newMachine(vm int, d *commons.SandboxMemory, template *mv.AddressSpace) (*M
 }
 
 // CreateVirtualMachine creates a single virtual machine based on the default view.
-func CreateVirtualMachine(kvmfd int) *Machine {
+func CreateVirtualMachine(kvmfd int, seal bool) *Machine {
 	var (
 		vm    int
 		errno syscall.Errno
@@ -238,7 +238,9 @@ func CreateVirtualMachine(kvmfd int) *Machine {
 		func(p, l, v uint64, f uint32) {
 			m.setEPTRegion(&mv.GodAS.NextSlot, p, l, v, f)
 		})
-	mv.GodAS.Seal()
+	if seal {
+		mv.GodAS.Seal()
+	}
 	m.Start = reflect.ValueOf(ring0.Start).Pointer()
 	m.kernel.Init(ring0.KernelOpts{PageTables: mv.GodAS.Tables})
 	m.maxVCPUs = runtime.GOMAXPROCS(0) * cpuScale
@@ -315,6 +317,26 @@ func (c *VCPU) lock() {
 //go:nosplit
 func (c *VCPU) unlock() {
 	atomic.SwapUint32(&c.state, VCPUReady)
+}
+
+//go:nosplit
+func (c *VCPU) MMIOFault(phys uint64) {
+	commons.Check(c.Memview != nil)
+	virt, ok := c.Memview.FindVirtualForPhys(phys)
+	if !ok {
+		throw("couldn't find the address")
+	}
+	data := (*[8]byte)(unsafe.Pointer(&c.runData.data[1]))
+	length := (uintptr)((uint32)(c.runData.data[2]))
+	write := (uint8)(((c.runData.data[2] >> 32) & 0xff)) != 0
+	for i := uintptr(0); i < length; i++ {
+		b := bytePtr(uintptr(virt) + i)
+		if write {
+			*b = data[i]
+		} else {
+			data[i] = *b
+		}
+	}
 }
 
 //go:nosplit

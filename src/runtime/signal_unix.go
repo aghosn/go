@@ -966,7 +966,9 @@ func minitSignalMask() {
 func unminitSignals() {
 	if getg().m.newSigstack {
 		st := stackt{ss_flags: _SS_DISABLE}
-		sigaltstack(&st, nil)
+		if !isDVTX {
+			sigaltstack(&st, nil)
+		}
 	} else {
 		// We got the signal stack from someone else. Restore
 		// the Go-allocated stack in case this M gets reused
