@@ -187,6 +187,13 @@ func (a *AddressSpace) FindVirtualForPhys(phys uint64) (uint64, bool) {
 			return m.Span.Start + (phys - m.Span.GPA), true
 		}
 	}
+	// Maybe in the page table allocator then.
+	ptea := a.PTEAllocator
+	for a := ToArena(ptea.All.First); a != nil; a = ToArena(a.Next) {
+		if a.GPA <= phys && a.GPA+uint64(ARENA_TOTAL_SIZE) > phys {
+			return a.HVA + (phys - a.GPA), true
+		}
+	}
 	return 0, false
 }
 

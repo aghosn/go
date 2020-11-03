@@ -28,17 +28,20 @@ const (
 )
 
 var (
-	MRTRip    uint64  = 0
-	MRTFsbase uint64  = 0
-	MRTFault  uintptr = 0
-	MRTSpanId int     = 0
-	MRTEntry  uintptr = 0
-	MRTSpan   uintptr = 0
-	MRTAddr   uintptr = 0
-	MRTFd     int     = 0
-	MRTMaped  int     = 0
-	MRTMaped2 int     = 0
-	MRTValid  bool    = false
+	MRTRip          uint64  = 0
+	MRTFsbase       uint64  = 0
+	MRTFault        uintptr = 0
+	MRTSpanId       int     = 0
+	MRTEntry        uintptr = 0
+	MRTSpan         uintptr = 0
+	MRTAddr         uintptr = 0
+	MRTFd           int     = 0
+	MRTMaped        int     = 0
+	MRTMaped2       int     = 0
+	MRTValid        bool    = false
+	MRTFound        bool    = false
+	MRTMMap         uint64  = 0
+	MRTCountSbreaks uint64  = 0
 )
 
 //go:nosplit
@@ -71,9 +74,13 @@ func kvmSyscallHandler(vcpu *VCPU) sysHType {
 
 		// Perform the syscall, here we will interpose.
 		// 3. Do a raw syscall now.
+		isMMap := regs.Rax == syscall.SYS_MMAP
 		r1, r2, err := syscall.RawSyscall6(uintptr(regs.Rax),
 			uintptr(regs.Rdi), uintptr(regs.Rsi), uintptr(regs.Rdx),
 			uintptr(regs.R10), uintptr(regs.R8), uintptr(regs.R9))
+		if isMMap {
+			MRTCountSbreaks++
+		}
 		if err != 0 {
 			regs.Rax = uint64(-err)
 		} else {
@@ -128,7 +135,12 @@ func kvmSyscallHandler(vcpu *VCPU) sysHType {
 		vcpu.machine.Mu.Unlock()
 		return syshandlerPF
 	}
+	// Something went wrong that we did not account for.
+	// Get the registers directly from KVM to make sure we have the correct ones
+	// in gdb.
 	if vcpu.exceptionCode != 0 {
+		vcpu.getUserRegisters(&uregs)
+		vcpu.getSystemRegisters(&sregs)
 		return syshandlerException
 	}
 	return syshandlerErr2

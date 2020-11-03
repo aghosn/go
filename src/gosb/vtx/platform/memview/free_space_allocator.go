@@ -37,18 +37,19 @@ type PageTableAllocator struct {
 	// and new Arenas should be taken from these.
 	Danger bool
 
-	// Statistics about the page table allocator
-	NbMMaps uint64
+	// Counts how many arenas need to be mapped.
+	Dirties int64
 }
 
 type Arena struct {
 	commons.ListElem
-	HVA  uint64 // Host virtual address, obtained via mmap.
-	GPA  uint64 // Guest physical address, obtained at alloc time.
-	PTEs [ARENA_SIZE]*pg.PTEs
-	Idx  int
-	Full bool
-	Slot uint32
+	HVA   uint64 // Host virtual address, obtained via mmap.
+	GPA   uint64 // Guest physical address, obtained at alloc time.
+	PTEs  [ARENA_SIZE]*pg.PTEs
+	Idx   int
+	Full  bool
+	Slot  uint32
+	Dirty bool
 }
 
 /*			FreeSpaceAllocator methods				*/
@@ -123,14 +124,19 @@ func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 			current = &Arena{HVA: uint64(start), GPA: gpstart, Slot: ^uint32(0)}
 		} else {
 			panic("Ran out of arenas for page tables")
-			//current = pga.AcquireEMArena()
-			//current.HVA, current.GPA, current.Slot = uint64(start), gpstart, ^uint32(0)
-			// register this region with KVM.
-			//pga.Register(gpstart, uint64(ARENA_TOTAL_SIZE), uint64(start), 0)
 		}
+		// Mark dirty arenas
+		current.Dirty = true
+		pga.Dirties += 1
+
 		pga.All.AddBack(current.ToElem())
 		pga.Current = current
-
+		// For dynamic settings
+		//		if pga.Dynamic {
+		//			fmt.Printf("Updated that this with %x - %x\n", current.GPA, current.GPA+uint64(ARENA_TOTAL_SIZE))
+		//			fmt.Printf("With %x - %x\n", current.HVA, current.HVA+uint64(ARENA_TOTAL_SIZE))
+		//			GodAS.DefaultMap(uintptr(current.HVA), ARENA_TOTAL_SIZE, uintptr(current.GPA))
+		//		}
 	}
 	pte, addr := pga.Current.Allocate()
 	if pga.Current.Full {

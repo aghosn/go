@@ -322,7 +322,7 @@ func (c *VCPU) unlock() {
 //go:nosplit
 func (c *VCPU) MMIOFault(phys uint64) {
 	commons.Check(c.Memview != nil)
-	virt, ok := c.Memview.FindVirtualForPhys(phys)
+	virt, ok := mv.GodAS.FindVirtualForPhys(phys) //c.Memview.FindVirtualForPhys(phys)
 	if !ok {
 		throw("couldn't find the address")
 	}

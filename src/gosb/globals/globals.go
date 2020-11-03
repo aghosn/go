@@ -58,6 +58,14 @@ var (
 	PkgDeps map[int][]c.SandId
 )
 
+type IdFunc func() c.SandId
+
+// For dynamic usage
+var (
+	// Pointer to switch id.
+	DynGetId IdFunc = nil
+)
+
 // PristineId generates a new pristine id for the sandbox.
 func PristineId(id string) (string, int) {
 	pid := atomic.AddUint32(&NextPkgId, 1)

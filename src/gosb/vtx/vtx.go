@@ -241,14 +241,17 @@ func tryBluepill(do bool, id string) {
 	vcpu := runtime.GetVcpu()
 	commons.Check(ok && ok1 && vcpu != 0)
 	prolog_internal(false)
+	inside = true
 	kvm.RedSwitch(uintptr(v.Tables.CR3(false, 0)))
 	kvm.SetVCPUAttributes(vcpu, v, &f.Config.Sys)
 	runtime.AssignSbId(id, false)
+
 }
 
 //go:nosplit
 func tryInHost(f func()) {
 	do, msbid := tryRedpill()
+	inside = false
 	f()
 	tryBluepill(do, msbid)
 }

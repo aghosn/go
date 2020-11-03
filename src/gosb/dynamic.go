@@ -11,8 +11,6 @@ import (
 	"strings"
 )
 
-type IdFunc func() commons.SandId
-
 var (
 	P2PDeps     map[string][]string
 	PNames      map[string]bool
@@ -21,16 +19,14 @@ var (
 
 	// Go tries to hold information about the address space.
 	InitialSpace *commons.VMAreas
-	GodSpace     *commons.VMAreas
+	//GodSpace     *commons.VMAreas
 
-	// Pointer to switch id.
-	DynGetId IdFunc = nil
 )
 
 func DynInitialize(back backend.Backend) {
 	once.Do(func() {
 		runtime.GOMAXPROCS(1)
-		commons.Check(DynGetId != nil)
+		commons.Check(globals.DynGetId != nil)
 		globals.IsDynamic = true
 		globals.IdToPkg = make(map[int]*commons.Package)
 		globals.NameToPkg = make(map[string]*commons.Package)
@@ -43,7 +39,7 @@ func DynInitialize(back backend.Backend) {
 		SandboxDeps = make(map[string][]string)
 		fvmas := mv.ParseProcessAddressSpace(commons.USER_VAL)
 		InitialSpace = commons.Convert(fvmas)
-		GodSpace = InitialSpace.Copy()
+		//GodSpace = InitialSpace.Copy()
 		// Do the normal backend initialization and see what happens.
 		initBackend(back)
 	})
@@ -250,7 +246,7 @@ func ExtendSpace(isrt bool, addr, size uintptr) {
 	vma := &commons.VMArea{}
 	vma.Addr, vma.Size, vma.Prot = uint64(addr), uint64(size), commons.HEAP_VAL
 	//TODO these updates are not reflected by the backend.
-	GodSpace.Map(vma)
+	//GodSpace.Map(vma)
 	commons.Check(currBackend != nil)
 	currBackend.RuntimeGrowth(true, 0, addr, size)
 	if isrt {

@@ -152,3 +152,42 @@ func ParseProcessAddressSpace(defProt uint8) []*c.VMArea {
 	}
 	return vmareas
 }
+
+func UpdateHeap() *c.VMArea {
+	dat, err := ioutil.ReadFile("/proc/self/maps")
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	tvmas := strings.Split(string(dat), "\n")
+	for _, l := range tvmas {
+		if !strings.Contains(l, "[heap]") {
+			continue
+		}
+		fields := strings.Fields(l)
+		if len(fields) < 5 {
+			log.Fatalf("error incomplete entry in /proc/self/maps: %v\n", fields)
+		}
+		// Parsing addresses.
+		bounds := strings.Split(fields[0], "-")
+		if len(bounds) != 2 {
+			log.Fatalf("error founding bounds of area: %v\n", bounds)
+		}
+		start, err := strconv.ParseUint(bounds[0], 16, 64)
+		end, err1 := strconv.ParseUint(bounds[1], 16, 64)
+		c.Check(err == nil)
+		c.Check(err1 == nil)
+		c.Check(CHeap != 0)
+		c.Check(start == CHeap)
+		vma := &c.VMArea{
+			c.ListElem{},
+			c.Section{
+				Addr: uint64(start),
+				Size: uint64(end - start),
+				Prot: 0,
+			},
+		}
+		return vma
+	}
+	panic("Could not find heap")
+	return nil
+}
