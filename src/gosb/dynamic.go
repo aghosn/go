@@ -113,6 +113,14 @@ func DynRegisterSandbox(id, mem, sys string) {
 	for _, v := range m {
 		memview[v.Name] = v.Perm
 	}
+
+	// Adding the heap vals
+	for v, _ := range commons.PythonRuntime {
+		if _, ok := memview[v]; ok {
+			continue
+		}
+		memview[v] = commons.D_VAL
+	}
 	// Compute and translate the memview.
 	//memview = globals.ComputeMemoryView(deps, P2PDeps, memview)
 	// TODO compute the view.
@@ -140,21 +148,6 @@ func DynRegisterSandboxDependency(id, pkg string) {
 	SandboxDeps[id] = append(e, pkg)
 }
 
-func findId(name string) (int, error) {
-	// Fast path
-	if id, ok := globals.NameToId[name]; ok {
-		return id, nil
-	}
-
-	// Slow path
-	for k, v := range globals.NameToId {
-		if strings.HasSuffix(k, fmt.Sprintf(".%s", name)) {
-			return v, nil
-		}
-	}
-	return -1, errors.New(fmt.Sprintf("Unable to find an id for %s", name))
-}
-
 func findFullName(pkg string) (string, error) {
 	// Fast path
 	if _, ok := globals.NameToId[pkg]; ok {
@@ -180,8 +173,9 @@ func findFullName(pkg string) (string, error) {
 func DynProlog(id string) {
 	sb, ok := globals.Sandboxes[id]
 	commons.Check(ok)
+	// Already did the init dance
 	if sb.Entered {
-		//TODO enter the sandbox
+		currBackend.Prolog(id)
 		return
 	}
 
@@ -205,8 +199,14 @@ func DynProlog(id string) {
 	sb.Config.View = globals.ComputeMemoryView(deps, P2PDeps, memview)
 	mmv := make(map[int]uint8)
 	for k, v := range memview {
-		i, _ := findId(k)
+		i, _ := globals.DynFindId(k)
 		mmv[i] = v
+	}
+
+	// TODO(aghosn) remove afterwards, this is for debugging.
+	for k, _ := range commons.PythonFix {
+		i, _ := globals.DynFindId(k)
+		mmv[i] = commons.D_VAL
 	}
 	commons.Check(sb.View == nil)
 	sb.View = mmv
@@ -233,7 +233,11 @@ func DynProlog(id string) {
 }
 
 func DynEpilog(id commons.SandId) {
-	//TODO implement
+	_, ok := globals.Sandboxes[id]
+	commons.Check(ok)
+	commons.Check(globals.DynGetId != nil)
+	commons.Check(globals.DynGetId() == id)
+	currBackend.Epilog(id)
 }
 
 //TODO(aghosn) this fluff might be useless.

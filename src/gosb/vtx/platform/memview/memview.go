@@ -229,6 +229,22 @@ func (a *AddressSpace) Toggle(on bool, start, size uintptr, prot uint8) {
 	}
 }
 
+// ToggleDynamic only cares about removing entries from the page tables.
+//go:nosplit
+func (a *AddressSpace) ToggleDyn(on bool, start, size uintptr, prot uint8) {
+	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
+		if m.ContainsRegion(uint64(start), uint64(size)) {
+			m.ToggleDyn(on, uint64(start), uint64(size), prot)
+			return
+		}
+	}
+	// We did not have a match, check if we should add something.
+	if on {
+		//TODO check if this is ever called.
+		panic("It is called")
+	}
+}
+
 //go:nosplit
 func (a *AddressSpace) ContainsRegion(start, size uintptr) bool {
 	for m := ToMemoryRegion(a.Regions.First); m != nil; m = ToMemoryRegion(m.Next) {
@@ -592,6 +608,35 @@ func (m *MemoryRegion) Toggle(on bool, start, size uint64, prot uint8) {
 			m.Bitmap[idX(c)] &= ^(uint64(1 << idY(c)))
 		}
 	}
+	deflags := pg.ConvertOpts(prot)
+	// Now apply to pagetable.
+	visit := func(va uintptr, pte *pg.PTE, lvl int) {
+		if lvl != 0 {
+			return
+		}
+		if on {
+			// @aghosn the new prots can only be a subset of the default ones
+			commons.Check(prot <= m.Span.Prot)
+			pte.SetFlags(deflags)
+			pte.Map()
+			flags := pte.Flags()
+			commons.Check(pg.CleanFlags(flags) == pg.CleanFlags(deflags))
+		} else {
+			pte.Unmap()
+		}
+	}
+	visitor := pg.Visitor{
+		Applies: [4]bool{true, false, false, false},
+		Create:  false,
+		Toogle:  true,
+		Alloc:   nil,
+		Visit:   visit,
+	}
+	m.Owner.Tables.Map(uintptr(start), uintptr(size), &visitor)
+}
+
+//go:nosplit
+func (m *MemoryRegion) ToggleDyn(on bool, start, size uint64, prot uint8) {
 	deflags := pg.ConvertOpts(prot)
 	// Now apply to pagetable.
 	visit := func(va uintptr, pte *pg.PTE, lvl int) {

@@ -47,7 +47,7 @@ func (m *Machine) SetAllEPTSlots() {
 }
 
 // UpdateEPTSlots registers new EPT slots.
-func (m *Machine) UpdateEPTSlots(tomap bool) {
+func (m *Machine) UpdateEPTSlots(f func(start, size, gpa uintptr)) {
 	ptea := m.MemView.PTEAllocator
 	commons.Check(ptea.Dirties >= 0)
 	var err syscall.Errno
@@ -59,9 +59,10 @@ func (m *Machine) UpdateEPTSlots(tomap bool) {
 		if err != 0 {
 			panic("Error mapping slot")
 		}
-		// TODO this should be mapped for all the different sandboxes
-		if tomap {
-			m.MemView.DefaultMap(uintptr(a.HVA), mv.ARENA_TOTAL_SIZE, uintptr(a.GPA))
+		if f != nil {
+			// This callback should map for PTEs in all the views
+			f(uintptr(a.HVA), mv.ARENA_TOTAL_SIZE, uintptr(a.GPA))
+			//m.MemView.DefaultMap(uintptr(a.HVA), mv.ARENA_TOTAL_SIZE, uintptr(a.GPA))
 		}
 		a.Dirty = false
 		ptea.Dirties -= 1

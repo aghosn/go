@@ -8,8 +8,10 @@ package globals
  */
 import (
 	"debug/elf"
+	"errors"
 	"fmt"
 	c "gosb/commons"
+	"strings"
 	"sync/atomic"
 )
 
@@ -62,12 +64,30 @@ type IdFunc func() c.SandId
 
 // For dynamic usage
 var (
-	// Pointer to switch id.
+	// Callback to get the current id.
 	DynGetId IdFunc = nil
+
+	// Callback to get the previous id
+	DynGetPrevId IdFunc = nil
 )
 
 // PristineId generates a new pristine id for the sandbox.
 func PristineId(id string) (string, int) {
 	pid := atomic.AddUint32(&NextPkgId, 1)
 	return fmt.Sprintf("p:%v:%v", pid, id), int(pid)
+}
+
+func DynFindId(name string) (int, error) {
+	// Fast path
+	if id, ok := NameToId[name]; ok {
+		return id, nil
+	}
+
+	// Slow path
+	for k, v := range NameToId {
+		if strings.HasSuffix(k, fmt.Sprintf(".%s", name)) {
+			return v, nil
+		}
+	}
+	return -1, errors.New(fmt.Sprintf("Unable to find an id for %s", name))
 }
