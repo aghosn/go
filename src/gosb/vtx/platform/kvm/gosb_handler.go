@@ -28,20 +28,20 @@ const (
 )
 
 var (
-	MRTRip          uint64  = 0
-	MRTFsbase       uint64  = 0
-	MRTFault        uintptr = 0
-	MRTSpanId       int     = 0
-	MRTEntry        uintptr = 0
-	MRTSpan         uintptr = 0
-	MRTAddr         uintptr = 0
-	MRTFd           int     = 0
-	MRTMaped        int     = 0
-	MRTMaped2       int     = 0
-	MRTValid        bool    = false
-	MRTFound        bool    = false
-	MRTMMap         uint64  = 0
-	MRTCountSbreaks uint64  = 0
+	MRTRip     uint64  = 0
+	MRTFsbase  uint64  = 0
+	MRTFault   uintptr = 0
+	MRTSpanId  int     = 0
+	MRTEntry   uintptr = 0
+	MRTSpan    uintptr = 0
+	MRTAddr    uintptr = 0
+	MRTFd      int     = 0
+	MRTMaped   int     = 0
+	MRTMaped2  int     = 0
+	MRTValid   bool    = false
+	MRTFound   bool    = false
+	MRTSigproc uint64  = 0
+	MRTSigalt  uint64  = 0
 )
 
 //go:nosplit
@@ -74,13 +74,16 @@ func kvmSyscallHandler(vcpu *VCPU) sysHType {
 
 		// Perform the syscall, here we will interpose.
 		// 3. Do a raw syscall now.
-		isMMap := regs.Rax == syscall.SYS_MMAP
+		//TODO try to avoid the sigprocmask
+		if regs.Rax == syscall.SYS_RT_SIGPROCMASK || regs.Rax == syscall.SYS_SIGALTSTACK {
+			regs.Rax = 0
+			regs.Rdx = 0
+			return syshandlerValid
+		}
 		r1, r2, err := syscall.RawSyscall6(uintptr(regs.Rax),
 			uintptr(regs.Rdi), uintptr(regs.Rsi), uintptr(regs.Rdx),
 			uintptr(regs.R10), uintptr(regs.R8), uintptr(regs.R9))
-		if isMMap {
-			MRTCountSbreaks++
-		}
+
 		if err != 0 {
 			regs.Rax = uint64(-err)
 		} else {
@@ -117,6 +120,9 @@ func kvmSyscallHandler(vcpu *VCPU) sysHType {
 			}
 			if vcpu.machine.MemView.HasRights(uint64(vcpu.FaultAddr), c.R_VAL) {
 				vcpu.machine.Mu.Unlock()
+				MRTFault = vcpu.FaultAddr
+				MRTMaped = vcpu.Memview.Tables.IsMapped(MRTFault)
+				MRTMaped2 = memview.GodAS.Tables.IsMapped(MRTFault)
 				return syshandlerPFW
 			}
 		}

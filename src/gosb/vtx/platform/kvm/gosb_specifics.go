@@ -19,7 +19,7 @@ func (m *Machine) SetAllEPTSlots() {
 		arena := mv.ToArena(e)
 		commons.Check(arena.Dirty)
 		var err syscall.Errno
-		arena.Slot, err = m.setEPTRegion(&m.MemView.NextSlot, arena.GPA, uint64(mv.ARENA_TOTAL_SIZE), arena.HVA, 0)
+		arena.Slot, err = m.setEPTRegion(&m.MemView.NextSlot, arena.GPA, uint64(mv.ARENA_TOTAL_SIZE), arena.HVA, 1)
 		if err != 0 {
 			panic("Error mapping slot")
 		}
@@ -33,15 +33,10 @@ func (m *Machine) SetAllEPTSlots() {
 	m.MemView.Regions.Foreach(func(e *commons.ListElem) {
 		mem := mv.ToMemoryRegion(e)
 		span := mem.Span
-		switch mem.Tpe {
-		case mv.HEAP_REG:
-			fallthrough
-		default:
-			var err syscall.Errno
-			span.Slot, err = m.setEPTRegion(&m.MemView.NextSlot, span.GPA, span.Size, span.Start, 1)
-			if err != 0 {
-				panic("Error mapping slot")
-			}
+		var err syscall.Errno
+		span.Slot, err = m.setEPTRegion(&m.MemView.NextSlot, span.GPA, span.Size, span.Start, 1)
+		if err != 0 {
+			panic("Error mapping slot")
 		}
 	})
 }
@@ -55,14 +50,13 @@ func (m *Machine) UpdateEPTSlots(f func(start, size, gpa uintptr)) {
 		if !a.Dirty {
 			continue
 		}
-		a.Slot, err = m.setEPTRegion(&m.MemView.NextSlot, a.GPA, uint64(mv.ARENA_TOTAL_SIZE), a.HVA, 0)
+		a.Slot, err = m.setEPTRegion(&m.MemView.NextSlot, a.GPA, uint64(mv.ARENA_TOTAL_SIZE), a.HVA, 1)
 		if err != 0 {
 			panic("Error mapping slot")
 		}
 		if f != nil {
 			// This callback should map for PTEs in all the views
 			f(uintptr(a.HVA), mv.ARENA_TOTAL_SIZE, uintptr(a.GPA))
-			//m.MemView.DefaultMap(uintptr(a.HVA), mv.ARENA_TOTAL_SIZE, uintptr(a.GPA))
 		}
 		a.Dirty = false
 		ptea.Dirties -= 1

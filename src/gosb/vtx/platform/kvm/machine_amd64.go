@@ -3,6 +3,7 @@ package kvm
 import (
 	"gosb/commons"
 	"gosb/vtx/arch"
+	mv "gosb/vtx/platform/memview"
 	"gosb/vtx/platform/ring0"
 	platform "gosb/vtx/plt"
 	"gosb/vtx/usermem"
@@ -165,11 +166,13 @@ func (c *VCPU) SwitchToUser(switchOpts ring0.SwitchOpts) {
 // system call due to a GC stall, for example), then it will be retried. The
 // given function must be idempotent as a result of the retry mechanism.
 func (m *Machine) retryInGuest(fn func()) {
+	commons.Check(m.MemView != nil)
+	commons.Check(mv.GodAS != nil)
 	c := m.Get()
 	c.Memview = m.MemView
 	c.Sysfilter = &commons.SyscallAll
 	defer m.Put(c)
-	defer func() { c.Memview = nil }()
+	defer func() { c.Memview = mv.GodAS }()
 	defer runtime.UnlockOSThread()
 	for {
 		c.ClearErrorCode() // See below.
@@ -185,4 +188,5 @@ func (m *Machine) retryInGuest(fn func()) {
 		}
 	}
 	redpill(RED_EXIT)
+	commons.Check(m.MemView != nil)
 }

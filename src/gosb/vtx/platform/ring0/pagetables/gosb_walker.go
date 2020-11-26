@@ -62,7 +62,6 @@ func (p *PageTables) pageWalk(root *PTEs, start, end uintptr, lvl int, v *Visito
 		} else if !entry.Valid() && v.Applies[lvl] && v.Toogle {
 			v.Visit(curVa, entry, lvl)
 		}
-
 		nstart, nend := start, end
 		if i != sfirst {
 			nstart = curVa

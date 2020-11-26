@@ -147,12 +147,12 @@ func bluepillHandler(context unsafe.Pointer) {
 			c.die(bluepillArchContext(context), "debug")
 			return
 		case _KVM_EXIT_MMIO:
-			c.getUserRegisters(&uregs)
-			c.getSystemRegisters(&sregs)
-			physical := uint64(c.runData.data[0])
-			c.MMIOFault(physical)
+			//c.getUserRegisters(&uregs)
+			//	c.getSystemRegisters(&sregs)
+			//	physical := uint64(c.runData.data[0])
+			//	c.MMIOFault(physical)
 			//c.die(bluepillArchContext(context), "mmio")
-			//throw("Implement support for MMIO")
+			throw("Implement support for MMIO")
 		case _KVM_EXIT_HLT:
 			// Copy out registers.
 			bluepillArchExit(c, bluepillArchContext(context))

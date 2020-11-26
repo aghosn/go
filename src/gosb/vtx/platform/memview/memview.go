@@ -263,8 +263,8 @@ func (a *AddressSpace) Extend(heap bool, m *MemoryRegion, start, size uint64, pr
 	m.Tpe = EXTENSIBLE_REG
 	m.Span.Start, m.Span.Size, m.Span.Prot = start, size, prot
 	m.Owner = a
-	m.Span.Slot = a.NextSlot
-	a.NextSlot++
+	//	m.Span.Slot = a.NextSlot
+	//	a.NextSlot++
 	if heap {
 		m.Tpe = HEAP_REG
 		commons.Check(size <= HEAP_REG_SIZE)
@@ -282,6 +282,7 @@ func (a *AddressSpace) Extend(heap bool, m *MemoryRegion, start, size uint64, pr
 	a.Regions.AddBack(m.ToElem())
 	m.ApplyRange(start, size, prot)
 	m.finalized = true
+	// TODO does not call setEPT???
 }
 
 //go:nosplit

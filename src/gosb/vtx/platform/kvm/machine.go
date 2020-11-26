@@ -132,9 +132,11 @@ func (m *Machine) newVCPU() *VCPU {
 	}
 
 	c := &VCPU{
-		id:      id,
-		fd:      fd,
-		machine: m,
+		id:        id,
+		fd:        fd,
+		machine:   m,
+		Memview:   mv.GodAS,
+		Sysfilter: &commons.SyscallAll,
 	}
 	c.CPU.Init(&m.kernel, c)
 	m.vcpus[c.id] = c
@@ -322,10 +324,12 @@ func (c *VCPU) unlock() {
 //go:nosplit
 func (c *VCPU) MMIOFault(phys uint64) {
 	commons.Check(c.Memview != nil)
-	virt, ok := mv.GodAS.FindVirtualForPhys(phys) //c.Memview.FindVirtualForPhys(phys)
+	virt, ok := c.Memview.FindVirtualForPhys(phys)
 	if !ok {
 		throw("couldn't find the address")
 	}
+	commons.Check(c.Memview.ValidAddress(virt))
+	commons.Check(c.Memview.HasRights(virt, commons.R_VAL|commons.USER_VAL|commons.W_VAL))
 	data := (*[8]byte)(unsafe.Pointer(&c.runData.data[1]))
 	length := (uintptr)((uint32)(c.runData.data[2]))
 	write := (uint8)(((c.runData.data[2] >> 32) & 0xff)) != 0
@@ -341,6 +345,7 @@ func (c *VCPU) MMIOFault(phys uint64) {
 
 //go:nosplit
 func SetVCPUAttributes(vcpuptr uintptr, view *mv.AddressSpace, sys *commons.SyscallMask) {
+	commons.Check(view != nil)
 	vcpu := (*VCPU)(unsafe.Pointer(vcpuptr))
 	vcpu.Memview = view
 	vcpu.Sysfilter = sys

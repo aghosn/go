@@ -21,6 +21,7 @@ func exitsyscall()
 //
 //go:nosplit
 func (m *Machine) setEPTRegion(slot *uint32, physical, length, virtual uint64, flags uint32) (uint32, syscall.Errno) {
+	commons.Check(flags == 1)
 	v := atomic.AddUint32(slot, 1)
 	userRegion := userMemoryRegion{
 		slot:          uint32(v),
@@ -33,6 +34,11 @@ func (m *Machine) setEPTRegion(slot *uint32, physical, length, virtual uint64, f
 	// Set the region.
 	_, errno := commons.Ioctl(m.fd, _KVM_SET_USER_MEMORY_REGION, uintptr(unsafe.Pointer(&userRegion)))
 	return v, errno
+}
+
+//go:nosplit
+func (m *Machine) DynSetEPTRegion(slot *uint32, physical, length, virtual uint64, flags uint32) (uint32, syscall.Errno) {
+	return m.setEPTRegion(slot, physical, length, virtual, flags)
 }
 
 // mapRunData maps the vCPU run data.

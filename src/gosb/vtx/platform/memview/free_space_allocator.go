@@ -3,6 +3,7 @@ package memview
 import (
 	"fmt"
 	"gosb/commons"
+	"gosb/globals"
 	pg "gosb/vtx/platform/ring0/pagetables"
 	"syscall"
 	"unsafe"
@@ -28,7 +29,7 @@ type PageTableAllocator struct {
 	Current   *Arena              // current arena to obtain page tables.
 	Allocator *FreeSpaceAllocator // Physical memory allocator.
 
-	// Callback to register growth with KVM
+	// TODO use that shit Callback to register growth with KVM
 	Register func(uint64, uint64, uint64, uint32)
 
 	// Page allocation can happen during a register
@@ -87,6 +88,13 @@ func (f *FreeSpaceAllocator) Malloc(size uint64) uint64 {
 		f.Used.AddBack(candidate.ToElem())
 		return candidate.Addr
 	}
+	//(aghosn) debugging MMIO Exit, add a tracer to the address.
+	//Should be able to do dynamic allocation if isDVTX
+	if globals.IsDynamic {
+		tracer := &commons.VMArea{}
+		tracer.Addr, tracer.Size = candidate.Addr, size
+		f.Used.AddBack(tracer.ToElem())
+	}
 	result := candidate.Addr
 	candidate.Addr, candidate.Size = candidate.Addr+size, candidate.Size-size
 	return result
@@ -131,12 +139,6 @@ func (pga *PageTableAllocator) NewPTEs2() (*pg.PTEs, uint64) {
 
 		pga.All.AddBack(current.ToElem())
 		pga.Current = current
-		// For dynamic settings
-		//		if pga.Dynamic {
-		//			fmt.Printf("Updated that this with %x - %x\n", current.GPA, current.GPA+uint64(ARENA_TOTAL_SIZE))
-		//			fmt.Printf("With %x - %x\n", current.HVA, current.HVA+uint64(ARENA_TOTAL_SIZE))
-		//			GodAS.DefaultMap(uintptr(current.HVA), ARENA_TOTAL_SIZE, uintptr(current.GPA))
-		//		}
 	}
 	pte, addr := pga.Current.Allocate()
 	if pga.Current.Full {

@@ -5,6 +5,7 @@ package commons
 var (
 	PythonRuntime = map[string]bool{
 		"builtins": true,
+		"sys":      true,
 	}
 
 	PythonFix = map[string]bool{

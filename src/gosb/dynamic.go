@@ -183,7 +183,7 @@ func DynProlog(id string) {
 	memview := sb.Config.View
 	commons.Check(memview != nil)
 	d, ok := SandboxDeps[id]
-	commons.Check(ok)
+	//commons.Check(ok)
 	deps := make([]string, len(d))
 	for i, v := range d {
 		n, err := findFullName(v)
@@ -240,10 +240,6 @@ func DynEpilog(id commons.SandId) {
 	currBackend.Epilog(id)
 }
 
-//TODO(aghosn) this fluff might be useless.
-//Let's check if we really need to have these updates here or not.
-// Same for InitialSpace and GodSpace, see if we need to keep them or not.
-// Probably GodSpace is useless as we have GodAS.
 func ExtendSpace(isrt bool, addr, size uintptr) {
 	commons.Check(InitialSpace != nil)
 	commons.Check(isrt)
@@ -252,7 +248,7 @@ func ExtendSpace(isrt bool, addr, size uintptr) {
 	//TODO these updates are not reflected by the backend.
 	//GodSpace.Map(vma)
 	commons.Check(currBackend != nil)
-	currBackend.RuntimeGrowth(true, 0, addr, size)
+	currBackend.RuntimeGrowth(isrt, 0, addr, size)
 	if isrt {
 		cpy := vma.Copy()
 		InitialSpace.Map(cpy)

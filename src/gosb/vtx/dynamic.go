@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+	"unsafe"
 )
 
 /* Implementation of the dynamic version of the vtx backend.
@@ -70,6 +71,7 @@ func DProlog(id commons.SandId) {
 				v.DefaultMap(start, size, gpa)
 			}
 		})
+		mem.MapArenas(false)
 	})
 entering:
 	dprolog(sb, mem)
@@ -84,7 +86,7 @@ func dprolog(sb *commons.SandboxMemory, mem *mv.AddressSpace) {
 	}
 	vcpu := runtime.GetVcpu()
 	kvm.RedSwitch(uintptr(mem.Tables.CR3(false, 0)))
-	kvm.SetVCPUAttributes(vcpu /*mv.GodAS*/, mem, &sb.Config.Sys)
+	kvm.SetVCPUAttributes(vcpu, mem, &sb.Config.Sys)
 }
 
 //go:nosplit
@@ -97,7 +99,6 @@ func DEpilog(id commons.SandId) {
 	commons.Check(globals.DynGetPrevId() == "GOD")
 	kvm.Redpill(kvm.RED_GOD)
 	kvm.SetVCPUAttributes(vcpu, mv.GodAS, &commons.SyscallAll)
-
 }
 
 //go:nosplit
@@ -110,12 +111,28 @@ func DRuntimeGrowth(isheap bool, id int, start, size uintptr) {
 		return
 	}
 	size = uintptr(commons.Round(uint64(size), true))
-	mem := &mv.MemoryRegion{} //mv.GodAS.AcquireEMR()
+	mem := &mv.MemoryRegion{}
 	mv.GodAS.Extend(false, mem, uint64(start), uint64(size), commons.HEAP_VAL)
-	//TODO is that correct actually? Shouldn't it be mapped in the same way?
 	for _, v := range views {
-		v.Extend(false, mem, uint64(start), uint64(size), commons.HEAP_VAL)
+		cpy := &mv.MemoryRegion{}
+		v.Extend2(cpy, mem)
 	}
+	if inside {
+		vcpu := (*kvm.VCPU)(unsafe.Pointer(runtime.GetVcpu()))
+		commons.Check(vcpu != nil && vcpu.Memview != nil)
+	}
+	// Register the address with KVM
+	commons.Check(machine != nil)
+	commons.Check(vm != nil && vm.Machine != nil)
+	commons.Check(vm.Machine == machine)
+	commons.Check(mem.Span.Slot == 0)
+	var err syscall.Errno
+	mem.Span.Slot, err = vm.Machine.DynSetEPTRegion(
+		&mv.GodAS.NextSlot, mem.Span.GPA, mem.Span.Size, mem.Span.Start, 1)
+	if err != 0 {
+		panic("Error dynamically mapping slot")
+	}
+	commons.Check(mv.GodAS.PTEAllocator.Dirties == 0)
 }
 
 /* Helper functions */
@@ -130,8 +147,11 @@ func dynTryInHost(f func()) {
 	// We are inside
 	kvm.Redpill(kvm.RED_EXIT)
 	runtime.AssignVcpu(0)
+	inside = false
 	f()
 	prolog_internal(false)
+	vcpu := (*kvm.VCPU)(unsafe.Pointer(runtime.GetVcpu()))
+	commons.Check(vcpu != nil && vcpu.Memview != nil)
 	inside = true
 }
 
