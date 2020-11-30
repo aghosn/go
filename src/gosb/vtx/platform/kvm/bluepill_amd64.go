@@ -1,9 +1,11 @@
 package kvm
 
 import (
+	"gosb/globals"
 	"gosb/vtx/arch"
 	"gosb/vtx/platform/ring0"
 	"syscall"
+	"unsafe"
 )
 
 var (
@@ -69,6 +71,17 @@ func (c *VCPU) KernelSyscall() {
 		}
 		ring0.WriteCR3(cr3)
 		return
+	}
+
+	//Check if this is a sig system call for dynamic language, if so, just ignore it.
+	if globals.IsDynamic {
+		instr := (*uint16)(unsafe.Pointer(uintptr(regs.Rip - 2)))
+		if *instr == _SYSCALL_INSTR &&
+			(regs.Rax == syscall.SYS_RT_SIGPROCMASK || regs.Rax == syscall.SYS_SIGALTSTACK) {
+			regs.Rax = 0
+			regs.Rdx = 0
+			return
+		}
 	}
 
 exit:
