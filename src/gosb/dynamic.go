@@ -217,7 +217,7 @@ func DynProlog(id string) {
 	for k, v := range sb.Config.View {
 		pkg, ok := globals.NameToPkg[k]
 		if !ok {
-			fmt.Println("Missing information for ", k)
+			//fmt.Println("Missing information for ", k)
 			continue
 		}
 		vmareas = append(vmareas, commons.PackageToVMAreas(pkg, v)...)
