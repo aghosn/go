@@ -57,18 +57,28 @@ func DynAddPackage(name string, id int, start, size uintptr) {
 	if name == "module" && ok {
 		name = n
 	}
-	pkg := &commons.Package{
+	pkg, exists := globals.IdToPkg[id]
+	if exists {
+		commons.Check(pkg != nil)
+		commons.Check(pkg.Id == id)
+		pkg.AddSection(uint64(start), uint64(size), commons.HEAP_VAL)
+		goto register
+	}
+	// The package does not exist, create and add it
+	pkg = &commons.Package{
 		Name:  name,
 		Id:    id,
 		Sects: []commons.Section{commons.Section{uint64(start), uint64(size), commons.HEAP_VAL}},
 	}
-	// Name should be updated in the register id.
-	if name != "module" || ok {
-		globals.AllPackages = append(globals.AllPackages, pkg)
+
+	globals.IdToPkg[id] = pkg
+	globals.AllPackages = append(globals.AllPackages, pkg)
+
+register:
+	// We can register the name to pkg
+	if name != "module" {
 		globals.NameToPkg[name] = pkg
 	}
-	globals.IdToPkg[id] = pkg
-	//globals.NameToId[name] = id
 }
 
 func DynAddDependency(current, dependency string) {
@@ -92,10 +102,8 @@ func DynRegisterId(name string, id int) {
 	IdToName[id] = name
 	// Now set name to id, name could have mutiple ids, rely on IdToName to track.
 	globals.NameToId[name] = id
-	if pkg, ok := globals.IdToPkg[id]; ok {
+	if pkg, ok := globals.IdToPkg[id]; ok && pkg.Name == "module" {
 		pkg.Name = name
-		globals.AllPackages = append(globals.AllPackages, pkg)
-		globals.NameToPkg[name] = pkg
 	}
 }
 
@@ -199,7 +207,8 @@ func DynProlog(id string) {
 	sb.Config.View = globals.ComputeMemoryView(deps, P2PDeps, memview)
 	mmv := make(map[int]uint8)
 	for k, v := range memview {
-		i, _ := globals.DynFindId(k)
+		i, e := globals.DynFindId(k)
+		commons.Check(e == nil)
 		mmv[i] = v
 	}
 
@@ -217,7 +226,6 @@ func DynProlog(id string) {
 		commons.Check(ok)
 		sb.Config.Pkgs = append(sb.Config.Pkgs, n.Name)
 	}
-
 	sb.Entered = true
 	vmareas := make([]*commons.VMArea, 0)
 	// Compute the static

@@ -30,3 +30,16 @@ type SandboxMemory struct {
 	View    map[int]uint8
 	Entered bool
 }
+
+func (p *Package) AddSection(addr, size uint64, prot uint8) {
+	update := true
+	for _, s := range p.Sects {
+		if s.Addr == addr {
+			Check(s.Size == size && s.Prot == prot)
+			update = false
+		}
+	}
+	if update {
+		p.Sects = append(p.Sects, Section{addr, size, prot})
+	}
+}
