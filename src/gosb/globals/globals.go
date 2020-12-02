@@ -47,6 +47,7 @@ var (
 	IdToPkg   map[int]*c.Package
 	NameToId  map[string]int
 	RtIds     map[int]int
+	RtKeys    map[int][]int
 
 	// Sandboxes
 	Configurations []*c.SandboxDomain

@@ -56,6 +56,17 @@ func AggregatePackages() {
 			RtIds[i] = id
 		}
 	}
+
+	// Compute keys, generate the -1 id
+	RtKeys = make(map[int][]int)
+	for _, p := range AllPackages {
+		id, ok := RtIds[p.Id]
+		if !ok {
+			id = -1
+		}
+		list, _ := RtKeys[id]
+		RtKeys[id] = append(list, p.Id)
+	}
 }
 
 func popMap(m map[int][]c.SandId) (int, []c.SandId) {

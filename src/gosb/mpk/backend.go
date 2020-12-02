@@ -176,15 +176,10 @@ func Init() {
 	pkgSbProt := make(map[int]map[c.SandId]Prot) // PkgID -> sbID -> mpk prot
 
 	for sbID, sb := range g.Sandboxes {
-		// fmt.Printf("//// Sandbox %s ////\n", sbID)
-		// sb.Static.Print()
 		for pkgID := range sb.View {
 			if pkgID == 0 { // Runtime
 				continue
 			}
-
-			// fmt.Printf("%02d - %s - %x\n", pkg.Id, pkg.Name, sb.SView[pkg])
-
 			sbGroup, ok := pkgAppearsIn[pkgID]
 			if !ok {
 				sbGroup = make([]c.SandId, 0)
@@ -205,10 +200,11 @@ func Init() {
 
 	sbKeys := make(map[c.SandId][]int)
 	sbProts := make(map[c.SandId][]Prot)
-	for i := range sbKeys {
+	//TODO remove this loop, it's useless.
+	/*for i := range sbKeys {
 		sbKeys[i] = make([]int, 0)
 		sbProts[i] = make([]Prot, 0)
-	}
+	}*/
 
 	pkgGroups := make([][]int, 0)
 	for len(pkgAppearsIn) > 0 {

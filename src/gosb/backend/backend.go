@@ -25,6 +25,7 @@ const (
 	VTX_BACKEND  Backend = iota
 	MPK_BACKEND  Backend = iota
 	DVTX_BACKEND Backend = iota
+	DMPK_BACKEND Backend = iota
 	BACKEND_SIZE Backend = iota
 )
 
@@ -34,5 +35,6 @@ var (
 		"VTX",
 		"MPK",
 		"DVTX",
+		"DMPK",
 	}
 )

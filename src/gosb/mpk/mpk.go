@@ -74,7 +74,7 @@ func (p PKRU) Update(pkey Pkey, prot Prot) PKRU {
 func PkeyAlloc() (Pkey, error) {
 	pkey, _, _ := syscall.Syscall(sysPkeyAlloc, 0, 0, 0)
 	if int(pkey) < 0 {
-		return Pkey(pkey), errors.New("Failled to allocate pkey")
+		return Pkey(pkey), errors.New("Failed to allocate pkey")
 	}
 	return Pkey(pkey), nil
 }

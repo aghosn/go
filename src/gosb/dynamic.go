@@ -210,8 +210,15 @@ func DynProlog(id string) {
 	}
 	commons.Check(sb.View == nil)
 	sb.View = mmv
-	sb.Entered = true
 
+	// Create the package list too.
+	for k, _ := range sb.View {
+		n, ok := globals.IdToPkg[k]
+		commons.Check(ok)
+		sb.Config.Pkgs = append(sb.Config.Pkgs, n.Name)
+	}
+
+	sb.Entered = true
 	vmareas := make([]*commons.VMArea, 0)
 	// Compute the static
 	for k, v := range sb.Config.View {

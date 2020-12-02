@@ -15,6 +15,7 @@ var (
 		be.BackendConfig{be.VTX_BACKEND, vtx.Init, vtx.Prolog, vtx.Epilog, vtx.Transfer, vtx.Register, vtx.Execute, nil, vtx.RuntimeGrowth, vtx.Stats},
 		be.BackendConfig{be.MPK_BACKEND, mpk.Init, mpk.Prolog, mpk.Epilog, mpk.Transfer, mpk.Register, mpk.Execute, mpk.MStart, nil, nil},
 		be.BackendConfig{be.DVTX_BACKEND, vtx.DInit, vtx.DProlog, vtx.DEpilog, nil, nil, nil, nil, vtx.DRuntimeGrowth, nil},
+		be.BackendConfig{be.DMPK_BACKEND, mpk.DInit, mpk.DProlog, mpk.DEpilog, nil, nil, nil, nil, mpk.DRuntimeGrowth, nil},
 	}
 )
 
