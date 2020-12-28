@@ -101,7 +101,7 @@ func ParseProcessAddressSpace(defProt uint8) []*c.VMArea {
 	tvmas := strings.Split(string(dat), "\n")
 	vmareas := make([]*c.VMArea, 0)
 	for _, v := range tvmas {
-		if len(v) == 0 || strings.Contains(v, "vsyscall") {
+		if len(v) == 0 || strings.Contains(v, "vsyscall") || strings.Contains(v, "anon_inode:kvm-vcpu") {
 			continue
 		}
 		fields := strings.Fields(v)

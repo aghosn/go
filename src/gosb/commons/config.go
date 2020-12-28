@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 // This file defines the format for sandbox configuration.
@@ -148,6 +149,21 @@ func parsePerm(entry string) (uint8, error) {
 		return 0, fmt.Errorf("Reading access right must be specified explicitly.\n")
 	}
 	return perm, nil
+}
+
+// Converts from mmap access rights to our own.
+func ConvertRights(rights uintptr) uint8 {
+	prots := USER_VAL
+	if rights&syscall.PROT_READ != 0 {
+		prots |= R_VAL
+	}
+	if rights&syscall.PROT_WRITE != 0 {
+		prots |= W_VAL
+	}
+	if rights&syscall.PROT_EXEC != 0 {
+		prots |= X_VAL
+	}
+	return prots
 }
 
 //go:nosplit

@@ -378,3 +378,10 @@ func PrintInformation() {
 		fmt.Println("syscalls: ", s.Config.Sys)
 	}
 }
+
+func UpdateMissing() {
+	if currBackend == nil || currBackend.Tpe != backend.VTX_BACKEND {
+		return
+	}
+	vtx.UpdateMissing()
+}

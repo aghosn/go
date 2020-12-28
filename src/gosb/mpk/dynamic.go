@@ -1,7 +1,6 @@
 package mpk
 
 import (
-	"fmt"
 	"gosb/commons"
 	"gosb/globals"
 	"sync"
@@ -34,20 +33,14 @@ func DProlog(id commons.SandId) {
 		dprolog(pkru)
 		return
 	}
-	sb, ok := globals.Sandboxes[id]
+	// Check the sandbox does exists
+	_, ok = globals.Sandboxes[id]
 	commons.Check(ok)
 	// First time we see this sandbox, compute the pkru.
 	globals.AggregatePackages()
-	fmt.Println("Here is the RTIds ", globals.RtIds)
-	fmt.Println("The config ", sb.Config.Pkgs)
-	fmt.Println("The view too ", sb.View)
-	fmt.Println("The RtKeys ", globals.RtKeys)
-	fmt.Println("All packages ")
-	for _, p := range globals.AllPackages {
-		fmt.Printf("%s -> %d; ", p.Name, p.Id)
-	}
-	fmt.Println()
-
+	//TODO compute key allocation
+	//fmt.Println("Here is the RTIds ", globals.RtIds)
+	//fmt.Println("The RtKeys ", globals.RtKeys)
 	dprolog(pkru)
 }
 
@@ -70,4 +63,11 @@ func DTransfer(oldid, newid int, start, size uintptr) {
 
 func DRuntimeGrowth(isheap bool, id int, start, size uintptr) {
 	// @aghosn, nothing to do, it's going to be tagged 0 by default.
+}
+
+/** Helper functions **/
+func attributeKeys() {
+	// TODO check the total number of required keys.
+	// Allocate them if needed
+	// Compare with what packages are tagged with
 }

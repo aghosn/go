@@ -56,7 +56,7 @@ type AddressSpace struct {
 	NextSlot uint32 // EPT mappings slots.
 
 	// Used for emergency runtime growth
-	EMR [20]*MemoryRegion
+	EMR [50]*MemoryRegion
 }
 
 /*				AddressSpace methods				*/
@@ -487,7 +487,6 @@ func (m *MemoryRegion) Finalize() {
 		}
 		//fallthrough
 	case HEAP_REG:
-		//TODO change this part afterwards, for the moment fallthrough
 		fallthrough
 	default:
 		m.Map(m.Span.Start, m.Span.Size, m.Span.Prot, true)

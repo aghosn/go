@@ -1,6 +1,7 @@
 package vtx
 
 import (
+	"fmt"
 	"gosb/commons"
 	"gosb/globals"
 	"gosb/vtx/platform/kvm"
@@ -267,4 +268,25 @@ func VTXExit() (bool, string) {
 }
 
 func Stats() {
+}
+
+func UpdateMissing() {
+	if mv.GodAS == nil {
+		return
+	}
+	tryInHost(func() {
+		areas := mv.ParseProcessAddressSpace(commons.USER_VAL)
+		for _, v := range areas {
+			if !mv.GodAS.ContainsRegion(uintptr(v.Addr), uintptr(v.Size)) {
+				mv.GodAS.Replenish()
+				mem := mv.GodAS.AcquireEMR()
+				mv.GodAS.Extend(false, mem, v.Addr, v.Size, v.Prot)
+				for _, view := range views {
+					view.Replenish()
+					view.ExtendRuntime(mem)
+				}
+			}
+		}
+		fmt.Println("Do we have dirties?", mv.GodAS.PTEAllocator.Dirties)
+	})
 }

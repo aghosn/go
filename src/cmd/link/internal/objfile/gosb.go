@@ -93,7 +93,9 @@ func registerSandboxes(sbs []string) {
 			if err != nil {
 				panic(err.Error())
 			}
-			pkgs, content := content[:nbPkgs], content[nbPkgs:]
+			pkgs := make([]string, nbPkgs)
+			copy(pkgs, content)
+			content = content[nbPkgs:]
 			Sandboxes = append(Sandboxes, SBObjEntry{name, config[0], config[1], config[2], pkgs, extras, pristine})
 			// Finally add these packages to the ones that need to be bloated
 			for _, e := range extras {
