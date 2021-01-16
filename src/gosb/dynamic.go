@@ -50,9 +50,9 @@ func DynAddPackage(name string, id int, start, size uintptr) {
 	commons.Check(globals.NameToPkg != nil)
 	commons.Check(globals.IdToPkg != nil)
 	commons.Check(globals.NameToId != nil)
-	if _, ok := globals.IdToPkg[id]; ok {
-		panic("Duplicated id for package")
-	}
+	/*if pkg, ok := globals.IdToPkg[id]; ok {
+		panic(fmt.Sprintf("Duplicated id for package: %v -- %v", id, pkg))
+	}*/
 	n, ok := IdToName[id]
 	if name == "module" && ok {
 		name = n
