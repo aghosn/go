@@ -96,6 +96,9 @@ func DynRegisterId(name string, id int) {
 	// Just have to make sure that it is not the one used by default in NameToId.
 	if ok && pna != name {
 		i, ok1 := globals.NameToId[pna]
+		if !(ok1 && id != i) {
+			fmt.Printf("The prev id %v and the current one %d -- %v and %v\n", i, id, pna, name)
+		}
 		commons.Check(ok1 && id != i)
 	}
 	// Now it is safe to replace it in the map.
@@ -271,4 +274,12 @@ func ExtendSpace(isrt bool, addr, size uintptr) {
 			sb.Static.Map(vma.Copy())
 		}
 	}
+}
+
+func DynAddSection(id int, start, size uintptr) {
+	pna, ok := IdToName[id]
+	commons.Check(ok)
+	pid, ok1 := globals.NameToId[pna]
+	commons.Check(ok1 && pid == id)
+	DynAddPackage(pna, id, start, size)
 }
