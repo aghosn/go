@@ -45,42 +45,6 @@ func DynInitialize(back backend.Backend) {
 	})
 }
 
-//TODO modify this now.
-func DynAddPackage(name string, id int, start, size uintptr) {
-	commons.Check(globals.NameToPkg != nil)
-	commons.Check(globals.IdToPkg != nil)
-	commons.Check(globals.NameToId != nil)
-	/*if pkg, ok := globals.IdToPkg[id]; ok {
-		panic(fmt.Sprintf("Duplicated id for package: %v -- %v", id, pkg))
-	}*/
-	n, ok := IdToName[id]
-	if name == "module" && ok {
-		name = n
-	}
-	pkg, exists := globals.IdToPkg[id]
-	if exists {
-		commons.Check(pkg != nil)
-		commons.Check(pkg.Id == id)
-		pkg.AddSection(uint64(start), uint64(size), commons.HEAP_VAL)
-		goto register
-	}
-	// The package does not exist, create and add it
-	pkg = &commons.Package{
-		Name:  name,
-		Id:    id,
-		Sects: []commons.Section{commons.Section{uint64(start), uint64(size), commons.HEAP_VAL}},
-	}
-
-	globals.IdToPkg[id] = pkg
-	globals.AllPackages = append(globals.AllPackages, pkg)
-
-register:
-	// We can register the name to pkg
-	if name != "module" {
-		globals.NameToPkg[name] = pkg
-	}
-}
-
 func DynAddDependency(current, dependency string) {
 	commons.Check(P2PDeps != nil)
 	entry, _ := P2PDeps[current]
@@ -91,22 +55,25 @@ func DynAddDependency(current, dependency string) {
 
 func DynRegisterId(name string, id int) {
 	PNames[name] = true
-	pna, ok := IdToName[id]
-	// If we are reusing an id, IdToName will be overwritten with the correct value.
-	// Just have to make sure that it is not the one used by default in NameToId.
-	if ok && pna != name {
-		i, ok1 := globals.NameToId[pna]
-		if !(ok1 && id != i) {
-			fmt.Printf("The prev id %v and the current one %d -- %v and %v\n", i, id, pna, name)
-		}
-		commons.Check(ok1 && id != i)
+	if prev, ok := IdToName[id]; ok {
+		commons.Check(prev == "module")
 	}
-	// Now it is safe to replace it in the map.
 	IdToName[id] = name
-	// Now set name to id, name could have mutiple ids, rely on IdToName to track.
-	globals.NameToId[name] = id
-	if pkg, ok := globals.IdToPkg[id]; ok && pkg.Name == "module" {
-		pkg.Name = name
+
+	// Get or create the package.
+	pkg, ok := globals.IdToPkg[id]
+	if !ok {
+		pkg = &commons.Package{
+			Name: name,
+			Id:   id,
+		}
+		globals.AllPackages = append(globals.AllPackages, pkg)
+	}
+	commons.Check(pkg != nil)
+	globals.IdToPkg[id] = pkg
+	if name != "module" {
+		globals.NameToId[name] = id
+		globals.NameToPkg[name] = pkg
 	}
 }
 
@@ -276,10 +243,9 @@ func ExtendSpace(isrt bool, addr, size uintptr) {
 	}
 }
 
+// This should never be called before registerid
 func DynAddSection(id int, start, size uintptr) {
-	pna, ok := IdToName[id]
-	commons.Check(ok)
-	pid, ok1 := globals.NameToId[pna]
-	commons.Check(ok1 && pid == id)
-	DynAddPackage(pna, id, start, size)
+	pkg, ok := globals.IdToPkg[id]
+	commons.Check(ok && pkg != nil)
+	pkg.AddSection(uint64(start), uint64(size), commons.HEAP_VAL)
 }
