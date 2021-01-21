@@ -56,7 +56,13 @@ func DynAddDependency(current, dependency string) {
 func DynRegisterId(name string, id int) {
 	PNames[name] = true
 	if prev, ok := IdToName[id]; ok {
-		commons.Check(prev == "module")
+		// Nested package.
+		if prev != "module" {
+			_, ok1 := globals.IdToPkg[id]
+			commons.Check(ok1)
+			//fmt.Printf("hmmmm wut %v vs %v in %v\n", prev, name, id)
+		}
+		//commons.Check(prev == "module")
 	}
 	IdToName[id] = name
 
