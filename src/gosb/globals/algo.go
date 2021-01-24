@@ -99,9 +99,11 @@ func ComputeMemoryView(sbdeps []string, deps map[string][]string, view map[strin
 	toadd := make(map[string]bool)
 	// Init will all the initial packages, including the views.
 	for _, v := range sbdeps {
+		c.Check(v != "")
 		toadd[v] = true
 	}
 	for k, _ := range view {
+		c.Check(k != "")
 		toadd[k] = true
 	}
 
@@ -120,10 +122,12 @@ func ComputeMemoryView(sbdeps []string, deps map[string][]string, view map[strin
 		if _, ok := result[current]; ok {
 			continue
 		}
+		c.Check(current != "")
 
 		// We did not visit this node and are adding its dependencies.
 		cdeps, _ := deps[current]
 		for _, v := range cdeps {
+			c.Check(v != "")
 			toadd[v] = true
 		}
 

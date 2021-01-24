@@ -47,6 +47,8 @@ func DynInitialize(back backend.Backend) {
 
 func DynAddDependency(current, dependency string) {
 	commons.Check(P2PDeps != nil)
+	commons.Check(current != "")
+	commons.Check(dependency != "")
 	entry, _ := P2PDeps[current]
 	P2PDeps[current] = append(entry, dependency)
 	PNames[current] = true
@@ -54,13 +56,13 @@ func DynAddDependency(current, dependency string) {
 }
 
 func DynRegisterId(name string, id int) {
+	commons.Check(name != "")
 	PNames[name] = true
 	if prev, ok := IdToName[id]; ok {
 		// Nested package.
 		if prev != "module" {
 			_, ok1 := globals.IdToPkg[id]
 			commons.Check(ok1)
-			//fmt.Printf("hmmmm wut %v vs %v in %v\n", prev, name, id)
 		}
 		//commons.Check(prev == "module")
 	}
@@ -80,6 +82,7 @@ func DynRegisterId(name string, id int) {
 	if name != "module" {
 		globals.NameToId[name] = id
 		globals.NameToPkg[name] = pkg
+		pkg.Name = name
 	}
 }
 
@@ -182,8 +185,13 @@ func DynProlog(id string) {
 	// We need to update the view.
 	sb.Config.View = globals.ComputeMemoryView(deps, P2PDeps, memview)
 	mmv := make(map[int]uint8)
-	for k, v := range memview {
+	//fmt.Println("The view of that sandbox: ", sb.Config.View)
+	//fmt.Println("The deps", P2PDeps)
+	for k, v := range sb.Config.View {
 		i, e := globals.DynFindId(k)
+		if e != nil {
+			fmt.Println(e)
+		}
 		commons.Check(e == nil)
 		mmv[i] = v
 	}
@@ -202,13 +210,13 @@ func DynProlog(id string) {
 		commons.Check(ok)
 		sb.Config.Pkgs = append(sb.Config.Pkgs, n.Name)
 	}
+
 	sb.Entered = true
 	vmareas := make([]*commons.VMArea, 0)
 	// Compute the static
 	for k, v := range sb.Config.View {
 		pkg, ok := globals.NameToPkg[k]
 		if !ok {
-			//fmt.Println("Missing information for ", k)
 			continue
 		}
 		vmareas = append(vmareas, commons.PackageToVMAreas(pkg, v)...)
@@ -253,5 +261,6 @@ func ExtendSpace(isrt bool, addr, size uintptr) {
 func DynAddSection(id int, start, size uintptr) {
 	pkg, ok := globals.IdToPkg[id]
 	commons.Check(ok && pkg != nil)
+	//fmt.Printf("%x -- %x [%v]\n", start, start+size, id)
 	pkg.AddSection(uint64(start), uint64(size), commons.HEAP_VAL)
 }

@@ -90,5 +90,10 @@ func DynFindId(name string) (int, error) {
 			return v, nil
 		}
 	}
+
+	// This is an exception
+	if name == "os.path" {
+		return DynFindId("posixpath")
+	}
 	return -1, errors.New(fmt.Sprintf("Unable to find an id for %s", name))
 }
