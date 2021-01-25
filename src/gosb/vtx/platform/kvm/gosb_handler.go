@@ -42,6 +42,7 @@ var (
 	MRTFound   bool    = false
 	MRTSigproc uint64  = 0
 	MRTSigalt  uint64  = 0
+	MRTBkr     uint64  = 0
 )
 
 //go:nosplit
@@ -79,6 +80,14 @@ func kvmSyscallHandler(vcpu *VCPU) sysHType {
 			regs.Rax = 0
 			regs.Rdx = 0
 			return syshandlerValid
+		}
+
+		if regs.Rax == syscall.SYS_BRK {
+			if !(regs.Rdi >= memview.CheapStart && regs.Rdi < (memview.CheapStart+memview.CheapSize)) {
+				throw("sbrk out of range")
+			} else {
+				MRTBkr++
+			}
 		}
 		r1, r2, err := syscall.RawSyscall6(uintptr(regs.Rax),
 			uintptr(regs.Rdi), uintptr(regs.Rsi), uintptr(regs.Rdx),

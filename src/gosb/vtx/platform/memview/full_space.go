@@ -5,6 +5,7 @@ import (
 	pg "gosb/vtx/platform/ring0/pagetables"
 	"io/ioutil"
 	"log"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -18,10 +19,12 @@ import (
 // (2) God address space. This is a representation of the current program as
 //	an address space that runtime routines can switch to without leaving the VM.
 var (
-	FreeSpace *FreeSpaceAllocator = nil
-	GodAS     *AddressSpace       = nil
-	GodMu     runtime.GosbMutex
-	CHeap     uint64 = 0
+	FreeSpace  *FreeSpaceAllocator = nil
+	GodAS      *AddressSpace       = nil
+	GodMu      runtime.GosbMutex
+	CHeap      uint64 = 0
+	CheapStart uint64 = 0
+	CheapSize  uint64 = 0
 )
 
 // Due to concurrency issue, we might have delayed updates between
@@ -31,6 +34,11 @@ var (
 	EUpdates [50]*c.VMArea
 	CurrE    int = 0
 	Updates  c.VMAreas
+)
+
+const (
+	EXTRA_CHEAP_SIZE = uint64(0x10000000)
+	CHEAP_INCR_FLAG  = "INC_HEAP"
 )
 
 // Initialize creates a view of the entire address space and the GodAS.
@@ -148,6 +156,11 @@ func ParseProcessAddressSpace(defProt uint8) []*c.VMArea {
 		if rights == c.W_VAL|c.R_VAL && strings.Contains(v, "[heap]") {
 			CHeap = uint64(start)
 			vm.Prot |= uint8(c.S_VAL)
+			if os.Getenv(CHEAP_INCR_FLAG) != "" {
+				vm.Size += EXTRA_CHEAP_SIZE
+			}
+			CheapStart = uint64(start)
+			CheapSize = uint64(vm.Size)
 		}
 	}
 	return vmareas

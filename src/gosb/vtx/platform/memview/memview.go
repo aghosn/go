@@ -59,6 +59,10 @@ type AddressSpace struct {
 	EMR [50]*MemoryRegion
 }
 
+var (
+	Views map[commons.SandId]*AddressSpace
+)
+
 /*				AddressSpace methods				*/
 
 // VMAToMemoryRegion creates a memory region from the provided VMA.

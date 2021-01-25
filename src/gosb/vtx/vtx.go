@@ -19,9 +19,9 @@ const (
 )
 
 var (
-	once    sync.Once
-	kvmFd   *os.File
-	views   map[commons.SandId]*mv.AddressSpace
+	once  sync.Once
+	kvmFd *os.File
+	//views   map[commons.SandId]*mv.AddressSpace
 	machine *kvm.Machine
 	vm      *kvm.KVM
 )
@@ -32,7 +32,7 @@ func Init() {
 	mv.InitializeGod()
 
 	// Create all the sandboxes memory views
-	views = make(map[commons.SandId]*mv.AddressSpace)
+	mv.Views = make(map[commons.SandId]*mv.AddressSpace)
 	for _, d := range globals.Sandboxes {
 		// Skip over the non-sandbox
 		if d.Config.Id == "-1" {
@@ -40,7 +40,7 @@ func Init() {
 		}
 		mem := mv.GodAS.Copy(false)
 		mem.ApplyDomain(d)
-		views[d.Config.Id] = mem
+		mv.Views[d.Config.Id] = mem
 	}
 
 	// Initialize the kvm state.
@@ -54,7 +54,7 @@ func Init() {
 
 	// Map the page allocator.
 	mv.GodAS.MapArenas(true)
-	for _, v := range views {
+	for _, v := range mv.Views {
 		v.MapArenas(true)
 	}
 }
@@ -64,7 +64,7 @@ func Prolog(id commons.SandId) {
 	vcpu := runtime.GetVcpu()
 	commons.Check(!runtime.IsG0())
 	//TODO add to the stack of sandboxes.
-	v, ok := views[id]
+	v, ok := mv.Views[id]
 	s, ok1 := globals.Sandboxes[id]
 	commons.Check(ok && ok1)
 	if vcpu != 0 {
@@ -110,7 +110,7 @@ func Execute(id commons.SandId) {
 		return
 	}
 
-	mem, ok := views[id]
+	mem, ok := mv.Views[id]
 	filter, ok1 := globals.Sandboxes[id]
 	commons.Check((ok && ok1) || id == _OUT_MODE)
 
@@ -150,7 +150,7 @@ func Transfer(oldid, newid int, start, size uintptr) {
 	mv.GodMu.Lock()
 	if ok {
 		for _, u := range lunmap {
-			if view, ok2 := views[u]; ok2 {
+			if view, ok2 := mv.Views[u]; ok2 {
 				view.Toggle(false, start, size, commons.UNMAP_VAL)
 			}
 		}
@@ -158,7 +158,7 @@ func Transfer(oldid, newid int, start, size uintptr) {
 
 	if ok1 {
 		for _, u := range lmap {
-			if view, ok2 := views[u]; ok2 {
+			if view, ok2 := mv.Views[u]; ok2 {
 				sand, ok3 := globals.Sandboxes[u]
 				commons.Check(ok3)
 				prot, ok3 := sand.View[newid]
@@ -194,7 +194,7 @@ func RuntimeGrowth(isheap bool, id int, start, size uintptr) {
 		goto end
 	}
 	for _, m := range lmap {
-		if v, ok1 := views[m]; ok1 {
+		if v, ok1 := mv.Views[m]; ok1 {
 			v.ExtendRuntime(mem)
 		}
 	}
@@ -237,7 +237,7 @@ func tryBluepill(do bool, id string) {
 	if !do || id == "" {
 		return
 	}
-	v, ok := views[id]
+	v, ok := mv.Views[id]
 	f, ok1 := globals.Sandboxes[id]
 	vcpu := runtime.GetVcpu()
 	commons.Check(ok && ok1 && vcpu != 0)
@@ -281,7 +281,7 @@ func UpdateMissing() {
 				mv.GodAS.Replenish()
 				mem := mv.GodAS.AcquireEMR()
 				mv.GodAS.Extend(false, mem, v.Addr, v.Size, v.Prot)
-				for _, view := range views {
+				for _, view := range mv.Views {
 					view.Replenish()
 					view.ExtendRuntime(mem)
 				}

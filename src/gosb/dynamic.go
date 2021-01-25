@@ -174,6 +174,10 @@ func DynProlog(id string) {
 	deps := make([]string, len(d))
 	for i, v := range d {
 		n, err := findFullName(v)
+		if err != nil {
+			fmt.Println("The missing full name ", v)
+			fmt.Println(err)
+		}
 		commons.Check(err == nil)
 		deps[i] = n
 		if p, ok := memview[v]; ok {
@@ -181,6 +185,8 @@ func DynProlog(id string) {
 			memview[n] = p
 		}
 	}
+	// Apparently we're missing dependencies, let's fix that.
+	fixDependencies()
 
 	// We need to update the view.
 	sb.Config.View = globals.ComputeMemoryView(deps, P2PDeps, memview)
@@ -191,6 +197,7 @@ func DynProlog(id string) {
 		i, e := globals.DynFindId(k)
 		if e != nil {
 			fmt.Println(e)
+			continue
 		}
 		commons.Check(e == nil)
 		mmv[i] = v
@@ -263,4 +270,19 @@ func DynAddSection(id int, start, size uintptr) {
 	commons.Check(ok && pkg != nil)
 	//fmt.Printf("%x -- %x [%v]\n", start, start+size, id)
 	pkg.AddSection(uint64(start), uint64(size), commons.HEAP_VAL)
+	if currBackend.Transfer != nil {
+		currBackend.Transfer(-1, id, start, size)
+	}
+}
+
+// Fixing dependencies
+func fixDependencies() {
+	for n, _ := range PNames {
+		for n2, _ := range PNames {
+			if strings.HasPrefix(n2, fmt.Sprintf("%s.", n)) {
+				prev := P2PDeps[n]
+				P2PDeps[n] = append(prev, n2)
+			}
+		}
+	}
 }

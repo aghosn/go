@@ -32,7 +32,7 @@ func internalInit() {
 		mv.InitializeGod()
 
 		// Skip the init of sandboxes as we probably don't have them.
-		views = make(map[commons.SandId]*mv.AddressSpace)
+		mv.Views = make(map[commons.SandId]*mv.AddressSpace)
 
 		// Initialize the kvm state.
 		var err error
@@ -50,10 +50,10 @@ func internalInit() {
 
 func DProlog(id commons.SandId) {
 	internalInit()
-	commons.Check(views != nil)
+	commons.Check(mv.Views != nil)
 	sb, ok := globals.Sandboxes[id]
 	commons.Check(ok)
-	mem, ok := views[id]
+	mem, ok := mv.Views[id]
 	if ok {
 		goto entering
 	}
@@ -63,11 +63,12 @@ func DProlog(id commons.SandId) {
 	dynTryInHost(func() {
 		mem = mv.GodAS.Copy(false)
 		mem.ApplyDomain(sb)
+		//TODO(aghosn) re-enable
 		disablePkgs(mem, sb)
-		views[sb.Config.Id] = mem
+		mv.Views[sb.Config.Id] = mem
 		machine.UpdateEPTSlots(func(start, size, gpa uintptr) {
 			mv.GodAS.DefaultMap(start, size, gpa)
-			for _, v := range views {
+			for _, v := range mv.Views {
 				v.DefaultMap(start, size, gpa)
 			}
 		})
@@ -101,11 +102,6 @@ func DEpilog(id commons.SandId) {
 	kvm.SetVCPUAttributes(vcpu, mv.GodAS, &commons.SyscallAll)
 }
 
-//go:nosplit
-func DynTransfer(oldid, newid int, start, size uintptr) {
-	throw("Now we here")
-}
-
 func DRuntimeGrowth(isheap bool, id int, start, size uintptr) {
 	if mv.GodAS == nil {
 		return
@@ -113,7 +109,49 @@ func DRuntimeGrowth(isheap bool, id int, start, size uintptr) {
 	size = uintptr(commons.Round(uint64(size), true))
 	mem := &mv.MemoryRegion{}
 	mv.GodAS.Extend(false, mem, uint64(start), uint64(size), commons.HEAP_VAL)
-	for _, v := range views {
+	for _, v := range mv.Views {
+		cpy := &mv.MemoryRegion{}
+		v.Extend2(cpy, mem)
+	}
+	if inside {
+		vcpu := (*kvm.VCPU)(unsafe.Pointer(runtime.GetVcpu()))
+		commons.Check(vcpu != nil && vcpu.Memview != nil)
+	}
+	// Register the address with KVM
+	commons.Check(machine != nil)
+	commons.Check(vm != nil && vm.Machine != nil)
+	commons.Check(vm.Machine == machine)
+	commons.Check(mem.Span.Slot == 0)
+	var err syscall.Errno
+	mem.Span.Slot, err = vm.Machine.DynSetEPTRegion(
+		&mv.GodAS.NextSlot, mem.Span.GPA, mem.Span.Size, mem.Span.Start, 1)
+	if err != 0 {
+		panic("Error dynamically mapping slot")
+	}
+	commons.Check(mv.GodAS.PTEAllocator.Dirties == 0)
+}
+
+func DynTransfer(oldid, newid int, start, size uintptr) {
+	commons.Check(oldid == -1)
+	if mv.GodAS == nil {
+		return
+	}
+	size = uintptr(commons.Round(uint64(size), true))
+	mem := &mv.MemoryRegion{}
+	mv.GodAS.Extend(false, mem, uint64(start), uint64(size), commons.HEAP_VAL)
+	for sid, v := range mv.Views {
+		if sb, ok := globals.Sandboxes[sid]; ok {
+			if _, ok1 := sb.View[newid]; !ok1 {
+				if inside {
+					vcpu := (*kvm.VCPU)(unsafe.Pointer(runtime.GetVcpu()))
+					// If we are not the ones mapping it, skip it.
+					commons.Check(vcpu != nil && vcpu.Memview != nil)
+					if vcpu.Memview != v {
+						continue
+					}
+				}
+			}
+		}
 		cpy := &mv.MemoryRegion{}
 		v.Extend2(cpy, mem)
 	}
@@ -169,6 +207,7 @@ func disablePkgs(mem *mv.AddressSpace, sb *commons.SandboxMemory) {
 		// Not supposed to be mapped.
 		for _, s := range pkg.Sects {
 			mem.ToggleDyn(false, uintptr(s.Addr), uintptr(s.Size), commons.UNMAP_VAL)
+			//fmt.Printf("disable %x -- %x [%v]\n", s.Addr, s.Addr+s.Size, pkg.Name)
 		}
 	}
 }
