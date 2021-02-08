@@ -193,15 +193,16 @@ func dynTryInHost(f func()) {
 	inside = true
 }
 
+//TODO(aghosn) should also fix access rights here
 // disablePkgs removes all the pkgs that should not be available.
 func disablePkgs(mem *mv.AddressSpace, sb *commons.SandboxMemory) {
 	for _, pkg := range globals.AllPackages {
 		// Supposed to be there, leave it.
-		if _, ok := sb.Config.View[pkg.Name]; ok {
+		if v, ok := sb.Config.View[pkg.Name]; ok && v != commons.U_VAL {
 			continue
 		}
 		i, err := globals.DynFindId(pkg.Name)
-		if _, ok := sb.View[i]; ok && err == nil {
+		if v, ok := sb.View[i]; ok && err == nil && v != commons.U_VAL {
 			continue
 		}
 		// Not supposed to be mapped.

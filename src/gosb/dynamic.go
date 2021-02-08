@@ -169,15 +169,12 @@ func DynProlog(id string) {
 	// Compute full names for deps
 	memview := sb.Config.View
 	commons.Check(memview != nil)
+	cleanupDeps(id)
 	d, ok := SandboxDeps[id]
 	//commons.Check(ok)
 	deps := make([]string, len(d))
 	for i, v := range d {
 		n, err := findFullName(v)
-		if err != nil {
-			fmt.Println("The missing full name ", v)
-			fmt.Println(err)
-		}
 		commons.Check(err == nil)
 		deps[i] = n
 		if p, ok := memview[v]; ok {
@@ -285,4 +282,26 @@ func fixDependencies() {
 			}
 		}
 	}
+}
+
+//cleaning up dependencies.
+//For the moment we're not good enough in Python internals to
+//correctly register dependencies. As a result, we get confused by
+//variables and package invocations.
+func cleanupDeps(id string) {
+	d, ok := SandboxDeps[id]
+	// Nothing to do
+	if !ok {
+		return
+	}
+	deps := make([]string, 0)
+	for _, v := range d {
+		n, err := findFullName(v)
+		if err != nil {
+			// This is probably an issue.
+			continue
+		}
+		deps = append(deps, n)
+	}
+	SandboxDeps[id] = deps
 }
