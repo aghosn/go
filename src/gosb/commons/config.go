@@ -56,6 +56,7 @@ const (
 	P_VAL     = uint8(1 << 6)
 	UNMAP_VAL = uint8(1 << 7)
 	D_VAL     = R_VAL | W_VAL | X_VAL | USER_VAL // default set
+	DEF_VAL   = R_VAL | W_VAL | X_VAL
 	HEAP_VAL  = R_VAL | W_VAL | USER_VAL
 )
 

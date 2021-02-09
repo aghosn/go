@@ -647,9 +647,9 @@ func (m *MemoryRegion) ToggleDyn(on bool, start, size uint64, prot uint8) {
 		if lvl != 0 {
 			return
 		}
-		if on {
+		if on && prot != commons.UNMAP_VAL {
 			// @aghosn the new prots can only be a subset of the default ones
-			commons.Check(prot <= m.Span.Prot)
+			//commons.Check(prot <= m.Span.Prot)
 			pte.SetFlags(deflags)
 			pte.Map()
 			flags := pte.Flags()

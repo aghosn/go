@@ -208,6 +208,7 @@ func DynProlog(id string) {
 	commons.Check(sb.View == nil)
 	sb.View = mmv
 
+	globals.DynRegisterRef(id, mmv)
 	// Create the package list too.
 	for k, _ := range sb.View {
 		n, ok := globals.IdToPkg[k]

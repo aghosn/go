@@ -193,22 +193,49 @@ func dynTryInHost(f func()) {
 	inside = true
 }
 
+//go:nosplit
+func DynToGod() {
+	if !inside {
+		return
+	}
+	kvm.Redpill(kvm.RED_GOD)
+}
+
+//go:nosplit
+func DynGoBack() {
+	if !inside {
+		return
+	}
+	vcpu := (*kvm.VCPU)(unsafe.Pointer(runtime.GetVcpu()))
+	commons.Check(vcpu != nil && vcpu.Memview != nil)
+	kvm.RedSwitch(uintptr(vcpu.Memview.Tables.CR3(false, 0)))
+}
+
 //TODO(aghosn) should also fix access rights here
 // disablePkgs removes all the pkgs that should not be available.
 func disablePkgs(mem *mv.AddressSpace, sb *commons.SandboxMemory) {
 	for _, pkg := range globals.AllPackages {
+		prot := commons.UNMAP_VAL
 		// Supposed to be there, leave it.
-		if v, ok := sb.Config.View[pkg.Name]; ok && v != commons.U_VAL {
+		if v, ok := sb.Config.View[pkg.Name]; ok && v == commons.DEF_VAL {
 			continue
+		} else if ok && v != commons.U_VAL {
+			prot = v
 		}
 		i, err := globals.DynFindId(pkg.Name)
-		if v, ok := sb.View[i]; ok && err == nil && v != commons.U_VAL {
+		if v, ok := sb.View[i]; ok && err == nil && v == commons.DEF_VAL {
 			continue
+		} else if ok && v != commons.U_VAL {
+			prot = v
 		}
+		if prot != commons.UNMAP_VAL {
+			prot |= commons.USER_VAL
+		}
+		//fmt.Printf("[%v]: (%x)\n", pkg.Name, prot)
 		// Not supposed to be mapped.
 		for _, s := range pkg.Sects {
-			mem.ToggleDyn(false, uintptr(s.Addr), uintptr(s.Size), commons.UNMAP_VAL)
-			//fmt.Printf("disable %x -- %x [%v]\n", s.Addr, s.Addr+s.Size, pkg.Name)
+			mem.ToggleDyn(true, uintptr(s.Addr), uintptr(s.Size), prot /*commons.UNMAP_VAL*/)
+			//fmt.Printf("%x -- %x [%v]: 0x%x\n", s.Addr, s.Addr+s.Size, pkg.Name, prot)
 		}
 	}
 }
