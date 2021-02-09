@@ -33,8 +33,10 @@ var (
 	MRTFault   uintptr = 0
 	MRTSpanId  int     = 0
 	MRTEntry   uintptr = 0
+	MRTEntry2  uintptr = 0
 	MRTSpan    uintptr = 0
 	MRTAddr    uintptr = 0
+	MRTAddr2   uintptr = 0
 	MRTFd      int     = 0
 	MRTMaped   int     = 0
 	MRTMaped2  int     = 0
@@ -132,6 +134,7 @@ func kvmSyscallHandler(vcpu *VCPU) sysHType {
 				MRTFault = vcpu.FaultAddr
 				MRTMaped = vcpu.Memview.Tables.IsMapped(MRTFault)
 				MRTAddr, _, MRTEntry = vcpu.Memview.Tables.FindMapping(MRTFault)
+				MRTAddr2, _, MRTEntry2 = memview.GodAS.Tables.FindMapping(MRTFault)
 				MRTMaped2 = memview.GodAS.Tables.IsMapped(MRTFault)
 				return syshandlerPFW
 			}
