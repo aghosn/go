@@ -2,11 +2,21 @@ package globals
 
 import (
 	c "gosb/commons"
+	"time"
 )
 
 var (
 	SBRefCountSkip map[string][]int
+	Start          time.Time
+	End            time.Duration
 )
+
+func DynStart() {
+	Start = time.Now()
+}
+func DynEnd() {
+	End = time.Since(Start)
+}
 
 func DynRegisterRef(id c.SandId, view map[int]uint8) {
 	// Check that it has been initialized.

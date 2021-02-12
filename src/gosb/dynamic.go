@@ -166,6 +166,7 @@ func DynProlog(id string) {
 		return
 	}
 
+	globals.DynStart()
 	// Compute full names for deps
 	memview := sb.Config.View
 	commons.Check(memview != nil)
@@ -193,7 +194,7 @@ func DynProlog(id string) {
 	for k, v := range sb.Config.View {
 		i, e := globals.DynFindId(k)
 		if e != nil {
-			fmt.Println(e)
+			//fmt.Println(e)
 			continue
 		}
 		commons.Check(e == nil)

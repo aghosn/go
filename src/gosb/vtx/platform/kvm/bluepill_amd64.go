@@ -74,13 +74,15 @@ func (c *VCPU) KernelSyscall() {
 	}
 
 	//Check if this is a sig system call for dynamic language, if so, just ignore it.
+	// Check if this is a gettid from python and just ignore it.
 	if globals.IsDynamic {
 		instr := (*uint16)(unsafe.Pointer(uintptr(regs.Rip - 2)))
-		if *instr == _SYSCALL_INSTR &&
-			(regs.Rax == syscall.SYS_RT_SIGPROCMASK || regs.Rax == syscall.SYS_SIGALTSTACK) {
-			regs.Rax = 0
-			regs.Rdx = 0
-			return
+		if *instr == _SYSCALL_INSTR {
+			if regs.Rax == syscall.SYS_RT_SIGPROCMASK || regs.Rax == syscall.SYS_SIGALTSTACK || regs.Rax == syscall.SYS_GETTID {
+				regs.Rax = 0
+				regs.Rdx = 0
+				return
+			}
 		}
 	}
 

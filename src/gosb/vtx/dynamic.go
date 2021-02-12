@@ -74,6 +74,7 @@ func DProlog(id commons.SandId) {
 		})
 		mem.MapArenas(false)
 	})
+	globals.DynEnd()
 entering:
 	dprolog(sb, mem)
 }
